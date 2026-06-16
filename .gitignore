@@ -1,41 +1,101 @@
-## .NET
-bin/
-obj/
+## ----------------------------------------------------------------------------
+## .gitignore dedicato — Aski (.NET 10 / ASP.NET Core)
+## ----------------------------------------------------------------------------
+
+## Build output
+[Bb]in/
+[Oo]bj/
 [Dd]ebug/
+[Dd]ebugPublic/
 [Rr]elease/
+[Rr]eleases/
 x64/
 x86/
 [Aa][Rr][Mm]/
 [Aa][Rr][Mm]64/
 build/
+bld/
+[Ww][Ii][Nn]32/
+[Oo]ut/
 publish/
-*.user
-*.suo
+[Pp]ublish/
+*_i.c
+*_p.c
+*.obj
+*.pdb
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.tmp
+*.tmp_proj
+*.vspscc
+*.vssscc
+
+## Visual Studio / Rider / VS Code
 .vs/
 .vscode/
-*.userosscache
-*.sln.docstates
-
-## Rider / JetBrains
 .idea/
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+*.userprefs
+*.DotSettings.user
+
+## Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.trx
+*.coverage
+*.coveragexml
+coverage/
+TestResults/
 
 ## NuGet
 *.nupkg
 *.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
 .nuget/
 
-## DataProtection key-ring (segreti! mai committare)
+## Entity Framework
+# (le migration sono versionate; qui solo eventuali dump)
+*.mdf
+*.ldf
+*.ndf
+
+## ----------------------------------------------------------------------------
+## Segreti e dati sensibili — NON committare
+## ----------------------------------------------------------------------------
+
+## DataProtection key-ring (cifra i segreti Stripe)
 **/keys/
 *.pfx
+*.p12
 
-## Secrets / env
+## Configurazioni locali / segreti
 appsettings.*.local.json
-.env
 secrets.json
+.env
+.env.*
 
-## Test results
-[Tt]est[Rr]esults/
-*.trx
+## ----------------------------------------------------------------------------
+## Vari
+## ----------------------------------------------------------------------------
 
-## Log temporanei di run/smoke-test
+## Log temporanei (smoke-test, run locali)
 *.log
+
+## File di sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+## Conversioni temporanee documentazione
+*.pdf.tmp

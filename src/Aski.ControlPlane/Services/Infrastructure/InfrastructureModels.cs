@@ -3,8 +3,13 @@ using Aski.ControlPlane.Entities;
 
 namespace Aski.ControlPlane.Services.Infrastructure;
 
-/// <summary>Dati di un container Postgres del pool appena creato/avviato.</summary>
-public sealed record PostgresContainerInfo(string RuntimeContainerId, string Host, int Port);
+/// <summary>
+/// Dati di un container Postgres del pool appena creato/avviato.
+/// Host/Port = endpoint sulla rete Docker (usato dai container app).
+/// HostPort = porta pubblicata su localhost (usata dal Control Plane su host per
+/// le operazioni admin tipo CREATE DATABASE). 0 se non pubblicata.
+/// </summary>
+public sealed record PostgresContainerInfo(string RuntimeContainerId, string Host, int Port, int HostPort);
 
 /// <summary>Endpoint di un Postgres esistente verso cui creare un database logico.</summary>
 public sealed record PostgresEndpoint(string Host, int Port, string AdminUser, string AdminPassword);

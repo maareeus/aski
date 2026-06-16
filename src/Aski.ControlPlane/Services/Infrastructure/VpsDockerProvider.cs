@@ -28,6 +28,7 @@ public sealed class VpsDockerProvider : IInfrastructureProvider
         var cfg = ReadConfig(server);
         using var client = CreateClient(cfg);
 
+        await EnsureNetworkAsync(client, cfg.Network, ct);
         await EnsureImageAsync(client, cfg.PostgresImage, ct);
 
         var create = await client.Containers.CreateContainerAsync(new CreateContainerParameters
@@ -41,18 +42,33 @@ public sealed class VpsDockerProvider : IInfrastructureProvider
                 "POSTGRES_DB=postgres"
             },
             Labels = new Dictionary<string, string> { ["aski.role"] = "postgres-pool" },
+            // Espone 5432 e lo pubblica su una porta host effimera: serve al Control
+            // Plane (su host) per CREATE DATABASE/ROLE. I container app usano la rete Docker.
+            ExposedPorts = new Dictionary<string, EmptyStruct> { ["5432/tcp"] = default },
             HostConfig = new HostConfig
             {
                 NetworkMode = cfg.Network,
-                RestartPolicy = new RestartPolicy { Name = RestartPolicyKind.UnlessStopped }
+                RestartPolicy = new RestartPolicy { Name = RestartPolicyKind.UnlessStopped },
+                PortBindings = new Dictionary<string, IList<PortBinding>>
+                {
+                    ["5432/tcp"] = new List<PortBinding> { new() { HostIP = "127.0.0.1", HostPort = "" } }
+                }
             }
         }, ct);
 
         await client.Containers.StartContainerAsync(create.ID, new ContainerStartParameters(), ct);
-        _log.LogInformation("Postgres pool container avviato: {Name} ({Id})", containerName, create.ID);
 
-        // Sulla rete Docker il container è raggiungibile per nome host.
-        return new PostgresContainerInfo(create.ID, containerName, 5432);
+        // Recupera la porta host assegnata da Docker.
+        var insp = await client.Containers.InspectContainerAsync(create.ID, ct);
+        var hostPort = 0;
+        if (insp.NetworkSettings.Ports.TryGetValue("5432/tcp", out var bindings) && bindings is { Count: > 0 })
+            int.TryParse(bindings[0].HostPort, out hostPort);
+
+        await WaitPostgresReadyAsync(hostPort, cfg, ct);
+        _log.LogInformation("Postgres pool container avviato: {Name} ({Id}) hostPort={HostPort}",
+            containerName, create.ID, hostPort);
+
+        return new PostgresContainerInfo(create.ID, containerName, 5432, hostPort);
     }
 
     public async Task CreateDatabaseAsync(
@@ -102,6 +118,7 @@ public sealed class VpsDockerProvider : IInfrastructureProvider
         var cfg = ReadConfig(server);
         using var client = CreateClient(cfg);
 
+        await EnsureNetworkAsync(client, cfg.Network, ct);
         await EnsureImageAsync(client, request.Image, ct);
 
         var labels = BuildTraefikLabels(request, cfg);
@@ -155,6 +172,42 @@ public sealed class VpsDockerProvider : IInfrastructureProvider
     // --- helper ---
 
     private static ServerDockerConfig ReadConfig(Server server) => ServerDockerConfig.From(server);
+
+    /// <summary>Crea la rete Docker se non esiste (così i container possono agganciarsi).</summary>
+    private async Task EnsureNetworkAsync(DockerClient client, string network, CancellationToken ct)
+    {
+        var existing = await client.Networks.ListNetworksAsync(cancellationToken: ct);
+        if (existing.Any(n => string.Equals(n.Name, network, StringComparison.Ordinal)))
+            return;
+        await client.Networks.CreateNetworkAsync(new NetworksCreateParameters { Name = network }, ct);
+        _log.LogInformation("Rete Docker creata: {Network}", network);
+    }
+
+    /// <summary>Attende che il Postgres appena avviato accetti connessioni (admin via localhost).</summary>
+    private async Task WaitPostgresReadyAsync(int hostPort, ServerDockerConfig cfg, CancellationToken ct)
+    {
+        if (hostPort == 0) return;
+        var cs = new NpgsqlConnectionStringBuilder
+        {
+            Host = "127.0.0.1", Port = hostPort, Username = cfg.PgAdminUser,
+            Password = cfg.PgAdminPassword, Database = "postgres", Timeout = 3
+        }.ConnectionString;
+
+        for (var i = 0; i < 30; i++)
+        {
+            try
+            {
+                await using var c = new NpgsqlConnection(cs);
+                await c.OpenAsync(ct);
+                return;
+            }
+            catch when (i < 29)
+            {
+                await Task.Delay(1000, ct);
+            }
+        }
+        throw new InvalidOperationException("Postgres non pronto entro il timeout.");
+    }
 
     private static DockerClient CreateClient(ServerDockerConfig cfg) =>
         new DockerClientConfiguration(new Uri(cfg.DockerHost)).CreateClient();

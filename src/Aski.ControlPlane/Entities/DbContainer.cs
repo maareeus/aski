@@ -27,8 +27,11 @@ public class DbContainer
     /// <summary>Host raggiungibile per le connessioni (rete interna o hostname).</summary>
     public string? Host { get; set; }
 
-    /// <summary>Porta esposta dal container Postgres.</summary>
+    /// <summary>Porta del Postgres sulla rete Docker (usata dai container app).</summary>
     public int Port { get; set; } = 5432;
+
+    /// <summary>Porta pubblicata su localhost per le operazioni admin dal Control Plane (0 = nessuna).</summary>
+    public int HostPort { get; set; }
 
     /// <summary>Numero di progetti attualmente ospitati. Confrontato con N.</summary>
     public int CurrentProjectCount { get; set; }

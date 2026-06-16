@@ -24,6 +24,7 @@ public sealed class DockerProvisioningCoordinator : IProvisioningCoordinator
 {
     private readonly ControlPlaneDbContext _db;
     private readonly IInfrastructureProviderFactory _factory;
+    private readonly IConfiguration _config;
     private readonly ILogger<DockerProvisioningCoordinator> _log;
 
     private const int MaxAllocationRetries = 5;
@@ -31,10 +32,12 @@ public sealed class DockerProvisioningCoordinator : IProvisioningCoordinator
     public DockerProvisioningCoordinator(
         ControlPlaneDbContext db,
         IInfrastructureProviderFactory factory,
+        IConfiguration config,
         ILogger<DockerProvisioningCoordinator> log)
     {
         _db = db;
         _factory = factory;
+        _config = config;
         _log = log;
     }
 
@@ -70,18 +73,36 @@ public sealed class DockerProvisioningCoordinator : IProvisioningCoordinator
 
             // 2. Crea il database logico isolato del progetto con un utente dedicato
             //    (l'app NON usa più le credenziali admin del pool).
+            //    Le operazioni admin avvengono dal Control Plane (host) via la porta
+            //    pubblicata su localhost; i container app useranno il nome di rete.
             var dbName = $"proj_{project.Id}";
             var dbUser = $"proj_{project.Id}_u";
             var dbPassword = project.DbPassword ?? GeneratePassword();
-            var pg = new PostgresEndpoint(dbContainer.Host!, dbContainer.Port, cfg.PgAdminUser, cfg.PgAdminPassword);
+            var adminHost = dbContainer.HostPort > 0 ? "127.0.0.1" : dbContainer.Host!;
+            var adminPort = dbContainer.HostPort > 0 ? dbContainer.HostPort : dbContainer.Port;
+            var pg = new PostgresEndpoint(adminHost, adminPort, cfg.PgAdminUser, cfg.PgAdminPassword);
             await provider.CreateDatabaseAsync(server, pg, dbName, dbUser, dbPassword, ct);
 
             // 3. Provisiona il container applicativo con label Traefik.
+            //    La connection string dell'app usa il nome del container sulla rete Docker.
             var subdomain = project.Subdomain ?? $"p{project.Id}";
             var primaryHost = $"{subdomain}.{cfg.DomainSuffix}";
             var connString =
                 $"Host={dbContainer.Host};Port={dbContainer.Port};Database={dbName};" +
                 $"Username={dbUser};Password={dbPassword}";
+
+            var env = new Dictionary<string, string>
+            {
+                ["ConnectionStrings__Tenant"] = connString,
+                ["Aski__ProjectId"] = project.Id.ToString(),
+                // Env per far avviare l'istanza ticketing (altrimenti i guard di produzione la bloccano).
+                ["ASPNETCORE_ENVIRONMENT"] = _config["TicketingDefaults:Environment"] ?? "Development",
+                ["Seed__AdminEmail"] = _config["TicketingDefaults:AdminEmail"] ?? "admin@aski.local",
+                ["Seed__AdminPassword"] = _config["TicketingDefaults:AdminPassword"] ?? "ChangeMe123!"
+            };
+            var jwtKey = _config["TicketingDefaults:JwtKey"];
+            if (!string.IsNullOrWhiteSpace(jwtKey))
+                env["Jwt__Key"] = jwtKey;
 
             var request = new AppProvisionRequest(
                 ContainerName: $"aski-app-{project.Id}",
@@ -89,11 +110,7 @@ public sealed class DockerProvisioningCoordinator : IProvisioningCoordinator
                 PrimaryHost: primaryHost,
                 CustomHost: project.CustomDomain,
                 InternalPort: 8080,
-                Environment: new Dictionary<string, string>
-                {
-                    ["ConnectionStrings__Tenant"] = connString,
-                    ["Aski__ProjectId"] = project.Id.ToString()
-                });
+                Environment: env);
 
             var app = await provider.ProvisionAppContainerAsync(server, request, ct);
 
@@ -215,6 +232,7 @@ public sealed class DockerProvisioningCoordinator : IProvisioningCoordinator
             RuntimeContainerId = info.RuntimeContainerId,
             Host = info.Host,
             Port = info.Port,
+            HostPort = info.HostPort,
             CurrentProjectCount = 1,
             IsFull = server.MaxProjectsPerDbContainer <= 1,
             CreatedAtUtc = DateTime.UtcNow

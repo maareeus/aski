@@ -36,3 +36,6 @@ secrets.json
 ## Test results
 [Tt]est[Rr]esults/
 *.trx
+
+## Log temporanei di run/smoke-test
+*.log

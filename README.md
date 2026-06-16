@@ -27,6 +27,19 @@ Aski.slnx
 | 3 | `IInfrastructureProvider` + factory, `VpsDockerProvider` (Docker.DotNet + label Traefik), pool Postgres N-per-container con concurrency token. |
 | 4 | `TicketingDbContext` isolato, auth JWT, controller ticket/commenti con autorizzazione per ruolo. |
 
+## Avvio rapido (script)
+
+```powershell
+# Avvia Postgres + migrazioni + Control Plane + istanza Ticketing
+.\scripts\start-env.ps1            # -Fresh per ricreare il DB, -NoBrowser per non aprire il browser
+
+# Ferma tutto
+.\scripts\stop-env.ps1             # -RemoveDb per cancellare anche il container Postgres
+```
+
+- Control Plane → http://localhost:5080/Dashboard
+- Ticketing API → http://localhost:5090 (login `admin@aski.local` / `ChangeMe123!`)
+
 ## Prerequisiti
 
 - .NET 10 SDK

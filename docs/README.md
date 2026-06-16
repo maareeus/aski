@@ -13,6 +13,7 @@ Indice della documentazione della piattaforma SaaS B2B di ticketing **Aski**.
 | [07 — API Ticketing](07-api-ticketing.md) | Auth, ruoli, ticket, commenti |
 | [08 — Sicurezza](08-sicurezza.md) | Cifratura segreti, firma webhook, JWT, hardening |
 | [09 — Deployment](09-deployment.md) | Container, variabili d'ambiente, Traefik, scaling |
+| [10 — Guida Super Admin](10-guida-super-admin.md) | Uso passo-passo: Stripe, piani, server, tenant, checkout |
 
 ## Glossario rapido
 

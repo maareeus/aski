@@ -45,6 +45,17 @@ public enum ServerType
 }
 
 /// <summary>
+/// Ruolo di un utente del Control Plane.
+/// SuperAdmin = proprietario della piattaforma (gestisce Stripe, piani, server).
+/// TenantOwner = cliente self-service che gestisce la propria org e i progetti.
+/// </summary>
+public enum PortalUserRole
+{
+    SuperAdmin = 0,
+    TenantOwner = 1
+}
+
+/// <summary>
 /// Stato di provisioning di una singola istanza/progetto cliente.
 /// </summary>
 public enum ProvisioningStatus

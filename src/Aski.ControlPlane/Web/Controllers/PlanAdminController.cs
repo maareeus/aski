@@ -3,12 +3,14 @@ using Aski.ControlPlane.Entities;
 using Aski.ControlPlane.Services.Stripe;
 using Aski.ControlPlane.Web.ViewModels;
 using Aski.Shared;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace Aski.ControlPlane.Web.Controllers;
 
 /// <summary>Gestione piani d'abbonamento e sincronizzazione con Stripe.</summary>
+[Authorize(Policy = "SuperAdmin")]
 public sealed class PlanAdminController : Controller
 {
     private readonly ControlPlaneDbContext _db;

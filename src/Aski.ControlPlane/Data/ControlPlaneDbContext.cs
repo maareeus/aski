@@ -32,6 +32,7 @@ public class ControlPlaneDbContext : DbContext
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<ProcessedStripeEvent> ProcessedStripeEvents => Set<ProcessedStripeEvent>();
+    public DbSet<PortalUser> PortalUsers => Set<PortalUser>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -138,6 +139,18 @@ public class ControlPlaneDbContext : DbContext
             e.HasKey(x => x.EventId);
             e.Property(x => x.EventId).HasMaxLength(120);
             e.Property(x => x.EventType).HasMaxLength(120);
+        });
+
+        modelBuilder.Entity<PortalUser>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Email).HasMaxLength(256);
+            e.Property(x => x.DisplayName).HasMaxLength(200);
+            e.HasIndex(x => x.Email).IsUnique();
+            e.HasOne(x => x.Tenant)
+                .WithMany()
+                .HasForeignKey(x => x.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

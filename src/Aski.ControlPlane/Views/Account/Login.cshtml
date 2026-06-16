@@ -1,0 +1,24 @@
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Accedi";
+}
+<h1 class="text-xl font-bold text-slate-900 mb-1">Accedi</h1>
+<p class="text-sm text-slate-500 mb-6">Entra nel tuo pannello Aski.</p>
+
+<form asp-action="Login" method="post" class="space-y-4">
+    <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+    <div>
+        <label class="block text-sm font-medium text-slate-700">Email</label>
+        <input name="Email" type="email" required autofocus class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+    </div>
+    <div>
+        <label class="block text-sm font-medium text-slate-700">Password</label>
+        <input name="Password" type="password" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+    </div>
+    <button type="submit" class="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Accedi</button>
+</form>
+
+<p class="mt-6 text-center text-sm text-slate-500">
+    Non hai un account?
+    <a asp-action="Register" class="font-medium text-indigo-600 hover:underline">Registrati</a>
+</p>

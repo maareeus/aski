@@ -1,12 +1,14 @@
 using Aski.ControlPlane.Data;
 using Aski.ControlPlane.Web.ViewModels;
 using Aski.Shared;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace Aski.ControlPlane.Web.Controllers;
 
 /// <summary>Dashboard Super Admin: panoramica della piattaforma.</summary>
+[Authorize(Policy = "SuperAdmin")]
 public sealed class DashboardController : Controller
 {
     private readonly ControlPlaneDbContext _db;

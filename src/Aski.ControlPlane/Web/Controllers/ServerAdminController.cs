@@ -1,12 +1,14 @@
 using Aski.ControlPlane.Data;
 using Aski.ControlPlane.Entities;
 using Aski.ControlPlane.Web.ViewModels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace Aski.ControlPlane.Web.Controllers;
 
 /// <summary>Gestione server/regioni e del limite N di progetti per container Postgres.</summary>
+[Authorize(Policy = "SuperAdmin")]
 public sealed class ServerAdminController : Controller
 {
     private readonly ControlPlaneDbContext _db;

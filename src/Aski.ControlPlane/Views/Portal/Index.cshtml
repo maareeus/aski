@@ -1,48 +1,118 @@
-@model PortalIndexViewModel
+@model TenantDetailViewModel
+@{
+    var t = Model.Tenant;
+    string Money(long cents, string cur) => $"{cents / 100m:0.00} {cur.ToUpperInvariant()}";
+}
 
-<div class="grid lg:grid-cols-3 gap-6">
-    <!-- Lista tenant -->
-    <div class="lg:col-span-2 rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div class="px-5 py-4 border-b border-slate-200">
-            <h2 class="font-semibold text-slate-900">Aziende clienti (@Model.Tenants.Count)</h2>
-        </div>
-        @if (Model.Tenants.Count == 0)
+<!-- Header org -->
+<div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex flex-wrap items-center gap-6">
+    <div class="h-12 w-12 rounded-xl bg-indigo-600 flex items-center justify-center text-white text-lg font-bold">
+        @(t.CompanyName.Length > 0 ? t.CompanyName[..1].ToUpper() : "?")
+    </div>
+    <div>
+        <h2 class="text-lg font-bold text-slate-900">@t.CompanyName</h2>
+        <p class="text-sm text-slate-500">@t.BillingEmail</p>
+    </div>
+    <div class="ml-auto">
+        @if (t.StripeCustomerId is not null)
         {
-            <p class="px-5 py-8 text-center text-sm text-slate-400">Nessun tenant registrato →</p>
+            <form asp-action="Billing" method="post">
+                <button class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Gestisci fatturazione</button>
+            </form>
+        }
+        else
+        {
+            <span class="text-xs text-slate-400">Nessun abbonamento ancora attivo</span>
+        }
+    </div>
+</div>
+
+<div class="mt-6 grid lg:grid-cols-2 gap-6">
+    <!-- Abbonamenti -->
+    <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div class="px-5 py-4 border-b border-slate-200"><h3 class="font-semibold text-slate-900">Abbonamenti</h3></div>
+        @if (t.Subscriptions.Count == 0)
+        {
+            <p class="px-5 py-6 text-center text-sm text-slate-400">Nessun abbonamento. Scegli un piano →</p>
+        }
+        else
+        {
+            <ul class="divide-y divide-slate-100">
+                @foreach (var s in t.Subscriptions)
+                {
+                    <li class="px-5 py-3 flex items-center justify-between">
+                        <div>
+                            <p class="font-medium text-slate-900">@(s.Plan?.Name ?? "Piano")</p>
+                            <p class="text-xs text-slate-500">@(s.StripeSubscriptionId ?? "—")</p>
+                        </div>
+                        <partial name="_SubscriptionBadge" model="s.Status" />
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+
+    <!-- Acquisto piano -->
+    <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div class="px-5 py-4 border-b border-slate-200"><h3 class="font-semibold text-slate-900">Scegli un piano</h3></div>
+        @if (Model.AvailablePlans.Count == 0)
+        {
+            <p class="px-5 py-6 text-center text-sm text-slate-400">Nessun piano disponibile al momento.</p>
+        }
+        else
+        {
+            <ul class="divide-y divide-slate-100">
+                @foreach (var p in Model.AvailablePlans)
+                {
+                    <li class="px-5 py-3 flex items-center justify-between">
+                        <div>
+                            <p class="font-medium text-slate-900">@p.Name</p>
+                            <p class="text-xs text-slate-500">@Money(p.Amount, p.Currency) / @(p.Period == BillingPeriod.Monthly ? "mese" : "anno")</p>
+                        </div>
+                        <form asp-action="Checkout" method="post">
+                            <input type="hidden" name="planId" value="@p.Id" />
+                            <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Acquista →</button>
+                        </form>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</div>
+
+<!-- Progetti -->
+<div class="mt-6 grid lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div class="px-5 py-4 border-b border-slate-200"><h3 class="font-semibold text-slate-900">I tuoi progetti</h3></div>
+        @if (t.Projects.Count == 0)
+        {
+            <p class="px-5 py-6 text-center text-sm text-slate-400">Nessun progetto. Creane uno →</p>
         }
         else
         {
             <table class="w-full text-sm">
                 <thead class="text-left text-slate-500 border-b border-slate-100">
                     <tr>
-                        <th class="px-5 py-3 font-medium">Azienda</th>
-                        <th class="px-5 py-3 font-medium">Email</th>
-                        <th class="px-5 py-3 font-medium">Progetti</th>
-                        <th class="px-5 py-3 font-medium">Abbonamenti</th>
-                        <th class="px-5 py-3 font-medium">Stripe</th>
+                        <th class="px-5 py-3 font-medium">Nome</th>
+                        <th class="px-5 py-3 font-medium">Server</th>
+                        <th class="px-5 py-3 font-medium">Dominio</th>
+                        <th class="px-5 py-3 font-medium">Stato</th>
                         <th class="px-5 py-3"></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
-                    @foreach (var t in Model.Tenants)
+                    @foreach (var p in t.Projects)
                     {
                         <tr class="hover:bg-slate-50">
-                            <td class="px-5 py-3 font-medium text-slate-900">@t.CompanyName</td>
-                            <td class="px-5 py-3 text-slate-600">@t.BillingEmail</td>
-                            <td class="px-5 py-3 text-slate-600">@t.Projects.Count</td>
-                            <td class="px-5 py-3 text-slate-600">@t.Subscriptions.Count</td>
-                            <td class="px-5 py-3">
-                                @if (t.StripeCustomerId is not null)
-                                {
-                                    <span class="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700">cliente</span>
-                                }
-                                else
-                                {
-                                    <span class="text-xs text-slate-400">—</span>
-                                }
-                            </td>
+                            <td class="px-5 py-3 font-medium text-slate-900">@p.Name</td>
+                            <td class="px-5 py-3 text-slate-600">@(p.Server?.Name ?? "—")</td>
+                            <td class="px-5 py-3 text-slate-600">@(p.Subdomain ?? p.CustomDomain ?? "—")</td>
+                            <td class="px-5 py-3"><partial name="_ProvisioningBadge" model="p.ProvisioningStatus" /></td>
                             <td class="px-5 py-3 text-right">
-                                <a href="/Portal/Tenant/@t.Id" class="text-xs text-indigo-600 hover:underline">Apri →</a>
+                                <form asp-action="Provision" method="post" class="inline">
+                                    <input type="hidden" name="projectId" value="@p.Id" />
+                                    <button class="text-xs text-indigo-600 hover:underline">Provisiona</button>
+                                </form>
                             </td>
                         </tr>
                     }
@@ -51,19 +121,39 @@
         }
     </div>
 
-    <!-- Registrazione -->
+    <!-- Nuovo progetto -->
     <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm h-fit">
-        <h2 class="font-semibold text-slate-900 mb-4">Registra azienda</h2>
-        <form asp-action="Register" method="post" class="space-y-4">
-            <div>
-                <label class="block text-sm font-medium text-slate-700">Ragione sociale</label>
-                <input name="CompanyName" required placeholder="Acme Srl" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-slate-700">Email fatturazione</label>
-                <input name="BillingEmail" type="email" required placeholder="billing@acme.it" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
-            </div>
-            <button type="submit" class="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Registra tenant</button>
-        </form>
+        <h3 class="font-semibold text-slate-900 mb-4">Nuovo progetto</h3>
+        @if (Model.EnabledServers.Count == 0)
+        {
+            <p class="text-sm text-slate-400">Nessun server disponibile al momento. Riprova più tardi.</p>
+        }
+        else
+        {
+            <form asp-action="CreateProject" method="post" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Nome</label>
+                    <input name="ProjectName" required placeholder="Supporto" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Server / Regione</label>
+                    <select name="ServerId" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                        @foreach (var s in Model.EnabledServers)
+                        {
+                            <option value="@s.Id">@s.Name (@s.Region)</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Sottodominio</label>
+                    <input name="Subdomain" placeholder="acme" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Dominio personalizzato</label>
+                    <input name="CustomDomain" placeholder="support.acme.com" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+                </div>
+                <button type="submit" class="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Crea progetto</button>
+            </form>
+        }
     </div>
 </div>

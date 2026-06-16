@@ -1,12 +1,14 @@
 using Aski.ControlPlane.Data;
 using Aski.ControlPlane.Entities;
 using Aski.ControlPlane.Web.ViewModels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace Aski.ControlPlane.Web.Controllers;
 
 /// <summary>Configurazione Stripe del Super Admin (chiavi Test/Live + toggle sandbox).</summary>
+[Authorize(Policy = "SuperAdmin")]
 public sealed class StripeAdminController : Controller
 {
     private readonly ControlPlaneDbContext _db;

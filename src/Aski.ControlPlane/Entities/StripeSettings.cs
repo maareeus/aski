@@ -1,10 +1,13 @@
+using Aski.Shared;
+
 namespace Aski.ControlPlane.Entities;
 
 /// <summary>
 /// Impostazioni globali Stripe del Super Admin. Riga singola (Id = 1).
 ///
-/// Mantiene due set di chiavi completi (Test e Live) + un toggle <see cref="IsTestMode"/>:
-/// passare da sandbox a produzione NON distrugge le chiavi dell'altro ambiente.
+/// <see cref="Mode"/> (deciso dal Super Admin) determina se il billing è simulato
+/// o passa da Stripe Test/Live. Le chiavi Test e Live restano separate: cambiare
+/// modalità non distrugge l'altro ambiente.
 ///
 /// SecretKey e WebhookSecret sono cifrate a riposo tramite ASP.NET DataProtection
 /// (vedi ValueConverter configurato in ControlPlaneDbContext.OnModelCreating).
@@ -15,8 +18,8 @@ public class StripeSettings
     /// <summary>Chiave primaria. Vincolata a 1: esiste una sola riga di impostazioni.</summary>
     public int Id { get; set; } = 1;
 
-    /// <summary>Se true il sistema usa le chiavi Test (sandbox), altrimenti le Live.</summary>
-    public bool IsTestMode { get; set; } = true;
+    /// <summary>Modalità globale: Simulato / Test (sandbox) / Live. Default Simulato.</summary>
+    public StripeMode Mode { get; set; } = StripeMode.Simulated;
 
     // --- Ambiente Test (sandbox) ---
     public string? TestPublishableKey { get; set; }
@@ -34,14 +37,32 @@ public class StripeSettings
 
     public DateTime UpdatedAtUtc { get; set; }
 
-    // --- Helper non mappati: risolvono le chiavi attive in base alla modalità ---
+    // --- Helper non mappati ---
 
-    /// <summary>Publishable key attiva secondo <see cref="IsTestMode"/>.</summary>
-    public string? ActivePublishableKey => IsTestMode ? TestPublishableKey : LivePublishableKey;
+    /// <summary>True se il billing è simulato (nessuna chiamata a Stripe).</summary>
+    public bool IsSimulated => Mode == StripeMode.Simulated;
 
-    /// <summary>Secret key attiva secondo <see cref="IsTestMode"/>.</summary>
-    public string? ActiveSecretKey => IsTestMode ? TestSecretKey : LiveSecretKey;
+    /// <summary>Publishable key attiva secondo <see cref="Mode"/> (null se simulato).</summary>
+    public string? ActivePublishableKey => Mode switch
+    {
+        StripeMode.Test => TestPublishableKey,
+        StripeMode.Live => LivePublishableKey,
+        _ => null
+    };
 
-    /// <summary>Webhook signing secret attivo secondo <see cref="IsTestMode"/>.</summary>
-    public string? ActiveWebhookSecret => IsTestMode ? TestWebhookSecret : LiveWebhookSecret;
+    /// <summary>Secret key attiva secondo <see cref="Mode"/> (null se simulato).</summary>
+    public string? ActiveSecretKey => Mode switch
+    {
+        StripeMode.Test => TestSecretKey,
+        StripeMode.Live => LiveSecretKey,
+        _ => null
+    };
+
+    /// <summary>Webhook signing secret attivo secondo <see cref="Mode"/> (null se simulato).</summary>
+    public string? ActiveWebhookSecret => Mode switch
+    {
+        StripeMode.Test => TestWebhookSecret,
+        StripeMode.Live => LiveWebhookSecret,
+        _ => null
+    };
 }

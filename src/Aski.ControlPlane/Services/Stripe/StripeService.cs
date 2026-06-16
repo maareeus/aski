@@ -98,7 +98,7 @@ public sealed class StripeService
     /// e planId così il webhook può correlare la subscription risultante.
     /// </summary>
     public async Task<string> CreateCheckoutSessionAsync(
-        Tenant tenant, Plan plan, string successUrl, string cancelUrl, CancellationToken ct = default)
+        Tenant tenant, Plan plan, int projectId, string successUrl, string cancelUrl, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(plan.StripePriceId))
             throw new InvalidOperationException($"Piano {plan.Id} non sincronizzato con Stripe (StripePriceId nullo).");
@@ -122,7 +122,8 @@ public sealed class StripeService
         var metadata = new Dictionary<string, string>
         {
             ["tenantId"] = tenant.Id.ToString(),
-            ["planId"] = plan.Id.ToString()
+            ["planId"] = plan.Id.ToString(),
+            ["projectId"] = projectId.ToString()
         };
 
         var session = await new SessionService(ctx.Client).CreateAsync(new SessionCreateOptions

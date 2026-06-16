@@ -7,11 +7,17 @@
         </div>";
 }
 
-@if (!Model.StripeConfigured)
+@if (Model.Mode != StripeMode.Simulated && !Model.StripeConfigured)
 {
     <div class="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 flex items-center justify-between">
-        <span>⚠️ Stripe non è ancora configurato. Inserisci le chiavi per abilitare billing e provisioning.</span>
+        <span>⚠️ Modalità @Model.Mode senza chiavi Stripe configurate. Inserisci le chiavi o passa a Simulato.</span>
         <a href="/StripeAdmin" class="rounded-lg bg-amber-600 px-3 py-1.5 text-white text-sm font-medium hover:bg-amber-700">Configura Stripe</a>
+    </div>
+}
+else if (Model.Mode == StripeMode.Simulated)
+{
+    <div class="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+        ℹ️ Billing in modalità <strong>Simulato</strong>: gli acquisti attivano subito i progetti senza passare da Stripe. Cambia in <a href="/StripeAdmin" class="underline font-medium">Stripe</a> per usare sandbox o produzione.
     </div>
 }
 
@@ -21,7 +27,15 @@
     @Html.Raw(Card("Tenant", Model.TenantCount.ToString(), "text-indigo-600"))
     @Html.Raw(Card("Progetti", Model.ProjectCount.ToString(), "text-indigo-600"))
     @Html.Raw(Card("Abb. attivi", Model.ActiveSubscriptions.ToString(), "text-emerald-600"))
-    @Html.Raw(Card("Modalità", Model.IsTestMode ? "TEST" : "LIVE", Model.IsTestMode ? "text-amber-600" : "text-emerald-600"))
+    @{
+        var (modeLabel, modeColor) = Model.Mode switch
+        {
+            StripeMode.Simulated => ("SIMULATO", "text-blue-600"),
+            StripeMode.Test => ("TEST", "text-amber-600"),
+            _ => ("LIVE", "text-emerald-600")
+        };
+    }
+    @Html.Raw(Card("Modalità", modeLabel, modeColor))
 </div>
 
 <div class="mt-8 rounded-xl border border-slate-200 bg-white shadow-sm">

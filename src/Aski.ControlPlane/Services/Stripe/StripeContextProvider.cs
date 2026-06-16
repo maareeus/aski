@@ -1,4 +1,5 @@
 using Aski.ControlPlane.Data;
+using Aski.Shared;
 using Microsoft.EntityFrameworkCore;
 using Stripe;
 
@@ -20,22 +21,26 @@ public sealed class StripeContextProvider : IStripeContextProvider
             ?? throw new InvalidOperationException(
                 "Stripe non configurato: nessuna riga StripeSettings. Configurare le chiavi nel Super Admin.");
 
+        if (settings.IsSimulated)
+            throw new InvalidOperationException(
+                "Stripe è in modalità Simulato: nessuna operazione reale verso Stripe è disponibile.");
+
         var secretKey = settings.ActiveSecretKey;
         var webhookSecret = settings.ActiveWebhookSecret;
 
         if (string.IsNullOrWhiteSpace(secretKey))
             throw new InvalidOperationException(
-                $"Secret key Stripe mancante per la modalità {(settings.IsTestMode ? "Test" : "Live")}.");
+                $"Secret key Stripe mancante per la modalità {settings.Mode}.");
         if (string.IsNullOrWhiteSpace(webhookSecret))
             throw new InvalidOperationException(
-                $"Webhook secret Stripe mancante per la modalità {(settings.IsTestMode ? "Test" : "Live")}.");
+                $"Webhook secret Stripe mancante per la modalità {settings.Mode}.");
 
         return new StripeContext
         {
             Client = new StripeClient(secretKey),
             WebhookSecret = webhookSecret,
             PublishableKey = settings.ActivePublishableKey,
-            IsTestMode = settings.IsTestMode
+            IsTestMode = settings.Mode == StripeMode.Test
         };
     }
 }

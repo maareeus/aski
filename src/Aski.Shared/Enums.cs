@@ -45,6 +45,20 @@ public enum ServerType
 }
 
 /// <summary>
+/// Modalità Stripe globale decisa dal Super Admin (non dal cliente).
+/// Simulated = billing finto, nessuna chiamata a Stripe: l'acquisto attiva subito
+///             abbonamento e provisioning (utile per demo/onboarding senza Stripe).
+/// Test      = Stripe sandbox (chiavi test).
+/// Live      = Stripe produzione (chiavi live).
+/// </summary>
+public enum StripeMode
+{
+    Simulated = 0,
+    Test = 1,
+    Live = 2
+}
+
+/// <summary>
 /// Ruolo di un utente del Control Plane.
 /// SuperAdmin = proprietario della piattaforma (gestisce Stripe, piani, server).
 /// TenantOwner = cliente self-service che gestisce la propria org e i progetti.

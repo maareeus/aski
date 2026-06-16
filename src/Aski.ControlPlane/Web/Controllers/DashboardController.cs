@@ -21,7 +21,7 @@ public sealed class DashboardController : Controller
         var vm = new DashboardViewModel
         {
             StripeConfigured = settings is not null,
-            IsTestMode = settings?.IsTestMode ?? true,
+            Mode = settings?.Mode ?? Aski.Shared.StripeMode.Simulated,
             PlanCount = await _db.Plans.CountAsync(ct),
             ServerCount = await _db.Servers.CountAsync(ct),
             TenantCount = await _db.Tenants.CountAsync(ct),

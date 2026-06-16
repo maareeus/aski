@@ -73,10 +73,12 @@ public sealed class StripeWebhookHandler
 
         session.Metadata.TryGetValue("tenantId", out var tenantIdRaw);
         session.Metadata.TryGetValue("planId", out var planIdRaw);
+        session.Metadata.TryGetValue("projectId", out var projectIdRaw);
         int.TryParse(tenantIdRaw, out var tenantId);
         int.TryParse(planIdRaw, out var planId);
+        int.TryParse(projectIdRaw, out var projectId);
 
-        var sub = await GetOrCreateSubscriptionAsync(session.SubscriptionId, session.CustomerId, tenantId, planId, ct);
+        var sub = await GetOrCreateSubscriptionAsync(session.SubscriptionId, session.CustomerId, tenantId, planId, projectId, ct);
         if (sub is null) return;
 
         _log.LogInformation("Checkout completato: subscription interna {Id} <- stripe {Stripe}",
@@ -107,10 +109,12 @@ public sealed class StripeWebhookHandler
     {
         stripeSub.Metadata.TryGetValue("tenantId", out var tenantIdRaw);
         stripeSub.Metadata.TryGetValue("planId", out var planIdRaw);
+        stripeSub.Metadata.TryGetValue("projectId", out var projectIdRaw);
         int.TryParse(tenantIdRaw, out var tenantId);
         int.TryParse(planIdRaw, out var planId);
+        int.TryParse(projectIdRaw, out var projectId);
 
-        var sub = await GetOrCreateSubscriptionAsync(stripeSub.Id, stripeSub.CustomerId, tenantId, planId, ct);
+        var sub = await GetOrCreateSubscriptionAsync(stripeSub.Id, stripeSub.CustomerId, tenantId, planId, projectId, ct);
         if (sub is null) return;
 
         sub.CancelAtPeriodEnd = stripeSub.CancelAtPeriodEnd;
@@ -188,13 +192,14 @@ public sealed class StripeWebhookHandler
     /// forniscono tenant e piano). Ritorna null se non si riesce a correlare.
     /// </summary>
     private async Task<Subscription?> GetOrCreateSubscriptionAsync(
-        string stripeSubId, string? stripeCustomerId, int tenantId, int planId, CancellationToken ct)
+        string stripeSubId, string? stripeCustomerId, int tenantId, int planId, int projectId, CancellationToken ct)
     {
         var sub = await LoadByStripeIdAsync(stripeSubId, ct);
         if (sub is not null)
         {
             if (sub.StripeCustomerId is null && stripeCustomerId is not null)
                 sub.StripeCustomerId = stripeCustomerId;
+            await LinkProjectAsync(sub, projectId, ct);
             return sub;
         }
 
@@ -216,7 +221,22 @@ public sealed class StripeWebhookHandler
         };
         _db.Subscriptions.Add(sub);
         await _db.SaveChangesAsync(ct);
+        await LinkProjectAsync(sub, projectId, ct);
         return sub;
+    }
+
+    /// <summary>Collega il progetto indicato dai metadata all'abbonamento (1:1), se non già fatto.</summary>
+    private async Task LinkProjectAsync(Subscription sub, int projectId, CancellationToken ct)
+    {
+        if (projectId == 0) return;
+        var project = await _db.Projects.FirstOrDefaultAsync(
+            p => p.Id == projectId && p.TenantId == sub.TenantId, ct);
+        if (project is not null && project.SubscriptionId != sub.Id)
+        {
+            project.SubscriptionId = sub.Id;
+            project.UpdatedAtUtc = DateTime.UtcNow;
+            await _db.SaveChangesAsync(ct);
+        }
     }
 
     /// <summary>Mappa lo stato testuale di Stripe sullo stato interno.</summary>

@@ -39,7 +39,7 @@ public sealed class StripeAdminController : Controller
             _db.StripeSettings.Add(s);
         }
 
-        s.IsTestMode = form.IsTestMode;
+        s.Mode = form.Mode;
         s.TestPublishableKey = form.TestPublishableKey;
         s.LivePublishableKey = form.LivePublishableKey;
 
@@ -51,16 +51,16 @@ public sealed class StripeAdminController : Controller
 
         s.UpdatedAtUtc = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("stripe.settings.update", "StripeSettings", $"testMode={s.IsTestMode}", ct);
+        await _audit.LogAsync("stripe.settings.update", "StripeSettings", $"mode={s.Mode}", ct);
 
-        TempData["Success"] = $"Impostazioni salvate. Modalità attiva: {(s.IsTestMode ? "TEST (sandbox)" : "LIVE")}.";
+        TempData["Success"] = $"Impostazioni salvate. Modalità attiva: {s.Mode}.";
         return RedirectToAction(nameof(Index));
     }
 
     private static StripeSettingsViewModel ToViewModel(StripeSettings? s) => new()
     {
         Configured = s is not null,
-        IsTestMode = s?.IsTestMode ?? true,
+        Mode = s?.Mode ?? Aski.Shared.StripeMode.Simulated,
         TestPublishableKey = s?.TestPublishableKey,
         TestSecretKeySet = !string.IsNullOrEmpty(s?.TestSecretKey),
         TestWebhookSecretSet = !string.IsNullOrEmpty(s?.TestWebhookSecret),

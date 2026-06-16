@@ -7,7 +7,7 @@ namespace Aski.ControlPlane.Web.ViewModels;
 public sealed class DashboardViewModel
 {
     public bool StripeConfigured { get; set; }
-    public bool IsTestMode { get; set; }
+    public StripeMode Mode { get; set; }
     public int PlanCount { get; set; }
     public int ServerCount { get; set; }
     public int TenantCount { get; set; }
@@ -20,7 +20,7 @@ public sealed class DashboardViewModel
 public sealed class StripeSettingsViewModel
 {
     public bool Configured { get; set; }
-    public bool IsTestMode { get; set; } = true;
+    public StripeMode Mode { get; set; } = StripeMode.Simulated;
 
     public string? TestPublishableKey { get; set; }
     public bool TestSecretKeySet { get; set; }

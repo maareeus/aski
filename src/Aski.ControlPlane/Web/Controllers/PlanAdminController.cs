@@ -36,6 +36,12 @@ public sealed class PlanAdminController : Controller
         return View(vm);
     }
 
+    private async Task<bool> IsSimulatedAsync(CancellationToken ct)
+    {
+        var s = await _db.StripeSettings.AsNoTracking().FirstOrDefaultAsync(x => x.Id == 1, ct);
+        return (s?.Mode ?? StripeMode.Simulated) == StripeMode.Simulated;
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(PlansViewModel form, CancellationToken ct)
@@ -61,6 +67,13 @@ public sealed class PlanAdminController : Controller
         await _db.SaveChangesAsync(ct);
         await _audit.LogAsync("plan.create", $"Plan#{plan.Id}", $"{plan.Name} {plan.Amount} {plan.Currency}", ct);
 
+        // In modalità Simulato non si sincronizza con Stripe.
+        if (await IsSimulatedAsync(ct))
+        {
+            TempData["Success"] = $"Piano '{plan.Name}' creato (modalità simulata, nessuna sincronizzazione Stripe).";
+            return RedirectToAction(nameof(Index));
+        }
+
         try
         {
             await _stripe.SyncPlanAsync(plan, ct);
@@ -79,6 +92,11 @@ public sealed class PlanAdminController : Controller
     {
         var plan = await _db.Plans.FirstOrDefaultAsync(p => p.Id == id, ct);
         if (plan is null) return RedirectToAction(nameof(Index));
+        if (await IsSimulatedAsync(ct))
+        {
+            TempData["Error"] = "Modalità Simulato: la sincronizzazione Stripe non è applicabile.";
+            return RedirectToAction(nameof(Index));
+        }
         try
         {
             await _stripe.SyncPlanAsync(plan, ct);

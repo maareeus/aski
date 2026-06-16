@@ -4,6 +4,7 @@ using Aski.ControlPlane.Services.Provisioning;
 using Aski.ControlPlane.Services.Stripe;
 using Aski.ControlPlane.Web;
 using Aski.ControlPlane.Web.ViewModels;
+using Aski.Shared;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -47,11 +48,17 @@ public sealed class PortalController : Controller
             .FirstOrDefaultAsync(t => t.Id == CurrentTenantId, ct);
         if (tenant is null) return RedirectToAction("Logout", "Account");
 
+        var mode = (await _db.StripeSettings.AsNoTracking().FirstOrDefaultAsync(x => x.Id == 1, ct))?.Mode
+                   ?? StripeMode.Simulated;
+        // In modalità Stripe servono piani sincronizzati (con price); in Simulato basta che siano attivi.
+        var plansQuery = _db.Plans.AsNoTracking().Where(p => p.IsActive);
+        if (mode != StripeMode.Simulated)
+            plansQuery = plansQuery.Where(p => p.StripePriceId != null);
+
         var vm = new TenantDetailViewModel
         {
             Tenant = tenant,
-            AvailablePlans = await _db.Plans.AsNoTracking()
-                .Where(p => p.IsActive && p.StripePriceId != null).OrderBy(p => p.Amount).ToListAsync(ct),
+            AvailablePlans = await plansQuery.OrderBy(p => p.Amount).ToListAsync(ct),
             EnabledServers = await _db.Servers.AsNoTracking()
                 .Where(s => s.IsEnabled).OrderBy(s => s.Name).ToListAsync(ct)
         };
@@ -92,26 +99,61 @@ public sealed class PortalController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    /// <summary>
+    /// Attiva un piano per un progetto. La modalità (Simulato / Stripe Test / Live) è
+    /// decisa dal Super Admin: il cliente preme sempre "Attiva", il sistema sceglie il flusso.
+    /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Checkout(int planId, CancellationToken ct)
+    public async Task<IActionResult> Checkout(int projectId, int planId, CancellationToken ct)
     {
         var tenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == CurrentTenantId, ct);
         var plan = await _db.Plans.FirstOrDefaultAsync(p => p.Id == planId && p.IsActive, ct);
-        if (tenant is null || plan is null)
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == CurrentTenantId, ct);
+        if (tenant is null || plan is null || project is null)
         {
-            TempData["Error"] = "Piano non valido.";
+            TempData["Error"] = "Piano o progetto non valido.";
             return RedirectToAction(nameof(Index));
         }
 
+        var settings = await _db.StripeSettings.AsNoTracking().FirstOrDefaultAsync(x => x.Id == 1, ct);
+        var mode = settings?.Mode ?? StripeMode.Simulated;
+
+        // --- Modalità SIMULATO: nessuna chiamata a Stripe, attivazione immediata ---
+        if (mode == StripeMode.Simulated)
+        {
+            var sub = new Subscription
+            {
+                TenantId = tenant.Id,
+                PlanId = plan.Id,
+                Status = SubscriptionStatus.Active,
+                StripeSubscriptionId = $"sim_{Guid.NewGuid():N}",
+                CreatedAtUtc = DateTime.UtcNow,
+                UpdatedAtUtc = DateTime.UtcNow
+            };
+            _db.Subscriptions.Add(sub);
+            await _db.SaveChangesAsync(ct);
+
+            project.SubscriptionId = sub.Id;
+            project.UpdatedAtUtc = DateTime.UtcNow;
+            await _db.SaveChangesAsync(ct);
+
+            await _coordinator.ProvisionAndStartAsync(project.Id, ct);
+            await _audit.LogAsync("billing.simulated.activate", $"Project#{project.Id}", $"plan={plan.Name}", ct);
+            TempData["Success"] = "Piano attivato (modalità simulata) e progetto provisionato.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // --- Modalità STRIPE (Test/Live): redirect a Stripe Checkout ---
         try
         {
             var baseUrl = _config["Portal:BaseUrl"]?.TrimEnd('/') ?? "https://localhost:5001";
             var url = await _stripe.CreateCheckoutSessionAsync(
-                tenant, plan,
+                tenant, plan, project.Id,
                 successUrl: $"{baseUrl}/Portal?checkout=success",
                 cancelUrl: $"{baseUrl}/Portal?checkout=cancel",
                 ct);
+            await _audit.LogAsync("billing.checkout.start", $"Project#{project.Id}", $"plan={plan.Name}", ct);
             return Redirect(url);
         }
         catch (Exception ex)
@@ -141,24 +183,4 @@ public sealed class PortalController : Controller
         }
     }
 
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Provision(int projectId, CancellationToken ct)
-    {
-        // Il progetto deve appartenere al tenant loggato.
-        var owns = await _db.Projects.AnyAsync(p => p.Id == projectId && p.TenantId == CurrentTenantId, ct);
-        if (!owns) return Forbid();
-
-        try
-        {
-            await _coordinator.ProvisionAndStartAsync(projectId, ct);
-            await _audit.LogAsync("project.provision", $"Project#{projectId}", null, ct);
-            TempData["Success"] = "Provisioning avviato.";
-        }
-        catch (Exception ex)
-        {
-            TempData["Error"] = $"Provisioning fallito: {ex.Message}";
-        }
-        return RedirectToAction(nameof(Index));
-    }
 }

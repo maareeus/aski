@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Aski · Guida Super Admin</title>
+<style>
+  :root{
+    --indigo:#4f46e5; --indigo-d:#4338ca; --ink:#0f172a; --muted:#64748b;
+    --line:#e2e8f0; --bg:#ffffff; --bg-soft:#f8fafc;
+    --sb:288px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0; font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.65; font-size:16px}
+  a{color:var(--indigo); text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+    background:#eef2ff; color:var(--indigo-d); padding:.12em .4em; border-radius:5px}
+  pre{background:#0f172a; color:#e2e8f0; padding:16px 18px; border-radius:12px; overflow-x:auto;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13.5px; line-height:1.6; margin:16px 0}
+  pre code{background:none; color:inherit; padding:0}
+  pre .c{color:#94a3b8}
+
+  .sidebar{position:fixed; top:0; left:0; width:var(--sb); height:100vh; overflow-y:auto;
+    background:var(--bg-soft); border-right:1px solid var(--line); padding:0 0 40px}
+  .brand{display:flex; align-items:center; gap:10px; padding:22px 24px; position:sticky; top:0;
+    background:var(--bg-soft); border-bottom:1px solid var(--line); z-index:2}
+  .brand .logo{width:34px;height:34px;border-radius:9px;background:var(--indigo);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px}
+  .brand b{font-size:18px;letter-spacing:-.02em}
+  .brand span{margin-left:auto;font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+  nav{padding:16px 14px}
+  nav .grp{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);padding:16px 12px 6px;font-weight:700}
+  nav a{display:block;padding:7px 12px;border-radius:8px;color:#475569;font-size:14.5px;font-weight:500}
+  nav a:hover{background:#eef2ff;color:var(--indigo-d);text-decoration:none}
+  nav a.active{background:var(--indigo);color:#fff}
+
+  .content{margin-left:var(--sb); max-width:880px; padding:56px 56px 120px}
+  .hero{border-bottom:1px solid var(--line); padding-bottom:28px; margin-bottom:40px}
+  .hero .eyebrow{color:var(--indigo); font-weight:700; font-size:13px; letter-spacing:.08em; text-transform:uppercase}
+  .hero h1{font-size:40px; line-height:1.15; margin:.2em 0 .15em; letter-spacing:-.02em}
+  .hero p{font-size:18px; color:var(--muted); margin:0}
+  .hero .meta{margin-top:18px; font-size:13px; color:var(--muted)}
+
+  section{padding-top:28px; margin-top:8px; scroll-margin-top:24px}
+  h2{font-size:27px; letter-spacing:-.01em; margin:36px 0 10px; padding-top:14px; border-top:1px solid var(--line)}
+  section:first-of-type h2{border-top:none}
+  h3{font-size:19px; margin:26px 0 8px}
+  p{margin:10px 0}
+  ul,ol{margin:10px 0; padding-left:22px}
+  li{margin:5px 0}
+
+  .steps{counter-reset:s; list-style:none; padding:0; margin:16px 0}
+  .steps>li{counter-increment:s; position:relative; padding:4px 0 14px 44px; margin:0}
+  .steps>li::before{content:counter(s); position:absolute; left:0; top:0;
+    width:30px;height:30px;border-radius:50%;background:var(--indigo);color:#fff;
+    font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center}
+  .steps>li:not(:last-child)::after{content:'';position:absolute;left:14px;top:30px;bottom:0;width:2px;background:var(--line)}
+
+  .note{border-radius:12px; padding:14px 18px; margin:18px 0; border:1px solid; font-size:15px}
+  .note .t{font-weight:700; display:block; margin-bottom:2px}
+  .note.tip{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
+  .note.warn{background:#fffbeb;border-color:#fde68a;color:#92400e}
+  .note.info{background:#eff6ff;border-color:#bfdbfe;color:#1e40af}
+
+  table{border-collapse:collapse; width:100%; margin:18px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:10px 13px; text-align:left; vertical-align:top}
+  th{background:#eef2ff; color:var(--indigo-d); font-weight:600}
+  tr:nth-child(even) td{background:var(--bg-soft)}
+  td code{white-space:nowrap}
+
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600}
+  .p-log{background:#dbeafe;color:#1d4ed8}
+  .p-dock{background:#ede9fe;color:#6d28d9}
+
+  .faq{border:1px solid var(--line); border-radius:12px; margin:12px 0; overflow:hidden; background:#fff}
+  .faq summary{cursor:pointer; padding:16px 20px; font-weight:600; list-style:none; display:flex; align-items:center; gap:12px}
+  .faq summary::-webkit-details-marker{display:none}
+  .faq summary::before{content:'+'; color:var(--indigo); font-weight:800; font-size:20px; width:18px}
+  .faq[open] summary::before{content:'\2212'}
+  .faq[open] summary{border-bottom:1px solid var(--line)}
+  .faq .a{padding:14px 20px 18px 50px; color:#334155}
+
+  footer{margin-left:var(--sb); border-top:1px solid var(--line); padding:26px 56px; color:var(--muted); font-size:13px}
+
+  @media (max-width:880px){
+    :root{--sb:0px}
+    .sidebar{display:none}
+    .content,footer{margin-left:0; padding-left:22px; padding-right:22px}
+  }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="brand"><div class="logo">A</div><b>Aski</b><span>Admin</span></div>
+  <nav id="nav">
+    <div class="grp">Avvio</div>
+    <a href="#intro">Introduzione</a>
+    <a href="#avvio">Avviare l&rsquo;ambiente</a>
+    <a href="#modalita">Modalità di provisioning</a>
+    <div class="grp">Configurazione</div>
+    <a href="#stripe">Configurare Stripe</a>
+    <a href="#piani">Creare i piani</a>
+    <a href="#server">Aggiungere un server</a>
+    <div class="grp">Operatività</div>
+    <a href="#tenant">Tenant e progetti</a>
+    <a href="#checkout">Acquisto &amp; webhook</a>
+    <a href="#rapido">Prova rapida senza Stripe</a>
+    <div class="grp">Riferimento</div>
+    <a href="#menu">Mappa dei menu</a>
+    <a href="#troubleshooting">Problemi comuni</a>
+    <a href="#sicurezza">Sicurezza</a>
+  </nav>
+</aside>
+
+<main class="content">
+  <div class="hero" id="top">
+    <div class="eyebrow">Guida Super Admin</div>
+    <h1>Control Plane di Aski</h1>
+    <p>Il pannello del proprietario della piattaforma: configura Stripe, definisci i piani e i server, gestisci i tenant e il ciclo di vita delle istanze.</p>
+    <div class="meta">Versione 1.0 &middot; Giugno 2026</div>
+  </div>
+
+  <section id="intro">
+    <h2>Introduzione</h2>
+    <p>Il <strong>Control Plane</strong> è l&rsquo;applicazione di amministrazione di Aski. Da qui controlli tre cose:</p>
+    <ul>
+      <li><strong>Billing</strong>: chiavi Stripe e listini (piani).</li>
+      <li><strong>Infrastruttura</strong>: server/regioni dove vengono ospitate le istanze.</li>
+      <li><strong>Clienti</strong>: tenant, progetti e relativo provisioning.</li>
+    </ul>
+    <p>La fatturazione pilota l&rsquo;infrastruttura: quando un abbonamento è attivo il progetto viene avviato, quando è insoluto/disdetto viene fermato (senza perdere i dati).</p>
+    <div class="note info"><span class="t">Ordine consigliato</span>Stripe &rarr; Piani &rarr; Server &rarr; Tenant &rarr; Progetto &rarr; Checkout/Provisiona.</div>
+  </section>
+
+  <section id="avvio">
+    <h2>Avviare l&rsquo;ambiente</h2>
+    <p>Lo script avvia Postgres, applica le migration e lancia Control Plane e istanza Ticketing.</p>
+    <pre><code><span class="c"># Avvia tutto</span>
+.\scripts\start-env.ps1
+
+<span class="c"># Opzioni</span>
+.\scripts\start-env.ps1 -Fresh       <span class="c"># ricrea il DB da zero</span>
+.\scripts\start-env.ps1 -NoBrowser   <span class="c"># non aprire il browser</span>
+
+<span class="c"># Ferma tutto</span>
+.\scripts\stop-env.ps1               <span class="c"># -RemoveDb per cancellare anche il DB</span></code></pre>
+    <table>
+      <tr><th>Servizio</th><th>Indirizzo</th></tr>
+      <tr><td>Control Plane (questo pannello)</td><td><code>http://localhost:5080/Dashboard</code></td></tr>
+      <tr><td>Istanza Ticketing (API)</td><td><code>http://localhost:5090</code></td></tr>
+      <tr><td>PostgreSQL</td><td><code>localhost:5432</code> (postgres/postgres)</td></tr>
+    </table>
+  </section>
+
+  <section id="modalita">
+    <h2>Modalità di provisioning</h2>
+    <p>Impostazione <code>Provisioning:Mode</code> in <code>src/Aski.ControlPlane/appsettings.json</code>. Decide cosa accade quando un progetto viene provisionato.</p>
+    <table>
+      <tr><th>Modalità</th><th>Cosa serve</th><th>Effetto</th></tr>
+      <tr><td><span class="pill p-log">Logging</span> (default)</td><td>niente</td><td><strong>Simulato</strong>: il progetto passa a <em>Running</em> senza container reali. Ideale per provare i flussi.</td></tr>
+      <tr><td><span class="pill p-dock">Docker</span></td><td>VPS con Docker + Traefik</td><td><strong>Reale</strong>: crea container Postgres + app e configura il routing Traefik.</td></tr>
+    </table>
+    <div class="note tip"><span class="t">Consiglio</span>Inizia in <span class="pill p-log">Logging</span> per imparare i flussi; passa a <span class="pill p-dock">Docker</span> quando hai una VPS pronta.</div>
+  </section>
+
+  <section id="stripe">
+    <h2>Configurare Stripe</h2>
+    <p>Menu <strong>Stripe</strong> (<code>/StripeAdmin</code>). Servono le chiavi del tuo account Stripe.</p>
+    <h3>1. Recupera le chiavi (modalità Test)</h3>
+    <p>Su <a href="https://dashboard.stripe.com" target="_blank" rel="noopener">dashboard.stripe.com</a> (resta in <strong>Test mode</strong>) &rarr; <em>Developers &rarr; API keys</em>: copia <strong>Publishable key</strong> (<code>pk_test_…</code>) e <strong>Secret key</strong> (<code>sk_test_…</code>).</p>
+    <h3>2. Avvia l&rsquo;inoltro dei webhook</h3>
+    <p>In un terminale separato, con la <a href="https://stripe.com/docs/stripe-cli" target="_blank" rel="noopener">Stripe CLI</a>:</p>
+    <pre><code>stripe login
+stripe listen --forward-to http://localhost:5080/api/stripe/webhook</code></pre>
+    <p>Il comando stampa un <strong>webhook signing secret</strong> <code>whsec_…</code>: copialo.</p>
+    <h3>3. Inserisci le chiavi nel pannello</h3>
+    <ol class="steps">
+      <li>Lascia il toggle su <strong>TEST</strong> (sandbox).</li>
+      <li>Compila l&rsquo;ambiente TEST: Publishable key, Secret key, Webhook secret.</li>
+      <li>Premi <strong>Salva impostazioni</strong>.</li>
+    </ol>
+    <div class="note info"><span class="t">Test vs Live</span>Le chiavi Test e Live sono due set separati: cambiare modalità non cancella l&rsquo;altro ambiente. I segreti sono cifrati a riposo; i campi password vuoti non sovrascrivono i valori salvati.</div>
+  </section>
+
+  <section id="piani">
+    <h2>Creare i piani</h2>
+    <p>Menu <strong>Piani</strong> (<code>/PlanAdmin</code>). Creare un piano lo sincronizza con Stripe (Product + Price).</p>
+    <ol class="steps">
+      <li>Compila Nome (es. <code>Pro</code>), Prezzo (es. <code>19.99</code>), Valuta (<code>eur</code>), Periodo (Mensile/Annuale).</li>
+      <li>Premi <strong>Crea e sincronizza</strong>.</li>
+      <li>Se riesce, accanto al piano compare un <code>price_…</code> (creato su Stripe).</li>
+    </ol>
+    <div class="note warn"><span class="t">Se manca il price</span>Il piano è stato salvato ma la sincronizzazione Stripe è fallita: verifica la Secret key in <strong>Stripe</strong>, poi premi <strong>Sincronizza</strong> sulla riga del piano.</div>
+    <p>Per offrire lo stesso prodotto mensile <em>e</em> annuale, crea due piani distinti.</p>
+  </section>
+
+  <section id="server">
+    <h2>Aggiungere un server</h2>
+    <p>Menu <strong>Server</strong> (<code>/ServerAdmin</code>). I server sono le regioni tra cui i tenant scelgono dove ospitare i progetti.</p>
+    <ol class="steps">
+      <li>Nome (es. <code>EU Milano</code>) e Regione (es. <code>it-mil-1</code>).</li>
+      <li>Tipo: <strong>VPS Docker</strong> (AWS ECS è uno stub non ancora implementato).</li>
+      <li><strong>Limite N</strong>: quanti progetti condividono un singolo container Postgres prima di crearne uno nuovo.</li>
+      <li><strong>Config JSON</strong>: serve solo in modalità <span class="pill p-dock">Docker</span> (vuoto in <span class="pill p-log">Logging</span>).</li>
+      <li>Spunta <strong>Abilitato</strong> e crea.</li>
+    </ol>
+    <h3>Config JSON (solo modalità Docker)</h3>
+    <pre><code>{
+  "dockerHost": "tcp://IP_VPS:2376",
+  "network": "traefik",
+  "appImage": "registry.example.com/aski-ticketing:latest",
+  "postgresImage": "postgres:16-alpine",
+  "certResolver": "le",
+  "entrypoint": "websecure",
+  "pgAdminUser": "postgres",
+  "pgAdminPassword": "***",
+  "domainSuffix": "aski.app"
+}</code></pre>
+    <div class="note info"><span class="t">Limite N e pool</span>Raggiunto N progetti su un container Postgres, il sistema ne crea automaticamente un altro. L&rsquo;assegnazione è protetta da concorrenza (nessun superamento di N).</div>
+  </section>
+
+  <section id="tenant">
+    <h2>Tenant e progetti</h2>
+    <p>Menu <strong>Tenant</strong> (<code>/Portal</code>).</p>
+    <ol class="steps">
+      <li><strong>Registra azienda</strong>: ragione sociale + email di fatturazione.</li>
+      <li>Apri la scheda del tenant.</li>
+      <li><strong>Nuovo progetto</strong>: nome, server/regione (tra quelli abilitati), sottodominio, eventuale dominio personalizzato.</li>
+    </ol>
+    <p>Il progetto nasce <em>non provisionato</em>. Diventa <em>Running</em> dopo l&rsquo;acquisto (webhook) o premendo <strong>Provisiona</strong>.</p>
+  </section>
+
+  <section id="checkout">
+    <h2>Acquisto &amp; webhook</h2>
+    <p>Dalla scheda tenant, sezione <strong>Acquista un piano</strong> &rarr; <strong>Checkout</strong>.</p>
+    <ol class="steps">
+      <li>Si apre Stripe Checkout: paga con la carta di test <code>4242 4242 4242 4242</code> (data futura, CVC qualsiasi).</li>
+      <li>Stripe invia gli eventi al webhook (richiede <code>stripe listen</code> attivo).</li>
+      <li>L&rsquo;abbonamento passa ad <strong>Attivo</strong> e parte il provisioning del progetto collegato.</li>
+    </ol>
+    <table>
+      <tr><th>Evento Stripe</th><th>Stato abbonamento</th><th>Azione</th></tr>
+      <tr><td>invoice.paid / subscription attiva</td><td>Attivo</td><td>Provisiona / Riavvia</td></tr>
+      <tr><td>subscription past_due</td><td>Insoluto</td><td>Sospende (dati salvi)</td></tr>
+      <tr><td>subscription deleted</td><td>Cancellato</td><td>Ferma (dati conservati)</td></tr>
+    </table>
+    <p>Il pulsante <strong>Gestisci fatturazione</strong> apre lo Stripe Customer Portal del tenant (cambio carta, disdetta).</p>
+  </section>
+
+  <section id="rapido">
+    <h2>Prova rapida senza Stripe</h2>
+    <p>Per vedere un progetto diventare <em>Running</em> senza account Stripe né VPS (modalità <span class="pill p-log">Logging</span>):</p>
+    <ol class="steps">
+      <li><strong>Server</strong>: crea <code>EU Milano</code> / <code>it-mil-1</code>, tipo VPS Docker, Config JSON vuoto, N=10, Abilitato.</li>
+      <li><strong>Tenant</strong>: registra <code>Acme Srl</code> + email.</li>
+      <li><strong>Progetto</strong>: aprilo, crea <code>Supporto</code> sul server, sottodominio <code>acme</code>.</li>
+      <li>Premi <strong>Provisiona</strong> sul progetto &rarr; stato <strong>Running</strong>.</li>
+    </ol>
+    <div class="note tip"><span class="t">Zero dipendenze</span>Nessun account Stripe, nessuna VPS: utile per demo e per capire i flussi.</div>
+  </section>
+
+  <section id="menu">
+    <h2>Mappa dei menu</h2>
+    <table>
+      <tr><th>Menu</th><th>URL</th><th>A cosa serve</th></tr>
+      <tr><td>Dashboard</td><td><code>/Dashboard</code></td><td>KPI: piani, server, tenant, progetti, abbonamenti, modalità.</td></tr>
+      <tr><td>Stripe</td><td><code>/StripeAdmin</code></td><td>Chiavi Test/Live + toggle sandbox.</td></tr>
+      <tr><td>Piani</td><td><code>/PlanAdmin</code></td><td>Crea/sincronizza i listini con Stripe.</td></tr>
+      <tr><td>Server</td><td><code>/ServerAdmin</code></td><td>Regioni, tipo provider, limite N, abilita/disabilita.</td></tr>
+      <tr><td>Tenant</td><td><code>/Portal</code></td><td>Aziende, progetti, checkout, fatturazione.</td></tr>
+    </table>
+  </section>
+
+  <section id="troubleshooting">
+    <h2>Problemi comuni</h2>
+    <details class="faq"><summary>In dashboard vedo &ldquo;Stripe non configurato&rdquo;</summary><div class="a">Vai su <strong>Stripe</strong> e salva almeno le chiavi dell&rsquo;ambiente attivo (Secret + Publishable + Webhook secret).</div></details>
+    <details class="faq"><summary>Il piano è creato ma non ha il <code>price_…</code></summary><div class="a">La Secret key Stripe è errata o assente. Correggila in <strong>Stripe</strong>, poi premi <strong>Sincronizza</strong> sul piano.</div></details>
+    <details class="faq"><summary>Il Checkout dà errore</summary><div class="a">Il piano non è sincronizzato (manca il price) oppure le chiavi Stripe non sono valide.</div></details>
+    <details class="faq"><summary>Ho pagato ma il progetto non diventa Running</summary><div class="a">Verifica che <code>stripe listen</code> sia attivo e che esista un progetto collegato all&rsquo;abbonamento. In alternativa usa il pulsante <strong>Provisiona</strong>.</div></details>
+    <details class="faq"><summary>In modalità Docker il provisioning fallisce</summary><div class="a">Il Control Plane non raggiunge il demone Docker o Traefik: controlla <code>dockerHost</code>, la rete e il certresolver nel Config JSON del server.</div></details>
+    <details class="faq"><summary>Come passo da sandbox a produzione?</summary><div class="a">Inserisci le chiavi LIVE nell&rsquo;apposito riquadro e sposta il toggle su LIVE. Le chiavi Test restano salvate.</div></details>
+  </section>
+
+  <section id="sicurezza">
+    <h2>Sicurezza</h2>
+    <ul>
+      <li>I segreti Stripe sono <strong>cifrati a riposo</strong>; la firma dei webhook è verificata e gli eventi sono idempotenti.</li>
+      <li>Le operazioni di sospensione/stop <strong>non cancellano i dati</strong>: fermano i container.</li>
+      <li>⚠️ In questa versione il Control Plane <strong>non ha ancora autenticazione</strong>: proteggilo (rete privata / reverse proxy con login) prima di esporlo. Dettagli in <code>docs/08-sicurezza.md</code>.</li>
+    </ul>
+    <div class="note warn"><span class="t">Prima del deploy</span>Cambia le credenziali di default, sposta i segreti su variabili d&rsquo;ambiente/secret manager, abilita HTTPS e limita l&rsquo;accesso al pannello.</div>
+  </section>
+</main>
+
+<footer>Aski &middot; Guida Super Admin &middot; Versione 1.0 &mdash; Giugno 2026</footer>
+
+<script>
+  var links = Array.prototype.slice.call(document.querySelectorAll('#nav a'));
+  var map = {};
+  links.forEach(function(a){ map[a.getAttribute('href').slice(1)] = a; });
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){
+        links.forEach(function(l){ l.classList.remove('active'); });
+        var a = map[e.target.id];
+        if(a) a.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+  document.querySelectorAll('main section').forEach(function(s){ obs.observe(s); });
+</script>
+</body>
+</html>

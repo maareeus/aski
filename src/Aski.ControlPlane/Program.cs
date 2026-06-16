@@ -60,6 +60,13 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("SuperAdmin", p => p.RequireRole(nameof(PortalUserRole.SuperAdmin)));
     options.AddPolicy("Tenant", p => p.RequireRole(nameof(PortalUserRole.TenantOwner)));
+
+    // Sicurezza per default: ogni endpoint richiede autenticazione, a meno di
+    // [AllowAnonymous] esplicito (login/registrazione e webhook Stripe). Così
+    // nessuna rotta resta accidentalmente pubblica.
+    options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
 });
 
 var app = builder.Build();

@@ -1,6 +1,7 @@
 using Aski.ControlPlane.Data;
 using Aski.ControlPlane.Entities;
 using Aski.ControlPlane.Services.Stripe;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Stripe;
 // Disambigua dall'omonimo Stripe.StripeContext.
@@ -20,6 +21,7 @@ namespace Aski.ControlPlane.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/stripe/webhook")]
+[AllowAnonymous] // Endpoint pubblico per Stripe: l'autenticità è garantita dalla firma del webhook.
 public sealed class StripeWebhookController : ControllerBase
 {
     private readonly IStripeContextProvider _ctx;

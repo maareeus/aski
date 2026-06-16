@@ -115,6 +115,9 @@ public class ControlPlaneDbContext : DbContext
             e.Property(x => x.Subdomain).HasMaxLength(120);
             e.Property(x => x.CustomDomain).HasMaxLength(253);
             e.Property(x => x.DatabaseName).HasMaxLength(120);
+            e.Property(x => x.DbUser).HasMaxLength(120);
+            // Password DB del progetto cifrata a riposo, come i segreti Stripe.
+            e.Property(x => x.DbPassword).HasConversion(encrypted!);
             e.HasIndex(x => x.Subdomain).IsUnique();
             e.HasOne(x => x.Tenant)
                 .WithMany(t => t.Projects)

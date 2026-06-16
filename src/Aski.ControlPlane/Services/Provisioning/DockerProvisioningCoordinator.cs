@@ -68,17 +68,20 @@ public sealed class DockerProvisioningCoordinator : IProvisioningCoordinator
             // 1. Assegna (o crea) un container Postgres del pool rispettando N.
             var dbContainer = await AllocateDbContainerAsync(server, provider, cfg, ct);
 
-            // 2. Crea il database logico isolato del progetto.
+            // 2. Crea il database logico isolato del progetto con un utente dedicato
+            //    (l'app NON usa più le credenziali admin del pool).
             var dbName = $"proj_{project.Id}";
+            var dbUser = $"proj_{project.Id}_u";
+            var dbPassword = project.DbPassword ?? GeneratePassword();
             var pg = new PostgresEndpoint(dbContainer.Host!, dbContainer.Port, cfg.PgAdminUser, cfg.PgAdminPassword);
-            await provider.CreateDatabaseAsync(server, pg, dbName, ct);
+            await provider.CreateDatabaseAsync(server, pg, dbName, dbUser, dbPassword, ct);
 
             // 3. Provisiona il container applicativo con label Traefik.
             var subdomain = project.Subdomain ?? $"p{project.Id}";
             var primaryHost = $"{subdomain}.{cfg.DomainSuffix}";
             var connString =
                 $"Host={dbContainer.Host};Port={dbContainer.Port};Database={dbName};" +
-                $"Username={cfg.PgAdminUser};Password={cfg.PgAdminPassword}";
+                $"Username={dbUser};Password={dbPassword}";
 
             var request = new AppProvisionRequest(
                 ContainerName: $"aski-app-{project.Id}",
@@ -94,9 +97,11 @@ public sealed class DockerProvisioningCoordinator : IProvisioningCoordinator
 
             var app = await provider.ProvisionAppContainerAsync(server, request, ct);
 
-            // 4. Persiste il risultato sul progetto.
+            // 4. Persiste il risultato sul progetto (password cifrata a riposo dall'EF converter).
             project.DbContainerId = dbContainer.Id;
             project.DatabaseName = dbName;
+            project.DbUser = dbUser;
+            project.DbPassword = dbPassword;
             project.AppContainerId = app.RuntimeContainerId;
             project.Subdomain = subdomain;
             await SetStatusAsync(project, ProvisioningStatus.Running, ct);
@@ -222,6 +227,17 @@ public sealed class DockerProvisioningCoordinator : IProvisioningCoordinator
     }
 
     // --- helper ---
+
+    /// <summary>Genera una password robusta (alfanumerica, niente caratteri da escapare in SQL).</summary>
+    private static string GeneratePassword()
+    {
+        const string alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz0123456789";
+        var bytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(28);
+        var chars = new char[28];
+        for (var i = 0; i < bytes.Length; i++)
+            chars[i] = alphabet[bytes[i] % alphabet.Length];
+        return new string(chars);
+    }
 
     private Task<Project?> LoadProjectAsync(int projectId, CancellationToken ct) =>
         _db.Projects.Include(p => p.Server).FirstOrDefaultAsync(p => p.Id == projectId, ct);

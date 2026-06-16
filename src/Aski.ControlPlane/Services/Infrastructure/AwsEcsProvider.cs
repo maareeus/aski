@@ -20,7 +20,7 @@ public sealed class AwsEcsProvider : IInfrastructureProvider
     public Task<PostgresContainerInfo> CreatePostgresContainerAsync(Server server, string containerName, CancellationToken ct = default)
         => throw new NotImplementedException(NotImpl);
 
-    public Task CreateDatabaseAsync(Server server, PostgresEndpoint pg, string databaseName, CancellationToken ct = default)
+    public Task CreateDatabaseAsync(Server server, PostgresEndpoint pg, string databaseName, string dbUser, string dbPassword, CancellationToken ct = default)
         => throw new NotImplementedException(NotImpl);
 
     public Task<AppContainerInfo> ProvisionAppContainerAsync(Server server, AppProvisionRequest request, CancellationToken ct = default)

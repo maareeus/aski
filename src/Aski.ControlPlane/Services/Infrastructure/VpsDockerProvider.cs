@@ -56,9 +56,10 @@ public sealed class VpsDockerProvider : IInfrastructureProvider
     }
 
     public async Task CreateDatabaseAsync(
-        Server server, PostgresEndpoint pg, string databaseName, CancellationToken ct = default)
+        Server server, PostgresEndpoint pg,
+        string databaseName, string dbUser, string dbPassword, CancellationToken ct = default)
     {
-        // Connessione al db amministrativo "postgres" per emettere CREATE DATABASE.
+        // Connessione al db amministrativo "postgres" per creare ruolo e database.
         var csb = new NpgsqlConnectionStringBuilder
         {
             Host = pg.Host,
@@ -71,12 +72,28 @@ public sealed class VpsDockerProvider : IInfrastructureProvider
         await using var conn = new NpgsqlConnection(csb.ConnectionString);
         await conn.OpenAsync(ct);
 
-        // Il nome database non è parametrizzabile: va validato/quotato come identificatore.
-        var safeName = QuoteIdentifier(databaseName);
-        await using var cmd = new NpgsqlCommand($"CREATE DATABASE {safeName}", conn);
-        await cmd.ExecuteNonQueryAsync(ct);
+        // Identificatori validati/quotati; la password va in literal con escaping degli apici.
+        var dbIdent = QuoteIdentifier(databaseName);
+        var userIdent = QuoteIdentifier(dbUser);
+        var pwdLiteral = "'" + dbPassword.Replace("'", "''") + "'";
 
-        _log.LogInformation("Database logico creato: {Db} su {Host}:{Port}", databaseName, pg.Host, pg.Port);
+        // 1. Ruolo di login dedicato del progetto.
+        await using (var roleCmd = new NpgsqlCommand(
+            $"CREATE ROLE {userIdent} LOGIN PASSWORD {pwdLiteral}", conn))
+            await roleCmd.ExecuteNonQueryAsync(ct);
+
+        // 2. Database di proprietà del ruolo dedicato.
+        await using (var dbCmd = new NpgsqlCommand(
+            $"CREATE DATABASE {dbIdent} OWNER {userIdent}", conn))
+            await dbCmd.ExecuteNonQueryAsync(ct);
+
+        // 3. Hardening: nessun accesso al DB per PUBLIC; solo il ruolo dedicato.
+        await using (var revoke = new NpgsqlCommand(
+            $"REVOKE ALL ON DATABASE {dbIdent} FROM PUBLIC", conn))
+            await revoke.ExecuteNonQueryAsync(ct);
+
+        _log.LogInformation("Database {Db} + ruolo {User} creati su {Host}:{Port}",
+            databaseName, dbUser, pg.Host, pg.Port);
     }
 
     public async Task<AppContainerInfo> ProvisionAppContainerAsync(

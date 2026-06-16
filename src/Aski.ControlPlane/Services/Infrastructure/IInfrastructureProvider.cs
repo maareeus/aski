@@ -18,9 +18,13 @@ public interface IInfrastructureProvider
     Task<PostgresContainerInfo> CreatePostgresContainerAsync(
         Server server, string containerName, CancellationToken ct = default);
 
-    /// <summary>Crea un database logico isolato dentro un container Postgres esistente.</summary>
+    /// <summary>
+    /// Crea un database logico isolato dentro un container Postgres esistente, con un
+    /// ruolo di login dedicato (owner del DB, privilegi limitati al solo database).
+    /// </summary>
     Task CreateDatabaseAsync(
-        Server server, PostgresEndpoint pg, string databaseName, CancellationToken ct = default);
+        Server server, PostgresEndpoint pg,
+        string databaseName, string dbUser, string dbPassword, CancellationToken ct = default);
 
     /// <summary>Crea e avvia il container applicativo (ticketing) con label Traefik.</summary>
     Task<AppContainerInfo> ProvisionAppContainerAsync(

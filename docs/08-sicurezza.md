@@ -47,20 +47,38 @@
   `ApplyScopeAsync`) per Dev e Client, perché i ruoli non bastano (serve filtrare per
   azienda/software/assegnazione).
 
-## Hardening prima del deploy (checklist)
+## Hardening — stato
 
-- [ ] Aggiungere autenticazione al Control Plane:
-  - Super Admin: account dedicati (es. Identity + policy `SuperAdmin`).
-  - Tenant: login del portale + autorizzazione per `tenantId` (un tenant non deve
-    vedere/operare su risorse di un altro).
-- [ ] Forzare HTTPS e HSTS ovunque.
-- [ ] Rate limiting su login e webhook.
-- [ ] Segregare le credenziali Postgres per progetto (oggi si usa l'admin del pool):
-  creare un utente DB dedicato con privilegi solo sul proprio database.
-- [ ] `Jwt:Key` e segreti via variabili d'ambiente / secret manager, non in appsettings.
-- [ ] Audit log delle operazioni amministrative (modifica chiavi, creazione piani, provisioning).
+- [x] Autenticazione Control Plane: cookie auth, registrazione self-service del Tenant
+  (crea org + owner), policy `SuperAdmin`/`Tenant`, portale cliente scoped al `tenantId`.
+- [x] **FallbackPolicy** `RequireAuthenticatedUser` su entrambe le app: default-deny,
+  solo `[AllowAnonymous]` espliciti (login/registrazione, webhook firmato).
+- [x] HSTS fuori da sviluppo + HTTPS redirection.
+- [x] Rate limiting: login/registrazione 10/min per IP, webhook 120/min.
+- [x] Credenziali Postgres **dedicate per progetto** (ruolo owner del solo DB, niente
+  admin del pool nell'app; password generata e cifrata a riposo).
+- [x] Guard di produzione (fail-fast all'avvio): vietate credenziali DB di default,
+  password seed di default e chiave JWT di sviluppo.
+- [ ] Audit log delle operazioni amministrative (modifica chiavi, piani, provisioning).
 - [ ] CORS ristretto ai domini dei portali.
-- [ ] Backup e retention dei database del pool (politica di cancellazione post-Canceled).
+- [ ] Backup e retention dei database del pool (cancellazione post-Canceled).
+- [ ] Key-ring DataProtection su store condiviso (volume/Redis/KMS) se multi-istanza.
+
+## Variabili d'ambiente (produzione)
+
+In produzione i segreti NON devono stare in `appsettings.json`. Override via env
+(doppio underscore = nesting):
+
+| Variabile | Uso |
+|-----------|-----|
+| `ConnectionStrings__ControlPlane` | DB del Control Plane (obbligatoria, no default) |
+| `Seed__SuperAdminEmail` / `Seed__SuperAdminPassword` | primo Super Admin (password obbligatoria) |
+| `ConnectionStrings__Tenant` | DB dell'istanza ticketing (iniettata al provisioning) |
+| `Jwt__Key` | chiave firma JWT istanza, ≥ 32 caratteri (obbligatoria) |
+| `Seed__AdminEmail` / `Seed__AdminPassword` | admin iniziale dell'istanza |
+
+All'avvio in `Production` l'app si rifiuta di partire se una di queste è lasciata al
+valore di default di sviluppo.
 
 ## Dati e privacy
 

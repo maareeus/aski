@@ -42,6 +42,12 @@ public class Project
     /// <summary>Nome del database logico dentro il container condiviso.</summary>
     public string? DatabaseName { get; set; }
 
+    /// <summary>Utente Postgres dedicato del progetto (privilegi solo sul proprio DB).</summary>
+    public string? DbUser { get; set; }
+
+    /// <summary>Password dell'utente dedicato. Cifrata a riposo (DataProtection).</summary>
+    public string? DbPassword { get; set; }
+
     /// <summary>Id runtime del container applicativo (ticketing) provisionato.</summary>
     public string? AppContainerId { get; set; }
 

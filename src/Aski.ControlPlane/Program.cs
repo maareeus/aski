@@ -1,4 +1,5 @@
 using Aski.ControlPlane.Data;
+using Aski.ControlPlane.Services.Infrastructure;
 using Aski.ControlPlane.Services.Provisioning;
 using Aski.ControlPlane.Services.Stripe;
 using Microsoft.AspNetCore.DataProtection;
@@ -30,9 +31,17 @@ builder.Services.AddScoped<IStripeContextProvider, StripeContextProvider>();
 builder.Services.AddScoped<StripeService>();
 builder.Services.AddScoped<StripeWebhookHandler>();
 
-// Bridge verso l'infrastruttura. Fase 2: placeholder di logging.
-// In Fase 3 verrà sostituito dall'implementazione basata su IInfrastructureProvider.
-builder.Services.AddScoped<IProvisioningCoordinator, LoggingProvisioningCoordinator>();
+// --- Infrastruttura / Provisioning ---
+builder.Services.AddSingleton<IInfrastructureProviderFactory, InfrastructureProviderFactory>();
+
+// Scelta del coordinatore via config (Provisioning:Mode):
+//   "Docker"  -> DockerProvisioningCoordinator (richiede demone Docker raggiungibile)
+//   "Logging" -> LoggingProvisioningCoordinator (placeholder, per testare il billing senza Docker)
+var provisioningMode = builder.Configuration["Provisioning:Mode"] ?? "Logging";
+if (string.Equals(provisioningMode, "Docker", StringComparison.OrdinalIgnoreCase))
+    builder.Services.AddScoped<IProvisioningCoordinator, DockerProvisioningCoordinator>();
+else
+    builder.Services.AddScoped<IProvisioningCoordinator, LoggingProvisioningCoordinator>();
 
 var app = builder.Build();
 

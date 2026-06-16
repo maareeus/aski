@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace Aski.ControlPlane.Web.Controllers;
@@ -16,6 +17,7 @@ namespace Aski.ControlPlane.Web.Controllers;
 /// con redirect in base al ruolo.
 /// </summary>
 [Route("Account")]
+[EnableRateLimiting("auth")] // anti brute-force su login/registrazione
 public sealed class AccountController : Controller
 {
     private readonly ControlPlaneDbContext _db;

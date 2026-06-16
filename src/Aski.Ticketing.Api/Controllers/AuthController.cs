@@ -2,6 +2,7 @@ using Aski.Ticketing.Api.Auth;
 using Aski.Ticketing.Api.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace Aski.Ticketing.Api.Controllers;
@@ -25,6 +26,7 @@ public sealed class AuthController : ControllerBase
 
     [HttpPost("login")]
     [AllowAnonymous] // Unico endpoint pubblico: emette il JWT dopo verifica credenziali.
+    [EnableRateLimiting("auth")]
     public async Task<ActionResult<LoginResponse>> Login(LoginRequest req, CancellationToken ct)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == req.Email && u.IsActive, ct);

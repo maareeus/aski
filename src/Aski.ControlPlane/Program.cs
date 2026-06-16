@@ -3,9 +3,11 @@ using Aski.ControlPlane.Entities;
 using Aski.ControlPlane.Services.Infrastructure;
 using Aski.ControlPlane.Services.Provisioning;
 using Aski.ControlPlane.Services.Stripe;
+using System.Threading.RateLimiting;
 using Aski.Shared;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -28,6 +30,12 @@ builder.Services.AddDataProtection()
 // DbContext del Control Plane (PostgreSQL).
 var connectionString = builder.Configuration.GetConnectionString("ControlPlane")
                        ?? "Host=localhost;Port=5432;Database=aski_controlplane;Username=postgres;Password=postgres";
+
+// Hardening: in produzione vietiamo le credenziali DB di default.
+if (builder.Environment.IsProduction() && connectionString.Contains("Password=postgres"))
+    throw new InvalidOperationException(
+        "Credenziali DB di default non ammesse in produzione: imposta ConnectionStrings__ControlPlane.");
+
 builder.Services.AddDbContext<ControlPlaneDbContext>(opt => opt.UseNpgsql(connectionString));
 
 // --- Billing / Stripe ---
@@ -69,6 +77,20 @@ builder.Services.AddAuthorization(options =>
         .Build();
 });
 
+// --- Rate limiting (anti brute-force / abuso) ---
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    // Login/registrazione: stretto, per IP.
+    o.AddPolicy("auth", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    // Webhook Stripe: più alto (Stripe può raffica di eventi), per IP.
+    o.AddPolicy("webhook", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 120, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+});
+
 var app = builder.Build();
 
 // Migrazione + seed del Super Admin iniziale.
@@ -76,7 +98,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ControlPlaneDbContext>();
     await db.Database.MigrateAsync();
-    await SeedSuperAdminAsync(db, app.Configuration);
+    await SeedSuperAdminAsync(db, app.Configuration, app.Environment);
 }
 
 // --- Pipeline HTTP ---
@@ -84,10 +106,15 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+else
+{
+    app.UseHsts(); // HSTS solo fuori da sviluppo (in dev i certificati locali variano).
+}
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -101,13 +128,18 @@ app.MapControllerRoute(
 app.Run();
 
 // Crea il Super Admin iniziale se non esiste alcun SuperAdmin.
-static async Task SeedSuperAdminAsync(ControlPlaneDbContext db, IConfiguration config)
+static async Task SeedSuperAdminAsync(ControlPlaneDbContext db, IConfiguration config, IWebHostEnvironment env)
 {
     if (await db.PortalUsers.AnyAsync(u => u.Role == PortalUserRole.SuperAdmin))
         return;
 
     var email = config["Seed:SuperAdminEmail"] ?? "admin@aski.local";
     var password = config["Seed:SuperAdminPassword"] ?? "ChangeMe123!";
+
+    // Hardening: in produzione la password seed deve arrivare da configurazione/env, non dal default.
+    if (env.IsProduction() && (string.IsNullOrWhiteSpace(password) || password == "ChangeMe123!"))
+        throw new InvalidOperationException(
+            "Imposta Seed__SuperAdminPassword (via env) in produzione: la password di default non è ammessa.");
 
     db.PortalUsers.Add(new PortalUser
     {

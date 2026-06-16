@@ -27,6 +27,11 @@ dotnet ef database update --project src/Aski.ControlPlane
 dotnet run --project src/Aski.ControlPlane
 ```
 
+Il Control Plane richiede login. Super Admin iniziale (seed allo startup):
+`admin@aski.local` / `ChangeMe123!` (override via `Seed:SuperAdminEmail` /
+`Seed:SuperAdminPassword`; in Production obbligatorio). I clienti si registrano da
+soli su `/Account/Register`.
+
 Configurazione (`src/Aski.ControlPlane/appsettings.json`):
 
 ```json

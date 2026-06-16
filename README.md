@@ -14,7 +14,7 @@ Tre macro-aree:
 Aski.slnx
 └── src/
     ├── Aski.Shared/            # enum e contratti condivisi (Control Plane)
-    ├── Aski.ControlPlane/      # API: Stripe, billing, webhook, provisioning infra
+    ├── Aski.ControlPlane/      # UI MVC + auth: Super Admin, portale cliente, Stripe, webhook, provisioning
     └── Aski.Ticketing.Api/     # API isolata dell'istanza ticketing (ruoli + ticket)
 ```
 
@@ -22,7 +22,7 @@ Aski.slnx
 
 | Fase | Contenuto |
 |------|-----------|
-| 1 | Modelli core: `StripeSettings` (Test/Live + toggle), `Plan`, `Server` (limite N), `DbContainer` (xmin). Segreti cifrati a riposo (DataProtection). |
+| 1 | Modelli core: `StripeSettings` (modalità Simulato/Test/Live), `Plan`, `Server` (limite N), `DbContainer` (xmin). Segreti cifrati a riposo (DataProtection). |
 | 2 | `StripeService` (sync piani, Checkout, Customer Portal), webhook engine con verifica firma + idempotenza, macchina a stati abbonamento. |
 | 3 | `IInfrastructureProvider` + factory, `VpsDockerProvider` (Docker.DotNet + label Traefik), pool Postgres N-per-container con concurrency token. |
 | 4 | `TicketingDbContext` isolato, auth JWT, controller ticket/commenti con autorizzazione per ruolo. |
@@ -37,8 +37,10 @@ Aski.slnx
 .\scripts\stop-env.ps1             # -RemoveDb per cancellare anche il container Postgres
 ```
 
-- Control Plane → http://localhost:5080/Dashboard
+- Control Plane → http://localhost:5080 — login Super Admin `admin@aski.local` / `ChangeMe123!`. I clienti si registrano da soli su `/Account/Register`.
 - Ticketing API → http://localhost:5090 (login `admin@aski.local` / `ChangeMe123!`)
+
+> Credenziali seed modificabili via `Seed:SuperAdminEmail` / `Seed:SuperAdminPassword` (Control Plane) e `Seed:AdminEmail` / `Seed:AdminPassword` (istanza). In Production l'avvio fallisce se restano i default.
 
 ## Deploy con Docker
 

@@ -1,114 +1,50 @@
-# 06 — API Control Plane
+# 06 — Control Plane: interfacce
 
-Base URL di sviluppo: `https://localhost:5001`.
+## Importante: niente più API REST amministrative
 
-> ⚠️ Questi endpoint **non sono ancora protetti** da autenticazione. Aggiungere auth
-> Super Admin / Tenant prima del deploy (vedi [08 — Sicurezza](08-sicurezza.md)).
+Le precedenti API REST (`/api/admin/*`, `/api/tenants`, `/api/billing`) sono state
+**rimosse** per sicurezza: prendevano id dall'input (rischio cross-tenant) e duplicavano
+l'UI. Tutte le funzioni sono ora nell'**UI MVC autenticata** del Control Plane.
 
-## Super Admin — Impostazioni Stripe
+L'unico endpoint HTTP pubblico rimasto è il **webhook Stripe**.
 
-### `GET /api/admin/stripe-settings`
-Vista mascherata (i segreti non vengono mai restituiti in chiaro).
+## Autenticazione
 
-```json
-{ "configured": true, "isTestMode": true, "testSecretKeySet": true, "testWebhookSecretSet": true, "testPublishableKey": "pk_test_..." }
-```
+Cookie auth con due ruoli (`SuperAdmin`, `TenantOwner`). Policy di fallback
+`RequireAuthenticatedUser`: ogni rotta richiede login, salvo `[AllowAnonymous]`
+(login, registrazione, webhook).
 
-### `PUT /api/admin/stripe-settings`
-Crea/aggiorna le chiavi. I campi null lasciano invariato il valore esistente.
+- Super Admin seed: `admin@aski.local` / `ChangeMe123!` (override via `Seed:SuperAdminEmail` / `Seed:SuperAdminPassword`; obbligatorio in Production).
+- Clienti: **registrazione self-service** su `/Account/Register` (crea org + owner).
 
-```json
-{
-  "isTestMode": true,
-  "testPublishableKey": "pk_test_...",
-  "testSecretKey": "sk_test_...",
-  "testWebhookSecret": "whsec_..."
-}
-```
-→ `204 No Content`
+## Pagine UI
 
-### `POST /api/admin/stripe-settings/test-mode/{enabled}`
-Toggle rapido Test/Live. Es. `.../test-mode/false` → `{ "isTestMode": false }`.
+| Area | Rotta | Ruolo | Funzione |
+|------|-------|-------|----------|
+| Login | `/Account/Login` | anonimo | accesso |
+| Registrazione | `/Account/Register` | anonimo | nuovo cliente (org + owner) |
+| Dashboard | `/Dashboard` | SuperAdmin | KPI piattaforma |
+| Stripe | `/StripeAdmin` | SuperAdmin | modalità (Simulato/Test/Live) + chiavi |
+| Piani | `/PlanAdmin` | SuperAdmin | crea/sincronizza piani |
+| Server | `/ServerAdmin` | SuperAdmin | regioni, limite N, abilita |
+| Clienti | `/AdminCustomers` | SuperAdmin | panoramica org (sola lettura) |
+| Audit | `/AdminAudit` | SuperAdmin | registro operazioni |
+| Portale cliente | `/Portal` | TenantOwner | progetti, attivazione piano, fatturazione |
 
-## Super Admin — Piani
+Le mutazioni passano da form con antiforgery; login/registrazione hanno rate limiting.
 
-### `POST /api/admin/plans`
-Crea un piano e lo sincronizza con Stripe (Product + Price).
-
-```json
-{ "name": "Pro", "description": "Piano professionale", "amount": 1999, "currency": "eur", "period": 0 }
-```
-→ `{ "id": 1, "stripeProductId": "prod_...", "stripePriceId": "price_..." }`
-
-`period`: `0` mensile, `1` annuale. `amount` in centesimi.
-
-### `POST /api/admin/plans/{id}/sync`
-Ri-sincronizza un piano esistente con Stripe.
-
-## Super Admin — Server
-
-### `GET /api/admin/servers`
-Lista server con `Id, Name, Region, Type, MaxProjectsPerDbContainer, IsEnabled`.
-
-### `POST /api/admin/servers`
-```json
-{
-  "name": "EU Milano", "region": "it-mil-1", "type": 0,
-  "hostname": "10.0.0.5",
-  "configJson": "{\"dockerHost\":\"tcp://10.0.0.5:2376\",\"network\":\"traefik\",\"domainSuffix\":\"aski.app\"}",
-  "maxProjectsPerDbContainer": 10, "isEnabled": true
-}
-```
-`type`: `0` VpsDocker, `1` AwsEcs.
-
-## Tenant — Customer Portal
-
-### `POST /api/tenants`
-```json
-{ "companyName": "Acme Srl", "billingEmail": "billing@acme.it" }
-```
-→ `{ "id": 1 }`
-
-### `GET /api/tenants/{id}`
-Tenant con progetti e abbonamenti.
-
-### `POST /api/tenants/{id}/projects`
-```json
-{ "name": "Supporto", "serverId": 1, "subdomain": "acme", "customDomain": "support.acme.com", "subscriptionId": null }
-```
-→ `{ "id": 1 }`
-
-### `POST /api/tenants/projects/{projectId}/provision`
-Trigger manuale di provisioning (per test, in produzione lo pilota il webhook). → `202 Accepted`
-
-## Billing
-
-### `POST /api/billing/checkout`
-```json
-{ "tenantId": 1, "planId": 1 }
-```
-→ `{ "url": "https://checkout.stripe.com/..." }` — reindirizzare il browser.
-
-### `POST /api/billing/portal`
-```json
-{ "tenantId": 1 }
-```
-→ `{ "url": "https://billing.stripe.com/..." }`
-
-## Webhook
+## Webhook Stripe (unico endpoint API)
 
 ### `POST /api/stripe/webhook`
-Riceve gli eventi Stripe. Verifica firma `Stripe-Signature` + idempotenza. Vedi
+Pubblico ma autenticato dalla **firma** `Stripe-Signature` + idempotenza
+(`ProcessedStripeEvents`). Usato solo in modalità `Test`/`Live`. Dettagli in
 [03 — Stripe & Billing](03-stripe-billing.md).
 
-## Sequenza di test end-to-end
+## Flusso operativo (UI)
 
-```http
-PUT  /api/admin/stripe-settings      {... testSecretKey, testWebhookSecret ...}
-POST /api/admin/plans                { "name":"Pro","amount":1999,"currency":"eur","period":0 }
-POST /api/admin/servers              { "name":"EU","region":"it","type":0,"maxProjectsPerDbContainer":10,"isEnabled":true }
-POST /api/tenants                    { "companyName":"Acme","billingEmail":"a@acme.it" }
-POST /api/tenants/1/projects         { "name":"Supporto","serverId":1,"subdomain":"acme" }
-POST /api/billing/checkout           { "tenantId":1,"planId":1 }   --> apri url, paga 4242...
-```
-Con `stripe listen` attivo, gli eventi attivano il provisioning → `ProvisioningStatus = Running`.
+Vedi la guida passo-passo: [10 — Guida Super Admin](10-guida-super-admin.md) e
+`docs/guida-admin.html`. In sintesi:
+
+1. Super Admin: login → imposta **modalità Stripe** → (se Test/Live) chiavi + piani → server.
+2. Cliente: registrazione → crea progetto → **Attiva** un piano.
+3. Modalità `Simulated` → attivazione immediata; `Test`/`Live` → Stripe Checkout.

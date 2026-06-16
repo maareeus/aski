@@ -74,7 +74,7 @@ erDiagram
     }
     StripeSettings {
         int Id PK "=1"
-        bool IsTestMode
+        int Mode "Simulated/Test/Live"
         string TestSecretKey "cifrato"
         string LiveSecretKey "cifrato"
     }
@@ -93,6 +93,11 @@ erDiagram
 | `SubscriptionStatus` | `Pending=0`, `Active=1`, `PastDue=2`, `Suspended=3`, `Canceled=4` |
 | `ServerType` | `VpsDocker=0`, `AwsEcs=1` |
 | `ProvisioningStatus` | `NotProvisioned=0`, `Provisioning=1`, `Running=2`, `Stopped=3`, `Failed=4` |
+| `StripeMode` | `Simulated=0`, `Test=1`, `Live=2` |
+| `PortalUserRole` | `SuperAdmin=0`, `TenantOwner=1` |
+
+Altre tabelle del Control Plane: `PortalUser` (login: SuperAdmin/TenantOwner, password BCrypt),
+`AuditLog` (operazioni sensibili), `Project.DbUser`/`DbPassword` (credenziali DB dedicate, password cifrata).
 
 ### Note di mapping
 

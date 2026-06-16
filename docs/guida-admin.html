@@ -133,7 +133,7 @@
       <li><strong>Clienti</strong>: tenant, progetti e relativo provisioning.</li>
     </ul>
     <p>La fatturazione pilota l&rsquo;infrastruttura: quando un abbonamento è attivo il progetto viene avviato, quando è insoluto/disdetto viene fermato (senza perdere i dati).</p>
-    <div class="note info"><span class="t">Ordine consigliato</span>Stripe &rarr; Piani &rarr; Server &rarr; Tenant &rarr; Progetto &rarr; Checkout/Provisiona.</div>
+    <div class="note info"><span class="t">Ordine consigliato</span>Stripe (modalità) &rarr; Piani &rarr; Server. Poi il cliente si registra da sé, crea il progetto e attiva il piano.</div>
   </section>
 
   <section id="avvio">
@@ -154,6 +154,7 @@
       <tr><td>Istanza Ticketing (API)</td><td><code>http://localhost:5090</code></td></tr>
       <tr><td>PostgreSQL</td><td><code>localhost:5432</code> (postgres/postgres)</td></tr>
     </table>
+    <div class="note tip"><span class="t">Accesso Super Admin</span>Login su <code>/Account/Login</code> con <code>admin@aski.local</code> / <code>ChangeMe123!</code> (seed iniziale, modificabile via <code>Seed:SuperAdminEmail</code> / <code>Seed:SuperAdminPassword</code>; in produzione è obbligatorio cambiarla). I clienti si registrano da soli su <code>/Account/Register</code>.</div>
   </section>
 
   <section id="modalita">
@@ -179,22 +180,22 @@ stripe listen --forward-to http://localhost:5080/api/stripe/webhook</code></pre>
     <p>Il comando stampa un <strong>webhook signing secret</strong> <code>whsec_…</code>: copialo.</p>
     <h3>3. Inserisci le chiavi nel pannello</h3>
     <ol class="steps">
-      <li>Lascia il toggle su <strong>TEST</strong> (sandbox).</li>
+      <li>Seleziona la modalità <strong>Test (sandbox)</strong> tra le tre disponibili (Simulato / Test / Live).</li>
       <li>Compila l&rsquo;ambiente TEST: Publishable key, Secret key, Webhook secret.</li>
       <li>Premi <strong>Salva impostazioni</strong>.</li>
     </ol>
-    <div class="note info"><span class="t">Test vs Live</span>Le chiavi Test e Live sono due set separati: cambiare modalità non cancella l&rsquo;altro ambiente. I segreti sono cifrati a riposo; i campi password vuoti non sovrascrivono i valori salvati.</div>
+    <div class="note info"><span class="t">Modalità decisa da te</span>La modalità (Simulato/Test/Live) è una scelta del Super Admin, non del cliente. In <strong>Simulato</strong> non servono chiavi: l&rsquo;acquisto attiva subito il progetto. Le chiavi Test e Live restano separate; i segreti sono cifrati a riposo e i campi password vuoti non sovrascrivono i valori salvati.</div>
   </section>
 
   <section id="piani">
     <h2>Creare i piani</h2>
-    <p>Menu <strong>Piani</strong> (<code>/PlanAdmin</code>). Creare un piano lo sincronizza con Stripe (Product + Price).</p>
+    <p>Menu <strong>Piani</strong> (<code>/PlanAdmin</code>). In Test/Live la creazione sincronizza con Stripe (Product + Price); in <strong>Simulato</strong> il piano resta locale (nessun <code>price_…</code>).</p>
     <ol class="steps">
       <li>Compila Nome (es. <code>Pro</code>), Prezzo (es. <code>19.99</code>), Valuta (<code>eur</code>), Periodo (Mensile/Annuale).</li>
-      <li>Premi <strong>Crea e sincronizza</strong>.</li>
-      <li>Se riesce, accanto al piano compare un <code>price_…</code> (creato su Stripe).</li>
+      <li>Premi <strong>Crea</strong> (in Test/Live: "Crea e sincronizza").</li>
+      <li>In Test/Live, se riesce, accanto al piano compare un <code>price_…</code>.</li>
     </ol>
-    <div class="note warn"><span class="t">Se manca il price</span>Il piano è stato salvato ma la sincronizzazione Stripe è fallita: verifica la Secret key in <strong>Stripe</strong>, poi premi <strong>Sincronizza</strong> sulla riga del piano.</div>
+    <div class="note warn"><span class="t">Se manca il price (Test/Live)</span>Il piano è salvato ma la sincronizzazione è fallita: verifica la Secret key in <strong>Stripe</strong>, poi premi <strong>Sincronizza</strong>. In Simulato l&rsquo;assenza di price è normale.</div>
     <p>Per offrire lo stesso prodotto mensile <em>e</em> annuale, crea due piani distinti.</p>
   </section>
 
@@ -224,23 +225,17 @@ stripe listen --forward-to http://localhost:5080/api/stripe/webhook</code></pre>
   </section>
 
   <section id="tenant">
-    <h2>Tenant e progetti</h2>
-    <p>Menu <strong>Tenant</strong> (<code>/Portal</code>).</p>
-    <ol class="steps">
-      <li><strong>Registra azienda</strong>: ragione sociale + email di fatturazione.</li>
-      <li>Apri la scheda del tenant.</li>
-      <li><strong>Nuovo progetto</strong>: nome, server/regione (tra quelli abilitati), sottodominio, eventuale dominio personalizzato.</li>
-    </ol>
-    <p>Il progetto nasce <em>non provisionato</em>. Diventa <em>Running</em> dopo l&rsquo;acquisto (webhook) o premendo <strong>Provisiona</strong>.</p>
+    <h2>Clienti e progetti</h2>
+    <p>I <strong>clienti si registrano da soli</strong> su <code>/Account/Register</code> (creano la propria org). Tu li vedi in sola lettura nel menu <strong>Clienti</strong> (<code>/AdminCustomers</code>).</p>
+    <p>Dal proprio portale (<code>/Portal</code>) il cliente crea i progetti scegliendo un server tra quelli abilitati, poi attiva un piano. Il progetto nasce <em>non provisionato</em> e diventa <em>Running</em> all&rsquo;attivazione del piano.</p>
   </section>
 
   <section id="checkout">
-    <h2>Acquisto &amp; webhook</h2>
-    <p>Dalla scheda tenant, sezione <strong>Acquista un piano</strong> &rarr; <strong>Checkout</strong>.</p>
+    <h2>Attivazione &amp; webhook</h2>
+    <p>Nel portale, sul progetto, il cliente sceglie un piano e preme <strong>Attiva</strong>. Il flusso dipende dalla modalità decisa da te:</p>
     <ol class="steps">
-      <li>Si apre Stripe Checkout: paga con la carta di test <code>4242 4242 4242 4242</code> (data futura, CVC qualsiasi).</li>
-      <li>Stripe invia gli eventi al webhook (richiede <code>stripe listen</code> attivo).</li>
-      <li>L&rsquo;abbonamento passa ad <strong>Attivo</strong> e parte il provisioning del progetto collegato.</li>
+      <li><strong>Simulato</strong>: abbonamento Attivo e progetto provisionato subito, senza Stripe.</li>
+      <li><strong>Test/Live</strong>: si apre Stripe Checkout (carta test <code>4242 4242 4242 4242</code>); il webhook (con <code>stripe listen</code> attivo) attiva l&rsquo;abbonamento e provisiona.</li>
     </ol>
     <table>
       <tr><th>Evento Stripe</th><th>Stato abbonamento</th><th>Azione</th></tr>
@@ -252,13 +247,14 @@ stripe listen --forward-to http://localhost:5080/api/stripe/webhook</code></pre>
   </section>
 
   <section id="rapido">
-    <h2>Prova rapida senza Stripe</h2>
-    <p>Per vedere un progetto diventare <em>Running</em> senza account Stripe né VPS (modalità <span class="pill p-log">Logging</span>):</p>
+    <h2>Prova rapida (tutto simulato)</h2>
+    <p>Per vedere un progetto diventare <em>Running</em> senza Stripe né VPS: modalità Stripe <strong>Simulato</strong> + <code>Provisioning:Mode=Logging</code> (default).</p>
     <ol class="steps">
-      <li><strong>Server</strong>: crea <code>EU Milano</code> / <code>it-mil-1</code>, tipo VPS Docker, Config JSON vuoto, N=10, Abilitato.</li>
-      <li><strong>Tenant</strong>: registra <code>Acme Srl</code> + email.</li>
-      <li><strong>Progetto</strong>: aprilo, crea <code>Supporto</code> sul server, sottodominio <code>acme</code>.</li>
-      <li>Premi <strong>Provisiona</strong> sul progetto &rarr; stato <strong>Running</strong>.</li>
+      <li><strong>Stripe</strong>: modalità <strong>Simulato</strong> (default).</li>
+      <li><strong>Piani</strong>: crea <code>Pro</code> (nessuna sincronizzazione in Simulato).</li>
+      <li><strong>Server</strong>: <code>EU Milano</code> / <code>it-mil-1</code>, tipo VPS Docker, Config JSON vuoto, N=10, Abilitato.</li>
+      <li><strong>Cliente</strong> (browser incognito): registrati su <code>/Account/Register</code>, crea un progetto, scegli il piano e premi <strong>Attiva</strong>.</li>
+      <li>Il progetto passa a <strong>Running</strong>, l&rsquo;abbonamento ad <strong>Attivo</strong>.</li>
     </ol>
     <div class="note tip"><span class="t">Zero dipendenze</span>Nessun account Stripe, nessuna VPS: utile per demo e per capire i flussi.</div>
   </section>
@@ -280,9 +276,9 @@ stripe listen --forward-to http://localhost:5080/api/stripe/webhook</code></pre>
     <details class="faq"><summary>In dashboard vedo &ldquo;Stripe non configurato&rdquo;</summary><div class="a">Vai su <strong>Stripe</strong> e salva almeno le chiavi dell&rsquo;ambiente attivo (Secret + Publishable + Webhook secret).</div></details>
     <details class="faq"><summary>Il piano è creato ma non ha il <code>price_…</code></summary><div class="a">La Secret key Stripe è errata o assente. Correggila in <strong>Stripe</strong>, poi premi <strong>Sincronizza</strong> sul piano.</div></details>
     <details class="faq"><summary>Il Checkout dà errore</summary><div class="a">Il piano non è sincronizzato (manca il price) oppure le chiavi Stripe non sono valide.</div></details>
-    <details class="faq"><summary>Ho pagato ma il progetto non diventa Running</summary><div class="a">Verifica che <code>stripe listen</code> sia attivo e che esista un progetto collegato all&rsquo;abbonamento. In alternativa usa il pulsante <strong>Provisiona</strong>.</div></details>
+    <details class="faq"><summary>Ho pagato (Test) ma il progetto non diventa Running</summary><div class="a">Verifica che <code>stripe listen</code> sia attivo: senza inoltro dei webhook l&rsquo;abbonamento non si attiva. In modalità Simulato l&rsquo;attivazione è invece immediata.</div></details>
     <details class="faq"><summary>In modalità Docker il provisioning fallisce</summary><div class="a">Il Control Plane non raggiunge il demone Docker o Traefik: controlla <code>dockerHost</code>, la rete e il certresolver nel Config JSON del server.</div></details>
-    <details class="faq"><summary>Come passo da sandbox a produzione?</summary><div class="a">Inserisci le chiavi LIVE nell&rsquo;apposito riquadro e sposta il toggle su LIVE. Le chiavi Test restano salvate.</div></details>
+    <details class="faq"><summary>Come passo da sandbox a produzione?</summary><div class="a">Inserisci le chiavi LIVE nell&rsquo;apposito riquadro e seleziona la modalità <strong>Live</strong>. Le chiavi Test restano salvate.</div></details>
   </section>
 
   <section id="sicurezza">

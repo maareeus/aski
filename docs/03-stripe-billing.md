@@ -1,17 +1,29 @@
 # 03 — Stripe & Billing
 
+## Modalità billing (decisa dal Super Admin)
+
+`StripeSettings.Mode` (enum `StripeMode`) è una scelta del **Super Admin**, non del cliente:
+
+| Modalità | Cosa fa |
+|----------|---------|
+| `Simulated` (default) | Billing finto: l'acquisto del cliente attiva subito abbonamento e provisioning, **nessuna chiamata a Stripe**. |
+| `Test` | Stripe sandbox (chiavi `*_test`). |
+| `Live` | Stripe produzione (chiavi `*_live`). |
+
+Il cliente preme sempre solo **Attiva**; è la modalità a decidere se si passa da Stripe o no.
+
 ## Configurazione delle chiavi
 
-Le chiavi Stripe sono salvate nella riga singola `StripeSettings` (Id = 1) del DB
-del Control Plane. Esistono **due set completi** (Test e Live) + un toggle `IsTestMode`:
-cambiare ambiente non distrugge le chiavi dell'altro.
+Le chiavi sono nella riga singola `StripeSettings` (Id = 1). **Due set completi** (Test e
+Live) coesistenti: cambiare modalità non distrugge l'altro ambiente. In `Simulated` le
+chiavi non servono.
 
 | Campo | Cifrato a riposo | Note |
 |-------|------------------|------|
 | `TestSecretKey` / `LiveSecretKey` | ✅ | `sk_test_...` / `sk_live_...` |
 | `TestWebhookSecret` / `LiveWebhookSecret` | ✅ | `whsec_...` |
 | `TestPublishableKey` / `LivePublishableKey` | ❌ | pubblica (`pk_...`) |
-| `IsTestMode` | — | seleziona il set attivo |
+| `Mode` | — | `Simulated` / `Test` / `Live` |
 
 La cifratura usa ASP.NET DataProtection tramite un `ValueConverter` EF Core
 (`EncryptedConverter`, purpose `Aski.StripeSecrets.v1`). In memoria i valori sono in
@@ -19,8 +31,8 @@ chiaro, in colonna sono ciphertext. **Non cambiare il purpose** o i dati esisten
 diventano illeggibili.
 
 `IStripeContextProvider.GetAsync()` legge la riga, decifra, e restituisce un
-`StripeContext` con un `StripeClient` già autenticato sulla chiave attiva + il
-webhook secret + la publishable key.
+`StripeContext` con un `StripeClient` autenticato sulla chiave attiva (lancia se la
+modalità è `Simulated`, dove Stripe non va usato).
 
 ## Piani
 

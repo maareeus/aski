@@ -1,0 +1,38 @@
+## .NET
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+build/
+publish/
+*.user
+*.suo
+.vs/
+.vscode/
+*.userosscache
+*.sln.docstates
+
+## Rider / JetBrains
+.idea/
+
+## NuGet
+*.nupkg
+*.snupkg
+.nuget/
+
+## DataProtection key-ring (segreti! mai committare)
+**/keys/
+*.pfx
+
+## Secrets / env
+appsettings.*.local.json
+.env
+secrets.json
+
+## Test results
+[Tt]est[Rr]esults/
+*.trx

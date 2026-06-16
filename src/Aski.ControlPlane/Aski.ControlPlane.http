@@ -1,0 +1,6 @@
+@Aski.ControlPlane_HostAddress = http://localhost:5285
+
+GET {{Aski.ControlPlane_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,4 +1,6 @@
 using Aski.ControlPlane.Data;
+using Aski.ControlPlane.Services.Provisioning;
+using Aski.ControlPlane.Services.Stripe;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,6 +24,15 @@ builder.Services.AddDataProtection()
 var connectionString = builder.Configuration.GetConnectionString("ControlPlane")
                        ?? "Host=localhost;Port=5432;Database=aski_controlplane;Username=postgres;Password=postgres";
 builder.Services.AddDbContext<ControlPlaneDbContext>(opt => opt.UseNpgsql(connectionString));
+
+// --- Billing / Stripe ---
+builder.Services.AddScoped<IStripeContextProvider, StripeContextProvider>();
+builder.Services.AddScoped<StripeService>();
+builder.Services.AddScoped<StripeWebhookHandler>();
+
+// Bridge verso l'infrastruttura. Fase 2: placeholder di logging.
+// In Fase 3 verrà sostituito dall'implementazione basata su IInfrastructureProvider.
+builder.Services.AddScoped<IProvisioningCoordinator, LoggingProvisioningCoordinator>();
 
 var app = builder.Build();
 

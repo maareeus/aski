@@ -28,6 +28,10 @@ public class ControlPlaneDbContext : DbContext
     public DbSet<Plan> Plans => Set<Plan>();
     public DbSet<Server> Servers => Set<Server>();
     public DbSet<DbContainer> DbContainers => Set<DbContainer>();
+    public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<Subscription> Subscriptions => Set<Subscription>();
+    public DbSet<Project> Projects => Set<Project>();
+    public DbSet<ProcessedStripeEvent> ProcessedStripeEvents => Set<ProcessedStripeEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -76,6 +80,64 @@ public class ControlPlaneDbContext : DbContext
             // xmin di Postgres come concurrency token (gestito da Npgsql).
             e.Property(x => x.Version).IsRowVersion();
             e.HasIndex(x => new { x.ServerId, x.IsFull });
+        });
+
+        modelBuilder.Entity<Tenant>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.CompanyName).HasMaxLength(200);
+            e.Property(x => x.BillingEmail).HasMaxLength(256);
+            e.Property(x => x.StripeCustomerId).HasMaxLength(120);
+            e.HasIndex(x => x.StripeCustomerId);
+        });
+
+        modelBuilder.Entity<Subscription>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.StripeSubscriptionId).HasMaxLength(120);
+            e.Property(x => x.StripeCustomerId).HasMaxLength(120);
+            e.HasIndex(x => x.StripeSubscriptionId).IsUnique();
+            e.HasOne(x => x.Tenant)
+                .WithMany(t => t.Subscriptions)
+                .HasForeignKey(x => x.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Plan)
+                .WithMany()
+                .HasForeignKey(x => x.PlanId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Project>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(200);
+            e.Property(x => x.Subdomain).HasMaxLength(120);
+            e.Property(x => x.CustomDomain).HasMaxLength(253);
+            e.Property(x => x.DatabaseName).HasMaxLength(120);
+            e.HasIndex(x => x.Subdomain).IsUnique();
+            e.HasOne(x => x.Tenant)
+                .WithMany(t => t.Projects)
+                .HasForeignKey(x => x.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Subscription)
+                .WithOne(s => s.Project)
+                .HasForeignKey<Project>(x => x.SubscriptionId)
+                .OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.Server)
+                .WithMany()
+                .HasForeignKey(x => x.ServerId)
+                .OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.DbContainer)
+                .WithMany()
+                .HasForeignKey(x => x.DbContainerId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<ProcessedStripeEvent>(e =>
+        {
+            e.HasKey(x => x.EventId);
+            e.Property(x => x.EventId).HasMaxLength(120);
+            e.Property(x => x.EventType).HasMaxLength(120);
         });
     }
 }

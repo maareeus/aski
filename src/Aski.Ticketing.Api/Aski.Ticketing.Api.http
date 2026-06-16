@@ -1,0 +1,6 @@
+@Aski.Ticketing.Api_HostAddress = http://localhost:5078
+
+GET {{Aski.Ticketing.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

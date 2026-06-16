@@ -40,6 +40,20 @@ Aski.slnx
 - Control Plane → http://localhost:5080/Dashboard
 - Ticketing API → http://localhost:5090 (login `admin@aski.local` / `ChangeMe123!`)
 
+## Deploy con Docker
+
+```powershell
+copy .env.example .env     # poi valorizza i segreti
+docker compose up -d --build
+```
+
+- Stack: PostgreSQL + Control Plane (immagine `src/Aski.ControlPlane/Dockerfile`).
+- Immagine istanza ticketing: `docker build -f src/Aski.Ticketing.Api/Dockerfile -t aski-ticketing .`
+- Segreti via `.env` (mai committato): `POSTGRES_PASSWORD`, `SUPERADMIN_*`, `PORTAL_BASE_URL`.
+- Gira in `Production`: l'app rifiuta l'avvio con segreti di default. Mettere dietro un
+  reverse proxy con TLS (es. Traefik); il key-ring DataProtection è su volume persistente.
+- Provisioning reale: `PROVISIONING_MODE=Docker` + montare `/var/run/docker.sock` (vedi compose).
+
 ## Prerequisiti
 
 - .NET 10 SDK

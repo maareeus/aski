@@ -1,0 +1,50 @@
+# Stack di base Aski: PostgreSQL + Control Plane.
+# I segreti arrivano da .env (vedi .env.example). Avvio: docker compose up -d --build
+#
+# NB: dietro un reverse proxy che termina TLS (es. Traefik). Il Control Plane gira
+# in HTTP sulla 8080; il proxy gestisce HTTPS/HSTS verso l'esterno.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?serve POSTGRES_PASSWORD}
+      POSTGRES_DB: aski_controlplane
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  controlplane:
+    build:
+      context: .
+      dockerfile: src/Aski.ControlPlane/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__ControlPlane: "Host=postgres;Port=5432;Database=aski_controlplane;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:?}"
+      DataProtection__KeyRingPath: /app/keys
+      Seed__SuperAdminEmail: ${SUPERADMIN_EMAIL:?serve SUPERADMIN_EMAIL}
+      Seed__SuperAdminPassword: ${SUPERADMIN_PASSWORD:?serve SUPERADMIN_PASSWORD}
+      Portal__BaseUrl: ${PORTAL_BASE_URL:?serve PORTAL_BASE_URL}
+      Provisioning__Mode: ${PROVISIONING_MODE:-Logging}
+      Cors__AllowedOrigins__0: ${PORTAL_BASE_URL:?}
+    ports:
+      - "8080:8080"
+    volumes:
+      # Key-ring DataProtection persistente: i segreti Stripe cifrati restano leggibili dopo i riavvii.
+      - keyring:/app/keys
+      # Decommenta per il provisioning reale (Provisioning__Mode=Docker):
+      # - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  keyring:

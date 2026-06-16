@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+**/keys/
+.git/
+.vs/
+.idea/
+.vscode/
+*.user
+docs/
+*.log
+**/appsettings.*.local.json

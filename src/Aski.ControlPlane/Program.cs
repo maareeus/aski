@@ -8,7 +8,8 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 // --- Servizi ---
-builder.Services.AddControllers();
+// AddControllersWithViews abilita sia le API attribute-routed sia l'UI MVC (Razor).
+builder.Services.AddControllersWithViews();
 builder.Services.AddOpenApi();
 
 // DataProtection con chiavi persistite su disco: i segreti Stripe cifrati a riposo
@@ -52,7 +53,15 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseRouting();
 app.UseAuthorization();
+
+// API attribute-routed (controller con [Route("api/...")]).
 app.MapControllers();
+// UI MVC convenzionale.
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Dashboard}/{action=Index}/{id?}");
 
 app.Run();

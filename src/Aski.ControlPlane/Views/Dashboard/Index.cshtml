@@ -1,0 +1,60 @@
+@model DashboardViewModel
+@{
+    string Card(string label, string value, string accent) => $@"
+        <div class='rounded-xl border border-slate-200 bg-white p-5 shadow-sm'>
+            <p class='text-sm text-slate-500'>{label}</p>
+            <p class='mt-2 text-3xl font-bold {accent}'>{value}</p>
+        </div>";
+}
+
+@if (!Model.StripeConfigured)
+{
+    <div class="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 flex items-center justify-between">
+        <span>⚠️ Stripe non è ancora configurato. Inserisci le chiavi per abilitare billing e provisioning.</span>
+        <a href="/StripeAdmin" class="rounded-lg bg-amber-600 px-3 py-1.5 text-white text-sm font-medium hover:bg-amber-700">Configura Stripe</a>
+    </div>
+}
+
+<div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+    @Html.Raw(Card("Piani", Model.PlanCount.ToString(), "text-indigo-600"))
+    @Html.Raw(Card("Server", Model.ServerCount.ToString(), "text-indigo-600"))
+    @Html.Raw(Card("Tenant", Model.TenantCount.ToString(), "text-indigo-600"))
+    @Html.Raw(Card("Progetti", Model.ProjectCount.ToString(), "text-indigo-600"))
+    @Html.Raw(Card("Abb. attivi", Model.ActiveSubscriptions.ToString(), "text-emerald-600"))
+    @Html.Raw(Card("Modalità", Model.IsTestMode ? "TEST" : "LIVE", Model.IsTestMode ? "text-amber-600" : "text-emerald-600"))
+</div>
+
+<div class="mt-8 rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+        <h2 class="font-semibold text-slate-900">Progetti recenti</h2>
+        <a href="/Portal" class="text-sm text-indigo-600 hover:underline">Vedi tenant →</a>
+    </div>
+    @if (Model.RecentProjects.Count == 0)
+    {
+        <p class="px-5 py-8 text-center text-sm text-slate-400">Nessun progetto ancora.</p>
+    }
+    else
+    {
+        <table class="w-full text-sm">
+            <thead class="text-left text-slate-500 border-b border-slate-100">
+                <tr>
+                    <th class="px-5 py-3 font-medium">Progetto</th>
+                    <th class="px-5 py-3 font-medium">Tenant</th>
+                    <th class="px-5 py-3 font-medium">Stato</th>
+                    <th class="px-5 py-3 font-medium">Creato</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                @foreach (var p in Model.RecentProjects)
+                {
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-5 py-3 font-medium text-slate-900">@p.Name</td>
+                        <td class="px-5 py-3 text-slate-600">@p.Tenant?.CompanyName</td>
+                        <td class="px-5 py-3"><partial name="_ProvisioningBadge" model="p.ProvisioningStatus" /></td>
+                        <td class="px-5 py-3 text-slate-500">@p.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

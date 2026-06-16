@@ -12,8 +12,13 @@ namespace Aski.ControlPlane.Web.Controllers;
 public sealed class StripeAdminController : Controller
 {
     private readonly ControlPlaneDbContext _db;
+    private readonly Aski.ControlPlane.Services.Audit.IAuditLogger _audit;
 
-    public StripeAdminController(ControlPlaneDbContext db) => _db = db;
+    public StripeAdminController(ControlPlaneDbContext db, Aski.ControlPlane.Services.Audit.IAuditLogger audit)
+    {
+        _db = db;
+        _audit = audit;
+    }
 
     public async Task<IActionResult> Index(CancellationToken ct)
     {
@@ -46,6 +51,7 @@ public sealed class StripeAdminController : Controller
 
         s.UpdatedAtUtc = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
+        await _audit.LogAsync("stripe.settings.update", "StripeSettings", $"testMode={s.IsTestMode}", ct);
 
         TempData["Success"] = $"Impostazioni salvate. Modalità attiva: {(s.IsTestMode ? "TEST (sandbox)" : "LIVE")}.";
         return RedirectToAction(nameof(Index));

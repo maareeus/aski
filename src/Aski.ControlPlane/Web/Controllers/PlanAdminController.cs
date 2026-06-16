@@ -15,11 +15,13 @@ public sealed class PlanAdminController : Controller
 {
     private readonly ControlPlaneDbContext _db;
     private readonly StripeService _stripe;
+    private readonly Aski.ControlPlane.Services.Audit.IAuditLogger _audit;
 
-    public PlanAdminController(ControlPlaneDbContext db, StripeService stripe)
+    public PlanAdminController(ControlPlaneDbContext db, StripeService stripe, Aski.ControlPlane.Services.Audit.IAuditLogger audit)
     {
         _db = db;
         _stripe = stripe;
+        _audit = audit;
     }
 
     public async Task<IActionResult> Index(CancellationToken ct)
@@ -57,6 +59,7 @@ public sealed class PlanAdminController : Controller
         };
         _db.Plans.Add(plan);
         await _db.SaveChangesAsync(ct);
+        await _audit.LogAsync("plan.create", $"Plan#{plan.Id}", $"{plan.Name} {plan.Amount} {plan.Currency}", ct);
 
         try
         {
@@ -79,6 +82,7 @@ public sealed class PlanAdminController : Controller
         try
         {
             await _stripe.SyncPlanAsync(plan, ct);
+            await _audit.LogAsync("plan.sync", $"Plan#{plan.Id}", plan.Name, ct);
             TempData["Success"] = $"Piano '{plan.Name}' ri-sincronizzato.";
         }
         catch (Exception ex)

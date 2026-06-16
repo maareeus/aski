@@ -21,8 +21,13 @@ namespace Aski.ControlPlane.Web.Controllers;
 public sealed class AccountController : Controller
 {
     private readonly ControlPlaneDbContext _db;
+    private readonly Aski.ControlPlane.Services.Audit.IAuditLogger _audit;
 
-    public AccountController(ControlPlaneDbContext db) => _db = db;
+    public AccountController(ControlPlaneDbContext db, Aski.ControlPlane.Services.Audit.IAuditLogger audit)
+    {
+        _db = db;
+        _audit = audit;
+    }
 
     public record RegisterForm(string CompanyName, string Email, string Password);
     public record LoginForm(string Email, string Password);
@@ -81,6 +86,7 @@ public sealed class AccountController : Controller
         await _db.SaveChangesAsync(ct);
 
         await SignInAsync(user);
+        await _audit.LogAsync("auth.register", $"Tenant#{tenant.Id}", $"org={tenant.CompanyName}", ct);
         return RedirectToAction("Index", "Portal");
     }
 
@@ -110,6 +116,7 @@ public sealed class AccountController : Controller
         }
 
         await SignInAsync(user);
+        await _audit.LogAsync("auth.login", $"User#{user.Id}", $"role={user.Role}", ct);
 
         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
             return Redirect(returnUrl);

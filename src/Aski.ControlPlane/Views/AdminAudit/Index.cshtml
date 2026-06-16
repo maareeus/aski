@@ -1,0 +1,39 @@
+@model List<AuditLog>
+
+<div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="px-5 py-4 border-b border-slate-200">
+        <h2 class="font-semibold text-slate-900">Registro operazioni (@Model.Count)</h2>
+    </div>
+    @if (Model.Count == 0)
+    {
+        <p class="px-5 py-8 text-center text-sm text-slate-400">Nessuna operazione registrata.</p>
+    }
+    else
+    {
+        <table class="w-full text-sm">
+            <thead class="text-left text-slate-500 border-b border-slate-100">
+                <tr>
+                    <th class="px-5 py-3 font-medium">Quando (UTC)</th>
+                    <th class="px-5 py-3 font-medium">Attore</th>
+                    <th class="px-5 py-3 font-medium">Azione</th>
+                    <th class="px-5 py-3 font-medium">Oggetto</th>
+                    <th class="px-5 py-3 font-medium">Dettagli</th>
+                    <th class="px-5 py-3 font-medium">IP</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                @foreach (var a in Model)
+                {
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-5 py-3 text-slate-500 whitespace-nowrap">@a.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td class="px-5 py-3 text-slate-600">@(a.ActorEmail ?? "—")</td>
+                        <td class="px-5 py-3"><code class="text-xs">@a.Action</code></td>
+                        <td class="px-5 py-3 text-slate-600">@(a.Target ?? "—")</td>
+                        <td class="px-5 py-3 text-slate-500">@(a.Details ?? "—")</td>
+                        <td class="px-5 py-3 text-slate-400 text-xs">@(a.IpAddress ?? "—")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

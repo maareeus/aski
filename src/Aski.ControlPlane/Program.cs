@@ -38,6 +38,18 @@ if (builder.Environment.IsProduction() && connectionString.Contains("Password=po
 
 builder.Services.AddDbContext<ControlPlaneDbContext>(opt => opt.UseNpgsql(connectionString));
 
+// --- Audit ---
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<Aski.ControlPlane.Services.Audit.IAuditLogger, Aski.ControlPlane.Services.Audit.AuditLogger>();
+
+// --- CORS ristretto ai domini configurati (vuoto = nessuna origine cross-site ammessa) ---
+var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+builder.Services.AddCors(o => o.AddPolicy("portal", p =>
+{
+    if (corsOrigins.Length > 0)
+        p.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod().AllowCredentials();
+}));
+
 // --- Billing / Stripe ---
 builder.Services.AddScoped<IStripeContextProvider, StripeContextProvider>();
 builder.Services.AddScoped<StripeService>();
@@ -114,6 +126,7 @@ else
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+app.UseCors("portal");
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();

@@ -12,8 +12,13 @@ namespace Aski.ControlPlane.Web.Controllers;
 public sealed class ServerAdminController : Controller
 {
     private readonly ControlPlaneDbContext _db;
+    private readonly Aski.ControlPlane.Services.Audit.IAuditLogger _audit;
 
-    public ServerAdminController(ControlPlaneDbContext db) => _db = db;
+    public ServerAdminController(ControlPlaneDbContext db, Aski.ControlPlane.Services.Audit.IAuditLogger audit)
+    {
+        _db = db;
+        _audit = audit;
+    }
 
     public async Task<IActionResult> Index(CancellationToken ct)
     {
@@ -51,6 +56,7 @@ public sealed class ServerAdminController : Controller
             UpdatedAtUtc = DateTime.UtcNow
         });
         await _db.SaveChangesAsync(ct);
+        await _audit.LogAsync("server.create", null, $"{form.Name} ({form.Region}) N={form.MaxProjectsPerDbContainer}", ct);
         TempData["Success"] = $"Server '{form.Name}' creato.";
         return RedirectToAction(nameof(Index));
     }
@@ -65,6 +71,7 @@ public sealed class ServerAdminController : Controller
             server.IsEnabled = !server.IsEnabled;
             server.UpdatedAtUtc = DateTime.UtcNow;
             await _db.SaveChangesAsync(ct);
+            await _audit.LogAsync("server.toggle", $"Server#{server.Id}", $"enabled={server.IsEnabled}", ct);
             TempData["Success"] = $"Server '{server.Name}' {(server.IsEnabled ? "abilitato" : "disabilitato")}.";
         }
         return RedirectToAction(nameof(Index));

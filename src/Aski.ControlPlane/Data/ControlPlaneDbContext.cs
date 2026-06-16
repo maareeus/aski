@@ -33,6 +33,7 @@ public class ControlPlaneDbContext : DbContext
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<ProcessedStripeEvent> ProcessedStripeEvents => Set<ProcessedStripeEvent>();
     public DbSet<PortalUser> PortalUsers => Set<PortalUser>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -142,6 +143,16 @@ public class ControlPlaneDbContext : DbContext
             e.HasKey(x => x.EventId);
             e.Property(x => x.EventId).HasMaxLength(120);
             e.Property(x => x.EventType).HasMaxLength(120);
+        });
+
+        modelBuilder.Entity<AuditLog>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Action).HasMaxLength(120);
+            e.Property(x => x.Target).HasMaxLength(200);
+            e.Property(x => x.ActorEmail).HasMaxLength(256);
+            e.Property(x => x.IpAddress).HasMaxLength(64);
+            e.HasIndex(x => x.CreatedAtUtc);
         });
 
         modelBuilder.Entity<PortalUser>(e =>

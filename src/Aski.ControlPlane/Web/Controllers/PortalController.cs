@@ -22,15 +22,18 @@ public sealed class PortalController : Controller
     private readonly StripeService _stripe;
     private readonly IProvisioningCoordinator _coordinator;
     private readonly IConfiguration _config;
+    private readonly Aski.ControlPlane.Services.Audit.IAuditLogger _audit;
 
     public PortalController(
         ControlPlaneDbContext db, StripeService stripe,
-        IProvisioningCoordinator coordinator, IConfiguration config)
+        IProvisioningCoordinator coordinator, IConfiguration config,
+        Aski.ControlPlane.Services.Audit.IAuditLogger audit)
     {
         _db = db;
         _stripe = stripe;
         _coordinator = coordinator;
         _config = config;
+        _audit = audit;
     }
 
     /// <summary>Id del tenant del cliente loggato (0 se assente → non dovrebbe accadere).</summary>
@@ -84,6 +87,7 @@ public sealed class PortalController : Controller
             UpdatedAtUtc = DateTime.UtcNow
         });
         await _db.SaveChangesAsync(ct);
+        await _audit.LogAsync("project.create", $"Tenant#{CurrentTenantId}", form.ProjectName.Trim(), ct);
         TempData["Success"] = $"Progetto '{form.ProjectName}' creato.";
         return RedirectToAction(nameof(Index));
     }
@@ -148,6 +152,7 @@ public sealed class PortalController : Controller
         try
         {
             await _coordinator.ProvisionAndStartAsync(projectId, ct);
+            await _audit.LogAsync("project.provision", $"Project#{projectId}", null, ct);
             TempData["Success"] = "Provisioning avviato.";
         }
         catch (Exception ex)

@@ -11,8 +11,8 @@ Documentazione interattiva via **Swagger** in sviluppo.
 | Fase | Contenuto | Stato |
 |------|-----------|-------|
 | 1 | Autenticazione: Identity + JWT, ruoli, login/refresh/me, seed admin | ✅ |
-| 2 | Gestione utenti, clienti (Company), software | da fare |
-| 3 | Ticket: apertura, assegnazione, stati, commenti | da fare |
+| 2 | Gestione utenti, clienti (Company), software | ✅ |
+| 3 | Ticket: apertura, assegnazione, stati, commenti | ✅ |
 
 ## Avvio
 
@@ -85,6 +85,34 @@ POST /api/auth/refresh
 GET /api/auth/me
 Authorization: Bearer eyJ...
 ```
+
+## Gestione (Admin)
+
+| Metodo | Rotta | Auth | Descrizione |
+|--------|-------|------|-------------|
+| GET/POST | `/api/companies` | Admin | Lista / crea azienda cliente |
+| PUT | `/api/companies/{id}` | Admin | Aggiorna azienda |
+| POST | `/api/companies/{id}/active/{bool}` | Admin | Attiva/disattiva |
+| GET | `/api/software` | Bearer | Lista software attivi (per aprire ticket) |
+| POST/PUT | `/api/software[/{id}]` | Admin | Crea/aggiorna software |
+| GET | `/api/users` | Admin | Lista utenti + ruoli |
+| POST | `/api/users` | Admin | Crea utente (`role`: Admin/Agent/Client; `companyId` per Client) |
+| POST | `/api/users/{id}/active/{bool}` | Admin | Attiva/disattiva utente |
+| PUT | `/api/users/{id}/role` | Admin | Cambia ruolo |
+
+## Ticket
+
+| Metodo | Rotta | Auth | Descrizione |
+|--------|-------|------|-------------|
+| GET | `/api/tickets?status=` | Bearer | Lista (staff: tutti; client: propria azienda) |
+| GET | `/api/tickets/{id}` | Bearer | Dettaglio + commenti (client non vede note interne) |
+| POST | `/api/tickets` | Client/Admin | Apre un ticket |
+| PATCH | `/api/tickets/{id}/status` | Admin/Agent | Cambia stato |
+| POST | `/api/tickets/{id}/assign` | Admin/Agent | Assegna a un agent |
+| POST | `/api/tickets/{id}/close` | Bearer (proprio/staff) | Chiude |
+| POST | `/api/tickets/{id}/comments` | Bearer | Commento (client: niente note interne; commento client su Resolved riapre) |
+
+Stati ticket: `Open(0) InProgress(1) Waiting(2) Resolved(3) Closed(4)` · Priorità: `Low(0) Normal(1) High(2) Urgent(3)`.
 
 ## Configurazione
 

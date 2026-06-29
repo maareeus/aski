@@ -15,6 +15,9 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole, string>
 
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<SoftwareProduct> Software => Set<SoftwareProduct>();
+    public DbSet<Ticket> Tickets => Set<Ticket>();
+    public DbSet<TicketComment> TicketComments => Set<TicketComment>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -44,6 +47,49 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole, string>
                 .WithMany(u => u.RefreshTokens)
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<SoftwareProduct>(e =>
+        {
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Version).HasMaxLength(50);
+            e.HasIndex(x => x.Name);
+        });
+
+        builder.Entity<Ticket>(e =>
+        {
+            e.Property(x => x.Title).HasMaxLength(300).IsRequired();
+            e.HasIndex(x => new { x.CompanyId, x.Status });
+            e.HasIndex(x => x.AssignedAgentUserId);
+            e.HasOne(x => x.Company)
+                .WithMany()
+                .HasForeignKey(x => x.CompanyId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Software)
+                .WithMany(s => s.Tickets)
+                .HasForeignKey(x => x.SoftwareId)
+                .OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(x => x.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.AssignedAgentUser)
+                .WithMany()
+                .HasForeignKey(x => x.AssignedAgentUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<TicketComment>(e =>
+        {
+            e.Property(x => x.Body).IsRequired();
+            e.HasOne(x => x.Ticket)
+                .WithMany(t => t.Comments)
+                .HasForeignKey(x => x.TicketId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.AuthorUser)
+                .WithMany()
+                .HasForeignKey(x => x.AuthorUserId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

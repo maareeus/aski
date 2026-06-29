@@ -1,0 +1,98 @@
+@implements IDisposable
+@inject ApiClient Api
+@inject NavigationManager Nav
+
+<div class="relative">
+    <button @onclick="Toggle" class="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700">
+        <span class="text-lg">🔔</span>
+        @if (_count > 0)
+        {
+            <span class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center px-1">@(_count > 99 ? "99+" : _count.ToString())</span>
+        }
+    </button>
+
+    @if (_open)
+    {
+        <div class="absolute right-0 mt-2 w-80 rounded-xl border border-slate-200 bg-white shadow-xl z-50">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                <span class="font-semibold text-slate-900 text-sm">Notifiche</span>
+                @if (_count > 0) { <button @onclick="MarkAll" class="text-xs text-indigo-600 hover:underline">Segna tutte lette</button> }
+            </div>
+            <div class="max-h-96 overflow-y-auto">
+                @if (_items.Count == 0)
+                {
+                    <p class="px-4 py-6 text-center text-sm text-slate-400">Nessuna notifica.</p>
+                }
+                else
+                {
+                    @foreach (var n in _items)
+                    {
+                        <button @onclick="() => Open(n)" class="w-full text-left px-4 py-3 border-b border-slate-50 hover:bg-slate-50 @(n.IsRead ? "" : "bg-indigo-50/40")">
+                            <div class="flex items-start gap-2">
+                                <span class="text-base leading-none mt-0.5">@Icon(n.Type)</span>
+                                <div class="min-w-0">
+                                    <p class="text-sm text-slate-700">@n.Message</p>
+                                    <p class="text-[11px] text-slate-400">@n.CreatedAtUtc.ToLocalTime().ToString("dd/MM HH:mm")</p>
+                                </div>
+                                @if (!n.IsRead) { <span class="ml-auto mt-1 h-2 w-2 rounded-full bg-indigo-600 shrink-0"></span> }
+                            </div>
+                        </button>
+                    }
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _open;
+    private int _count;
+    private List<NotificationDto> _items = new();
+    private System.Threading.Timer? _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Refresh();
+        _timer = new System.Threading.Timer(async _ => await InvokeAsync(Refresh), null, 30000, 30000);
+    }
+
+    private async Task Refresh()
+    {
+        var c = await Api.GetUnreadCountAsync();
+        if (c != _count) { _count = c; StateHasChanged(); }
+    }
+
+    private async Task Toggle()
+    {
+        _open = !_open;
+        if (_open) { _items = await Api.GetNotificationsAsync(); StateHasChanged(); }
+    }
+
+    private async Task Open(NotificationDto n)
+    {
+        if (!n.IsRead) { await Api.MarkNotificationReadAsync(n.Id); }
+        _open = false;
+        await Refresh();
+        Nav.NavigateTo($"tickets/{n.TicketId}");
+    }
+
+    private async Task MarkAll()
+    {
+        await Api.MarkAllNotificationsReadAsync();
+        _items = _items.Select(n => n with { IsRead = true }).ToList();
+        await Refresh();
+    }
+
+    private static string Icon(string type) => type switch
+    {
+        "created" => "🆕",
+        "comment" => "💬",
+        "status" => "🔄",
+        "assign" => "👤",
+        "remind" => "🔔",
+        "close" => "✅",
+        _ => "•"
+    };
+
+    public void Dispose() => _timer?.Dispose();
+}

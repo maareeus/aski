@@ -50,7 +50,7 @@ else
                 else
                 {
                     <div class="px-5 py-4 space-y-4 bg-slate-50/50">
-                        @foreach (var c in _t.Comments)
+                        @foreach (var c in _t.Comments.OrderByDescending(c => c.CreatedAtUtc))
                         {
                             <div class="flex @(c.AuthorIsStaff ? "justify-end" : "justify-start")">
                                 <div class="max-w-[78%]">
@@ -155,6 +155,10 @@ else
                     <button @onclick="ChangeStatus" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50">Aggiorna stato</button>
                 }
                 <button @onclick="Close" class="mt-2 w-full rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-900">Chiudi ticket</button>
+                @if (_t.Status != TicketStatus.Closed)
+                {
+                    <button @onclick="Remind" class="mt-2 w-full rounded-lg border border-amber-300 px-3 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50">🔔 Sollecita</button>
+                }
             </div>
         </div>
     </div>
@@ -303,6 +307,13 @@ else
     {
         var r = await Api.CloseAsync(Id);
         _msg = r.IsSuccessStatusCode ? "Ticket chiuso." : "Errore.";
+        await Load();
+    }
+
+    private async Task Remind()
+    {
+        var r = await Api.RemindAsync(Id);
+        _msg = r.IsSuccessStatusCode ? "Sollecito inviato." : "Errore sollecito.";
         await Load();
     }
 

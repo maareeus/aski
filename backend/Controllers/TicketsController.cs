@@ -2,6 +2,7 @@ using Aski.Tickets.Api.Auth;
 using Aski.Tickets.Api.Data;
 using Aski.Tickets.Api.Domain;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,7 +20,11 @@ public sealed class TicketsController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IWebHostEnvironment _env;
-    public TicketsController(AppDbContext db, IWebHostEnvironment env) { _db = db; _env = env; }
+    private readonly UserManager<AppUser> _users;
+    public TicketsController(AppDbContext db, IWebHostEnvironment env, UserManager<AppUser> users)
+    {
+        _db = db; _env = env; _users = users;
+    }
 
     public record CreateTicketDto(string Title, string? Description, int? SoftwareId, int? SoftwareVersionId, TicketPriority Priority, int? CompanyId);
     public record UpdateTicketDto(string Title, string? Description, int? SoftwareId, int? SoftwareVersionId, TicketPriority Priority, int? CompanyId);
@@ -133,6 +138,7 @@ public sealed class TicketsController : ControllerBase
         _db.Tickets.Add(ticket);
         await _db.SaveChangesAsync(ct);
         ticket.Number = $"T{ticket.Id:D5}";
+        await NotifyAsync(ticket, "created", $"Nuovo ticket {ticket.Number}: {ticket.Title}", includeClients: true, ct);
         await _db.SaveChangesAsync(ct);
         return CreatedAtAction(nameof(Get), new { id = ticket.Id }, new { ticket.Id, ticket.Number });
     }
@@ -176,6 +182,7 @@ public sealed class TicketsController : ControllerBase
         t.AssignedUserId = dto.UserId; t.AssignedUnitId = dto.UnitId;
         if (t.Status == TicketStatus.Open) t.Status = TicketStatus.InProgress;
         t.UpdatedAtUtc = DateTime.UtcNow;
+        await NotifyAsync(t, "assign", $"Ticket {t.Number} assegnato.", includeClients: false, ct);
         await _db.SaveChangesAsync(ct);
         return Ok(new { t.Id, t.AssignedUserId, t.AssignedUnitId, t.Status });
     }
@@ -201,6 +208,7 @@ public sealed class TicketsController : ControllerBase
         t.AssignedUserId = uid; t.AssignedUnitId = unitId;
         if (t.Status == TicketStatus.Open) t.Status = TicketStatus.InProgress;
         t.UpdatedAtUtc = DateTime.UtcNow;
+        await NotifyAsync(t, "assign", $"Ticket {t.Number} preso in carico.", includeClients: false, ct);
         await _db.SaveChangesAsync(ct);
         return Ok(new { t.Id, t.AssignedUserId, t.AssignedUnitId, t.Status });
     }
@@ -229,6 +237,7 @@ public sealed class TicketsController : ControllerBase
         t.Status = dto.Status;
         if (dto.Status == TicketStatus.Closed) t.ClosedAtUtc = DateTime.UtcNow;
         t.UpdatedAtUtc = DateTime.UtcNow;
+        await NotifyAsync(t, "status", $"Ticket {t.Number}: stato {StatusLabel(dto.Status)}.", includeClients: true, ct);
         await _db.SaveChangesAsync(ct);
         return Ok(new { t.Id, t.Status });
     }
@@ -240,8 +249,23 @@ public sealed class TicketsController : ControllerBase
         if (t is null) return NotFound();
         if (!await CanAccessAsync(t, ct)) return Forbid();
         t.Status = TicketStatus.Closed; t.ClosedAtUtc = DateTime.UtcNow; t.UpdatedAtUtc = DateTime.UtcNow;
+        await NotifyAsync(t, "close", $"Ticket {t.Number} chiuso.", includeClients: true, ct);
         await _db.SaveChangesAsync(ct);
         return Ok(new { t.Id, t.Status });
+    }
+
+    [HttpPost("{id:int}/remind")]
+    public async Task<IActionResult> Remind(int id, CancellationToken ct)
+    {
+        var t = await _db.Tickets.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (t is null) return NotFound();
+        if (!await CanAccessAsync(t, ct)) return Forbid();
+        if (t.Status == TicketStatus.Closed)
+            return BadRequest(new { error = "Ticket chiuso: non sollecitabile." });
+        t.UpdatedAtUtc = DateTime.UtcNow;
+        await NotifyAsync(t, "remind", $"Sollecito sul ticket {t.Number}.", includeClients: true, ct);
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
     }
 
     [HttpPost("{id:int}/comments")]
@@ -255,9 +279,12 @@ public sealed class TicketsController : ControllerBase
             return BadRequest(new { error = "Ticket chiuso: non sono ammesse altre operazioni." });
 
         var isClient = !User.IsStaff();
-        _db.TicketComments.Add(new TicketComment { TicketId = t.Id, AuthorUserId = User.Id(), Body = dto.Body, IsInternal = dto.IsInternal && !isClient });
+        var isInternal = dto.IsInternal && !isClient;
+        _db.TicketComments.Add(new TicketComment { TicketId = t.Id, AuthorUserId = User.Id(), Body = dto.Body, IsInternal = isInternal });
         if (isClient && t.Status == TicketStatus.Resolved) t.Status = TicketStatus.Open;
         t.UpdatedAtUtc = DateTime.UtcNow;
+        // Le note interne non notificano i clienti.
+        await NotifyAsync(t, "comment", $"Nuovo commento sul ticket {t.Number}.", includeClients: !isInternal, ct);
         await _db.SaveChangesAsync(ct);
         return CreatedAtAction(nameof(Get), new { id = t.Id }, new { });
     }
@@ -346,4 +373,45 @@ public sealed class TicketsController : ControllerBase
 
     private Task<List<int>> AgentSoftwareIdsAsync(string userId, CancellationToken ct) =>
         _db.Users.Where(u => u.Id == userId).SelectMany(u => u.Softwares.Select(s => s.Id)).ToListAsync(ct);
+
+    // --- notifiche ---
+
+    /// <summary>Utenti di riferimento del ticket: assegnatario, PM della unit, staff competente sul software, admin e i clienti dell'azienda.</summary>
+    private async Task<HashSet<string>> RecipientIdsAsync(Ticket t, bool includeClients, CancellationToken ct)
+    {
+        var ids = new HashSet<string>();
+        if (t.AssignedUserId is not null) ids.Add(t.AssignedUserId);
+        if (t.AssignedUnitId is not null)
+            foreach (var m in await _db.UnitMemberships.Where(m => m.UnitId == t.AssignedUnitId && m.IsManager).Select(m => m.UserId).ToListAsync(ct))
+                ids.Add(m);
+        if (t.SoftwareId is not null)
+            foreach (var c in await _db.Users.Where(u => u.CompanyId == null && u.Softwares.Any(s => s.Id == t.SoftwareId)).Select(u => u.Id).ToListAsync(ct))
+                ids.Add(c);
+        foreach (var a in await _users.GetUsersInRoleAsync(Roles.Admin)) ids.Add(a.Id);
+        if (includeClients)
+            foreach (var u in await _db.Users.Where(u => u.CompanyId == t.CompanyId).Select(u => u.Id).ToListAsync(ct))
+                ids.Add(u);
+        return ids;
+    }
+
+    /// <summary>Crea le notifiche per i destinatari (esclude l'autore dell'azione). Non salva: lo fa il chiamante.</summary>
+    private async Task NotifyAsync(Ticket t, string type, string message, bool includeClients, CancellationToken ct)
+    {
+        var actor = User.Id();
+        foreach (var uid in await RecipientIdsAsync(t, includeClients, ct))
+        {
+            if (uid == actor) continue;
+            _db.Notifications.Add(new Notification { UserId = uid, TicketId = t.Id, Type = type, Message = message });
+        }
+    }
+
+    private static string StatusLabel(TicketStatus s) => s switch
+    {
+        TicketStatus.Open => "Aperto",
+        TicketStatus.InProgress => "In lavorazione",
+        TicketStatus.Waiting => "In attesa",
+        TicketStatus.Resolved => "Risolto",
+        TicketStatus.Closed => "Chiuso",
+        _ => s.ToString()
+    };
 }

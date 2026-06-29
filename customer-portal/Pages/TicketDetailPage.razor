@@ -43,7 +43,7 @@ else
 
             <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div class="px-5 py-4 border-b border-slate-200"><h2 class="font-semibold text-slate-900">Conversazione</h2></div>
-                @{ var visible = _t.Comments.Where(c => !c.IsInternal).ToList(); }
+                @{ var visible = _t.Comments.Where(c => !c.IsInternal).OrderByDescending(c => c.CreatedAtUtc).ToList(); }
                 @if (visible.Count == 0)
                 {
                     <p class="px-5 py-6 text-center text-sm text-slate-400">Nessun messaggio.</p>
@@ -110,6 +110,14 @@ else
         </div>
 
         <div class="space-y-6">
+            @if (!closed)
+            {
+                <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                    @if (_msg is not null) { <div class="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">@_msg</div> }
+                    <button @onclick="Remind" class="w-full rounded-lg border border-amber-300 px-3 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50">🔔 Sollecita</button>
+                    <p class="mt-2 text-xs text-slate-400">Avvisa gli operatori che attendi una risposta.</p>
+                </div>
+            }
             <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 class="font-semibold text-slate-900 mb-3">Dettagli</h2>
                 <dl class="space-y-2 text-sm">
@@ -128,6 +136,7 @@ else
     private TicketDetail? _t;
     private bool _loading = true, _uploading;
     private string _comment = "";
+    private string? _msg;
 
     protected override async Task OnInitializedAsync() => await Load();
 
@@ -141,6 +150,13 @@ else
 
     private static string FmtSize(long b) =>
         b < 1024 ? $"{b} B" : b < 1024 * 1024 ? $"{b / 1024.0:0.#} KB" : $"{b / (1024.0 * 1024):0.#} MB";
+
+    private async Task Remind()
+    {
+        var r = await Api.RemindAsync(Id);
+        _msg = r.IsSuccessStatusCode ? "Sollecito inviato." : "Errore.";
+        await Load();
+    }
 
     private async Task AddComment()
     {

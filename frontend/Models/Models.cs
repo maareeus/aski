@@ -16,6 +16,10 @@ public record TicketListResult(List<TicketListItem> Items, int Total, int Page, 
 
 public record TicketAttachmentDto(int Id, string FileName, string ContentType, long Size, DateTime CreatedAtUtc);
 
+public record NotificationDto(int Id, int TicketId, string? Number, string Type, string Message, bool IsRead, DateTime CreatedAtUtc);
+public record UnreadCount(int Count);
+public record CreatedTicket(int Id, string? Number);
+
 public record TicketComment(
     int Id, string Body, bool IsInternal, string AuthorUserId, DateTime CreatedAtUtc,
     string? AuthorFirst, string? AuthorLast, string? AuthorEmail, bool AuthorIsStaff)

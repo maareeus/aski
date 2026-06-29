@@ -31,6 +31,21 @@ public sealed class ApiClient
         _http.PostAsync($"api/tickets/{id}/attachments", content);
     public Task<byte[]> GetAttachmentBytesAsync(int id, int attId) =>
         _http.GetByteArrayAsync($"api/tickets/{id}/attachments/{attId}");
+    public Task<HttpResponseMessage> RemindAsync(int id) =>
+        _http.PostAsync($"api/tickets/{id}/remind", null);
+
+    // --- Notifiche ---
+    public async Task<List<NotificationDto>> GetNotificationsAsync(bool unreadOnly = false) =>
+        await _http.GetFromJsonAsync<List<NotificationDto>>($"api/notifications?unreadOnly={unreadOnly.ToString().ToLower()}") ?? new();
+    public async Task<int> GetUnreadCountAsync()
+    {
+        try { var r = await _http.GetFromJsonAsync<UnreadCount>("api/notifications/unread-count"); return r?.Count ?? 0; }
+        catch { return 0; }
+    }
+    public Task<HttpResponseMessage> MarkNotificationReadAsync(int id) =>
+        _http.PostAsync($"api/notifications/{id}/read", null);
+    public Task<HttpResponseMessage> MarkAllNotificationsReadAsync() =>
+        _http.PostAsync("api/notifications/read-all", null);
 
     // --- Portal-only ---
     public Task<PortalProfile?> GetMeAsync() => _http.GetFromJsonAsync<PortalProfile>("api/portal/me");

@@ -1,5 +1,6 @@
 @page "/tickets/new"
 @attribute [Authorize]
+@using Microsoft.AspNetCore.Components.Forms
 @inject ApiClient Api
 @inject NavigationManager Nav
 
@@ -13,7 +14,7 @@
     @if (_error is not null) { <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">@_error</div> }
     <div class="space-y-4">
         <Field Label="Titolo *"><input @bind="_title" class="@Inp" /></Field>
-        <Field Label="Descrizione"><textarea @bind="_desc" rows="5" class="@Inp"></textarea></Field>
+        <Field Label="Descrizione"><textarea @bind="_desc" rows="12" class="@Inp"></textarea></Field>
         <div class="grid gap-4 md:grid-cols-3">
             <Field Label="Priorità">
                 <select @bind="_priority" class="@Inp">
@@ -36,6 +37,26 @@
                 </Field>
             }
         </div>
+
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Allegati</label>
+            <label class="cursor-pointer inline-block rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50">
+                + Aggiungi file
+                <InputFile OnChange="OnFilesSelected" multiple class="hidden" />
+            </label>
+            @if (_files.Count > 0)
+            {
+                <ul class="mt-2 space-y-1">
+                    @foreach (var f in _files)
+                    {
+                        <li class="flex items-center justify-between text-sm rounded-lg border border-slate-200 px-3 py-1.5">
+                            <span class="text-slate-700">@f.Name</span>
+                            <button type="button" @onclick="() => RemoveFile(f)" class="text-xs text-rose-600 hover:underline">Rimuovi</button>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
     </div>
     <div class="mt-6 flex items-center justify-end gap-2">
         <button @onclick="@(() => Nav.NavigateTo("/"))" class="@BtnGhost">Annulla</button>
@@ -53,6 +74,7 @@
     private bool _saving;
     private string _title = ""; private string? _desc; private int _priority = 1;
     private string _softwareId = ""; private string _versionId = ""; private string? _error;
+    private List<IBrowserFile> _files = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -69,6 +91,26 @@
         }
     }
 
+    private void OnFilesSelected(InputFileChangeEventArgs e) => _files.AddRange(e.GetMultipleFiles(20));
+    private void RemoveFile(IBrowserFile f) => _files.Remove(f);
+
+    private async Task UploadFilesAsync(int ticketId)
+    {
+        foreach (var f in _files)
+        {
+            try
+            {
+                using var content = new MultipartFormDataContent();
+                var fileContent = new StreamContent(f.OpenReadStream(20 * 1024 * 1024));
+                fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
+                    string.IsNullOrWhiteSpace(f.ContentType) ? "application/octet-stream" : f.ContentType);
+                content.Add(fileContent, "file", f.Name);
+                await Api.UploadAttachmentAsync(ticketId, content);
+            }
+            catch { }
+        }
+    }
+
     private async Task Create()
     {
         _error = null;
@@ -79,8 +121,10 @@
         _saving = true;
         // CompanyId è null: l'API lo deriva dall'utente client.
         var resp = await Api.CreateTicketAsync(new CreateTicketRequest(_title.Trim(), _desc, sw, ver, (TicketPriority)_priority, null));
+        if (!resp.IsSuccessStatusCode) { _saving = false; _error = $"Errore ({(int)resp.StatusCode})."; return; }
+        var created = await resp.Content.ReadFromJsonAsync<CreatedTicket>();
+        if (created is not null && _files.Count > 0) await UploadFilesAsync(created.Id);
         _saving = false;
-        if (!resp.IsSuccessStatusCode) { _error = $"Errore ({(int)resp.StatusCode})."; return; }
-        Nav.NavigateTo("/");
+        Nav.NavigateTo(created is not null ? $"tickets/{created.Id}" : "/");
     }
 }

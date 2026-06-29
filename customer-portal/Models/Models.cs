@@ -41,6 +41,10 @@ public record TicketDetail(
 
 public record CreateTicketRequest(string Title, string? Description, int? SoftwareId, int? SoftwareVersionId, TicketPriority Priority, int? CompanyId);
 public record AddCommentRequest(string Body, bool IsInternal);
+public record CreatedTicket(int Id, string? Number);
+
+public record NotificationDto(int Id, int TicketId, string? Number, string Type, string Message, bool IsRead, DateTime CreatedAtUtc);
+public record UnreadCount(int Count);
 
 // --- Software / release notes ---
 public record PortalSoftwareVersion(int Id, string Version, string? ReleaseNotes, DateTime? ReleasedAtUtc, bool IsActive, DateTime CreatedAtUtc);

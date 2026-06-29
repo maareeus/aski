@@ -13,6 +13,8 @@ public class SoftwareVersion
 
     public required string Version { get; set; }
     public string? Notes { get; set; }
+    /// <summary>Note di rilascio in formato Markdown (visibili ai clienti nel portale).</summary>
+    public string? ReleaseNotes { get; set; }
     public DateTime? ReleasedAtUtc { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;

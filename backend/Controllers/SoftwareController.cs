@@ -20,7 +20,7 @@ public sealed class SoftwareController : ControllerBase
     public SoftwareController(AppDbContext db) => _db = db;
 
     public record SoftwareDto(string Name, string? Description);
-    public record VersionDto(string Version, string? Notes, DateTime? ReleasedAtUtc);
+    public record VersionDto(string Version, string? Notes, string? ReleaseNotes, DateTime? ReleasedAtUtc);
 
     [HttpGet]
     public async Task<IActionResult> List(CancellationToken ct)
@@ -90,7 +90,7 @@ public sealed class SoftwareController : ControllerBase
         var versions = await _db.SoftwareVersions.AsNoTracking()
             .Where(v => v.SoftwareId == id)
             .OrderByDescending(v => v.CreatedAtUtc)
-            .Select(v => new { v.Id, v.Version, v.Notes, v.ReleasedAtUtc, v.IsActive, v.CreatedAtUtc })
+            .Select(v => new { v.Id, v.Version, v.Notes, v.ReleaseNotes, v.ReleasedAtUtc, v.IsActive, v.CreatedAtUtc })
             .ToListAsync(ct);
         return Ok(versions);
     }
@@ -101,7 +101,7 @@ public sealed class SoftwareController : ControllerBase
     {
         if (!await _db.Software.AnyAsync(s => s.Id == id, ct)) return NotFound();
         if (string.IsNullOrWhiteSpace(dto.Version)) return BadRequest(new { error = "Versione obbligatoria." });
-        var v = new SoftwareVersion { SoftwareId = id, Version = dto.Version.Trim(), Notes = dto.Notes, ReleasedAtUtc = dto.ReleasedAtUtc };
+        var v = new SoftwareVersion { SoftwareId = id, Version = dto.Version.Trim(), Notes = dto.Notes, ReleaseNotes = dto.ReleaseNotes, ReleasedAtUtc = dto.ReleasedAtUtc };
         _db.SoftwareVersions.Add(v);
         await _db.SaveChangesAsync(ct);
         return CreatedAtAction(nameof(Versions), new { id }, new { v.Id });
@@ -114,7 +114,7 @@ public sealed class SoftwareController : ControllerBase
         var v = await _db.SoftwareVersions.FirstOrDefaultAsync(x => x.Id == versionId && x.SoftwareId == id, ct);
         if (v is null) return NotFound();
         if (string.IsNullOrWhiteSpace(dto.Version)) return BadRequest(new { error = "Versione obbligatoria." });
-        v.Version = dto.Version.Trim(); v.Notes = dto.Notes; v.ReleasedAtUtc = dto.ReleasedAtUtc;
+        v.Version = dto.Version.Trim(); v.Notes = dto.Notes; v.ReleaseNotes = dto.ReleaseNotes; v.ReleasedAtUtc = dto.ReleasedAtUtc;
         await _db.SaveChangesAsync(ct);
         return NoContent();
     }

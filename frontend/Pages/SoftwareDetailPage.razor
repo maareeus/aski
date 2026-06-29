@@ -67,7 +67,8 @@ else
     <div class="space-y-3">
         <Field Label="Versione *"><input @bind="_version" placeholder="es. 1.2.0" class="@Inp" /></Field>
         <Field Label="Data rilascio"><input @bind="_released" type="date" class="@Inp" /></Field>
-        <Field Label="Note"><textarea @bind="_notes" rows="3" class="@Inp"></textarea></Field>
+        <Field Label="Note interne"><textarea @bind="_notes" rows="2" class="@Inp"></textarea></Field>
+        <Field Label="Note di rilascio (Markdown, visibili ai clienti)"><textarea @bind="_releaseNotes" rows="6" placeholder="# Novità&#10;- ..." class="@Inp font-mono text-xs"></textarea></Field>
     </div>
     <div class="mt-5 flex items-center justify-end gap-2">
         <button @onclick="() => _showVersion = false" class="@BtnGhost">Annulla</button>
@@ -98,7 +99,7 @@ else
 
     private bool _showVersion, _showEdit;
     private int? _editVersionId;
-    private string _version = ""; private string? _notes; private DateTime? _released; private string? _err;
+    private string _version = ""; private string? _notes; private string? _releaseNotes; private DateTime? _released; private string? _err;
     private string _name = ""; private string? _desc;
 
     protected override async Task OnInitializedAsync() => await Load();
@@ -109,11 +110,11 @@ else
         catch { _sw = null; }
     }
 
-    private void OpenAddVersion() { _editVersionId = null; _version = ""; _notes = null; _released = null; _err = null; _showVersion = true; }
+    private void OpenAddVersion() { _editVersionId = null; _version = ""; _notes = null; _releaseNotes = null; _released = null; _err = null; _showVersion = true; }
 
     private void OpenEditVersion(SoftwareVersion v)
     {
-        _editVersionId = v.Id; _version = v.Version; _notes = v.Notes;
+        _editVersionId = v.Id; _version = v.Version; _notes = v.Notes; _releaseNotes = v.ReleaseNotes;
         _released = v.ReleasedAtUtc?.ToLocalTime(); _err = null; _showVersion = true;
     }
 
@@ -121,7 +122,7 @@ else
     {
         _err = null;
         if (string.IsNullOrWhiteSpace(_version)) { _err = "Versione obbligatoria."; return; }
-        var req = new CreateVersionRequest(_version.Trim(), _notes, _released?.ToUniversalTime());
+        var req = new CreateVersionRequest(_version.Trim(), _notes, _releaseNotes, _released?.ToUniversalTime());
         var resp = _editVersionId is null
             ? await Api.AddVersionAsync(Id, req)
             : await Api.UpdateVersionAsync(Id, _editVersionId.Value, req);

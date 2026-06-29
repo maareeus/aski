@@ -1,0 +1,70 @@
+@page "/software"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject MarkdownService Md
+
+<div class="mb-6">
+    <h1 class="text-2xl font-bold tracking-tight text-slate-900">Software</h1>
+    <p class="text-sm text-slate-500">I software in uso dalla tua azienda e le relative note di rilascio.</p>
+</div>
+
+@if (_loading)
+{
+    <p class="text-sm text-slate-400">Caricamento…</p>
+}
+else if (_software.Count == 0)
+{
+    <p class="text-sm text-slate-400">Nessun software associato alla tua azienda.</p>
+}
+else
+{
+    <div class="space-y-6">
+        @foreach (var s in _software)
+        {
+            <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+                <div class="px-5 py-4 border-b border-slate-200">
+                    <h2 class="font-semibold text-slate-900">@s.Name</h2>
+                    @if (!string.IsNullOrWhiteSpace(s.Description)) { <p class="text-sm text-slate-500 mt-0.5">@s.Description</p> }
+                </div>
+                @if (s.Versions.Count == 0)
+                {
+                    <p class="px-5 py-6 text-sm text-slate-400">Nessuna versione pubblicata.</p>
+                }
+                else
+                {
+                    <div class="divide-y divide-slate-100">
+                        @foreach (var v in s.Versions)
+                        {
+                            <div class="px-5 py-4">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">v@(v.Version)</span>
+                                    @if (!v.IsActive) { <span class="rounded-full bg-slate-200 text-slate-500 px-2 py-0.5 text-xs font-medium">Obsoleta</span> }
+                                    @if (v.ReleasedAtUtc is not null) { <span class="text-xs text-slate-400">@v.ReleasedAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy")</span> }
+                                </div>
+                                @if (string.IsNullOrWhiteSpace(v.ReleaseNotes))
+                                {
+                                    <p class="text-sm text-slate-400">Nessuna nota di rilascio.</p>
+                                }
+                                else
+                                {
+                                    <div class="prose-notes text-sm text-slate-700">@((MarkupString)Md.ToHtml(v.ReleaseNotes))</div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<PortalSoftware> _software = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _software = await Api.GetSoftwareAsync(); } catch { }
+        _loading = false;
+    }
+}

@@ -1,0 +1,105 @@
+@page "/"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject NavigationManager Nav
+
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">I miei ticket</h1>
+        <p class="text-sm text-slate-500">Richieste di assistenza della tua azienda.</p>
+    </div>
+    <button @onclick="@(() => Nav.NavigateTo("tickets/new"))" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Nuovo ticket</button>
+</div>
+
+<div class="rounded-xl border border-slate-200 bg-white shadow-sm mb-4 p-4 grid gap-3 md:grid-cols-3">
+    <div>
+        <label class="text-xs font-medium text-slate-500">Cerca</label>
+        <input @bind="_q" @bind:after="ApplyFilters" placeholder="numero, titolo…" class="@Inp" />
+    </div>
+    <div>
+        <label class="text-xs font-medium text-slate-500">Stato</label>
+        <select @bind="_status" @bind:after="ApplyFilters" class="@Inp">
+            <option value="">Tutti</option>
+            <option value="0">Aperto</option><option value="1">In lavorazione</option>
+            <option value="2">In attesa</option><option value="3">Risolto</option><option value="4">Chiuso</option>
+        </select>
+    </div>
+    <div class="flex items-end">
+        <button @onclick="ResetFilters" class="@BtnGhost w-full">Azzera filtri</button>
+    </div>
+</div>
+
+<div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
+    @if (_loading)
+    {
+        <p class="px-5 py-8 text-center text-sm text-slate-400">Caricamento…</p>
+    }
+    else if (_items.Count == 0)
+    {
+        <p class="px-5 py-8 text-center text-sm text-slate-400">Nessun ticket.</p>
+    }
+    else
+    {
+        <table class="w-full text-sm">
+            <thead class="text-left text-slate-500 border-b border-slate-100">
+                <tr><th class="px-5 py-3 font-medium">Numero</th><th class="px-5 py-3 font-medium">Titolo</th>
+                    <th class="px-5 py-3 font-medium">Software</th><th class="px-5 py-3 font-medium">Priorità</th>
+                    <th class="px-5 py-3 font-medium">Stato</th><th class="px-5 py-3 font-medium">Aggiornato</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                @foreach (var t in _items)
+                {
+                    <tr class="hover:bg-slate-50 cursor-pointer" @onclick="() => Open(t.Id)">
+                        <td class="px-5 py-3 font-mono text-xs text-indigo-600">@(t.Number ?? $"#{t.Id}")</td>
+                        <td class="px-5 py-3 font-medium text-slate-900">@t.Title</td>
+                        <td class="px-5 py-3 text-slate-600">@(t.SoftwareName ?? "—")</td>
+                        <td class="px-5 py-3"><PriorityBadge Priority="t.Priority" /></td>
+                        <td class="px-5 py-3"><StatusBadge Status="t.Status" /></td>
+                        <td class="px-5 py-3 text-slate-500">@t.UpdatedAtUtc.ToLocalTime().ToString("dd/MM HH:mm")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+<div class="flex items-center justify-between mt-4 text-sm text-slate-500">
+    <span>@_total ticket • pagina @_page / @TotalPages</span>
+    <div class="flex gap-2">
+        <button @onclick="Prev" disabled="@(_page <= 1)" class="@PageBtn">‹ Prec</button>
+        <button @onclick="Next" disabled="@(_page >= TotalPages)" class="@PageBtn">Succ ›</button>
+    </div>
+</div>
+
+@code {
+    private const string Inp = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
+    private const string BtnGhost = "rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50";
+    private const string PageBtn = "rounded-lg border border-slate-300 px-3 py-1.5 font-medium disabled:opacity-40 hover:bg-slate-50";
+
+    private List<TicketListItem> _items = new();
+    private bool _loading = true;
+    private string _q = ""; private string _status = "";
+    private int _page = 1; private int _pageSize = 20; private int _total;
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(_total / (double)_pageSize));
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load()
+    {
+        _loading = true;
+        TicketStatus? st = int.TryParse(_status, out var s) ? (TicketStatus)s : null;
+        try
+        {
+            var res = await Api.GetTicketsAsync(st, _q, _page, _pageSize);
+            _items = res.Items; _total = res.Total;
+        }
+        catch { _items = new(); _total = 0; }
+        _loading = false;
+    }
+
+    private async Task ApplyFilters() { _page = 1; await Load(); }
+    private async Task ResetFilters() { _q = ""; _status = ""; _page = 1; await Load(); }
+    private async Task Prev() { if (_page > 1) { _page--; await Load(); } }
+    private async Task Next() { if (_page < TotalPages) { _page++; await Load(); } }
+    private void Open(int id) => Nav.NavigateTo($"tickets/{id}");
+}

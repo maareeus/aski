@@ -1,0 +1,72 @@
+@page "/login"
+@layout EmptyLayout
+@inject AuthService Auth
+@inject NavigationManager Nav
+
+<div class="min-h-screen grid lg:grid-cols-2">
+    <!-- Lato sinistro: brand -->
+    <div class="relative hidden lg:flex flex-col justify-between bg-gradient-to-br from-indigo-600 via-indigo-700 to-slate-900 text-white p-12">
+        <div class="flex items-center gap-3">
+            <div class="h-11 w-11 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center font-extrabold text-2xl">A</div>
+            <span class="text-2xl font-bold tracking-tight">Aski</span>
+        </div>
+        <div class="max-w-md">
+            <h1 class="text-4xl font-bold leading-tight">Portale Clienti</h1>
+            <p class="mt-4 text-indigo-100 text-lg">Apri e segui le tue richieste di assistenza, consulta i software in uso e le note di rilascio, contatta i tuoi operatori.</p>
+        </div>
+        <p class="text-xs text-indigo-200/70">© Aski · Assistenza software</p>
+    </div>
+
+    <!-- Lato destro: form -->
+    <div class="flex items-center justify-center p-8 bg-slate-50">
+        <div class="w-full max-w-sm">
+            <div class="lg:hidden flex items-center justify-center gap-2 mb-8">
+                <div class="h-10 w-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-extrabold text-xl">A</div>
+                <span class="text-2xl font-bold tracking-tight text-slate-900">Aski</span>
+            </div>
+
+            <h2 class="text-2xl font-bold text-slate-900">Accedi</h2>
+            <p class="text-sm text-slate-500 mb-6">Entra nel portale clienti.</p>
+
+            @if (_error is not null)
+            {
+                <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">@_error</div>
+            }
+
+            <EditForm Model="this" OnValidSubmit="DoLogin">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Email</label>
+                        <input @bind="_email" type="email" autofocus
+                               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Password</label>
+                        <input @bind="_password" type="password"
+                               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+                    </div>
+                    <button type="submit" disabled="@_busy"
+                            class="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60">
+                        @(_busy ? "Accesso…" : "Accedi")
+                    </button>
+                </div>
+            </EditForm>
+            <p class="mt-8 text-center text-xs text-slate-400">Aski · Portale clienti</p>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _email = "";
+    private string _password = "";
+    private string? _error;
+    private bool _busy;
+
+    private async Task DoLogin()
+    {
+        _busy = true; _error = null;
+        _error = await Auth.LoginAsync(_email, _password);
+        _busy = false;
+        if (_error is null) Nav.NavigateTo("/", forceLoad: false);
+    }
+}

@@ -1,0 +1,58 @@
+@inherits LayoutComponentBase
+@inject AuthService Auth
+@inject NavigationManager Nav
+
+<div class="flex min-h-screen bg-slate-50 text-slate-800">
+    <aside class="hidden md:flex w-60 flex-col border-r border-slate-200 bg-white">
+        <div class="flex items-center gap-2 h-16 px-5 border-b border-slate-200">
+            <div class="h-8 w-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-extrabold">A</div>
+            <span class="font-bold tracking-tight">Aski · Clienti</span>
+        </div>
+        <nav class="flex-1 px-3 py-4 space-y-0.5 text-sm">
+            <NavItem Href="" Icon="🎫" Label="I miei ticket" Match="NavLinkMatch.All" />
+            <NavItem Href="software" Icon="🧩" Label="Software" />
+            <NavItem Href="operators" Icon="🧑‍💻" Label="Operatori" />
+            <NavItem Href="profile" Icon="👤" Label="Profilo" />
+        </nav>
+        <div class="px-5 py-4 border-t border-slate-200 text-[11px] text-slate-400">Aski Customer Portal · v1</div>
+    </aside>
+
+    <div class="flex-1 flex flex-col min-w-0">
+        <header class="h-16 border-b border-slate-200 bg-white/80 backdrop-blur flex items-center px-6 gap-4">
+            <span class="md:hidden font-bold">Aski · Clienti</span>
+            <div class="ml-auto flex items-center gap-3">
+                <AuthorizeView>
+                    <Authorized>
+                        <div class="hidden sm:flex flex-col items-end leading-tight">
+                            <span class="text-sm font-medium text-slate-700">@context.User.Identity?.Name</span>
+                            <span class="text-[11px] text-slate-400">Cliente</span>
+                        </div>
+                        <div class="h-8 w-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-semibold">
+                            @Initial(context)
+                        </div>
+                        <button @onclick="Logout"
+                                class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">Esci</button>
+                    </Authorized>
+                </AuthorizeView>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-6">
+            @Body
+        </main>
+    </div>
+</div>
+
+@code {
+    private async Task Logout()
+    {
+        await Auth.LogoutAsync();
+        Nav.NavigateTo("login", forceLoad: false);
+    }
+
+    private static string Initial(AuthenticationState ctx)
+    {
+        var n = ctx.User.Identity?.Name ?? ctx.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "?";
+        return string.IsNullOrWhiteSpace(n) ? "?" : n.Trim()[..1].ToUpper();
+    }
+}

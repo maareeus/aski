@@ -1,0 +1,57 @@
+@page "/operators"
+@attribute [Authorize]
+@inject ApiClient Api
+
+<div class="mb-6">
+    <h1 class="text-2xl font-bold tracking-tight text-slate-900">Operatori</h1>
+    <p class="text-sm text-slate-500">I referenti che assistono i software della tua azienda.</p>
+</div>
+
+@if (_loading)
+{
+    <p class="text-sm text-slate-400">Caricamento…</p>
+}
+else if (_ops.Count == 0)
+{
+    <p class="text-sm text-slate-400">Nessun operatore assegnato ai tuoi software.</p>
+}
+else
+{
+    <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        @foreach (var o in _ops)
+        {
+            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="h-10 w-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-semibold">
+                        @(string.IsNullOrWhiteSpace(o.Display) ? o.Email[..1].ToUpper() : o.Display[..1].ToUpper())
+                    </div>
+                    <div>
+                        <p class="font-medium text-slate-900">@(string.IsNullOrWhiteSpace(o.Display) ? o.Email : o.Display)</p>
+                        @if (!string.IsNullOrWhiteSpace(o.JobTitle)) { <p class="text-xs text-slate-500">@o.JobTitle</p> }
+                    </div>
+                </div>
+                <dl class="mt-4 space-y-1.5 text-sm">
+                    <div class="flex items-center gap-2"><span class="text-slate-400 w-16">Email</span><a href="mailto:@o.Email" class="text-indigo-600 hover:underline">@o.Email</a></div>
+                    @if (!string.IsNullOrWhiteSpace(o.Phone)) { <div class="flex items-center gap-2"><span class="text-slate-400 w-16">Telefono</span><span class="text-slate-700">@o.Phone</span></div> }
+                </dl>
+                @if (o.Softwares.Count > 0)
+                {
+                    <div class="mt-3 flex flex-wrap gap-1.5">
+                        @foreach (var sw in o.Softwares) { <span class="rounded-full bg-slate-100 text-slate-600 px-2 py-0.5 text-xs">@sw</span> }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<PortalOperator> _ops = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _ops = await Api.GetOperatorsAsync(); } catch { }
+        _loading = false;
+    }
+}

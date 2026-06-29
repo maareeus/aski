@@ -1,0 +1,86 @@
+@page "/tickets/new"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject NavigationManager Nav
+
+<div class="mb-6">
+    <button @onclick="@(() => Nav.NavigateTo("/"))" class="text-sm text-slate-500 hover:text-slate-700">← I miei ticket</button>
+    <h1 class="text-2xl font-bold tracking-tight text-slate-900 mt-2">Nuovo ticket</h1>
+    <p class="text-sm text-slate-500">Descrivi il problema, ti risponderemo al più presto.</p>
+</div>
+
+<div class="rounded-xl border border-slate-200 bg-white shadow-sm p-6">
+    @if (_error is not null) { <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">@_error</div> }
+    <div class="space-y-4">
+        <Field Label="Titolo *"><input @bind="_title" class="@Inp" /></Field>
+        <Field Label="Descrizione"><textarea @bind="_desc" rows="5" class="@Inp"></textarea></Field>
+        <div class="grid gap-4 md:grid-cols-3">
+            <Field Label="Priorità">
+                <select @bind="_priority" class="@Inp">
+                    <option value="0">Bassa</option><option value="1">Normale</option><option value="2">Alta</option><option value="3">Urgente</option>
+                </select>
+            </Field>
+            <Field Label="Software">
+                <select @bind="_softwareId" @bind:after="OnSoftwareChanged" class="@Inp">
+                    <option value="">—</option>
+                    @foreach (var s in _software) { <option value="@s.Id">@s.Name</option> }
+                </select>
+            </Field>
+            @if (_versions.Count > 0)
+            {
+                <Field Label="Versione">
+                    <select @bind="_versionId" class="@Inp">
+                        <option value="">—</option>
+                        @foreach (var v in _versions) { <option value="@v.Id">v@(v.Version)</option> }
+                    </select>
+                </Field>
+            }
+        </div>
+    </div>
+    <div class="mt-6 flex items-center justify-end gap-2">
+        <button @onclick="@(() => Nav.NavigateTo("/"))" class="@BtnGhost">Annulla</button>
+        <button @onclick="Create" disabled="@_saving" class="@BtnPrimary">@(_saving ? "Invio…" : "Apri ticket")</button>
+    </div>
+</div>
+
+@code {
+    private const string Inp = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
+    private const string BtnPrimary = "rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50";
+    private const string BtnGhost = "rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50";
+
+    private List<PortalSoftware> _software = new();
+    private List<PortalSoftwareVersion> _versions = new();
+    private bool _saving;
+    private string _title = ""; private string? _desc; private int _priority = 1;
+    private string _softwareId = ""; private string _versionId = ""; private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _software = await Api.GetSoftwareAsync(); } catch { }
+    }
+
+    private void OnSoftwareChanged()
+    {
+        _versionId = ""; _versions = new();
+        if (int.TryParse(_softwareId, out var sid))
+        {
+            var sw = _software.FirstOrDefault(s => s.Id == sid);
+            _versions = sw?.Versions.Where(v => v.IsActive).ToList() ?? new();
+        }
+    }
+
+    private async Task Create()
+    {
+        _error = null;
+        if (string.IsNullOrWhiteSpace(_title)) { _error = "Titolo obbligatorio."; return; }
+        int? sw = int.TryParse(_softwareId, out var s) ? s : null;
+        int? ver = int.TryParse(_versionId, out var v) ? v : null;
+
+        _saving = true;
+        // CompanyId è null: l'API lo deriva dall'utente client.
+        var resp = await Api.CreateTicketAsync(new CreateTicketRequest(_title.Trim(), _desc, sw, ver, (TicketPriority)_priority, null));
+        _saving = false;
+        if (!resp.IsSuccessStatusCode) { _error = $"Errore ({(int)resp.StatusCode})."; return; }
+        Nav.NavigateTo("/");
+    }
+}

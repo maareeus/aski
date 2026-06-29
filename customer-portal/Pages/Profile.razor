@@ -1,0 +1,70 @@
+@page "/profile"
+@attribute [Authorize]
+@inject ApiClient Api
+
+<div class="mb-6">
+    <h1 class="text-2xl font-bold tracking-tight text-slate-900">Il mio profilo</h1>
+    <p class="text-sm text-slate-500">Le tue informazioni e la sicurezza dell'account.</p>
+</div>
+
+@if (_me is null)
+{
+    <p class="text-sm text-slate-400">Caricamento…</p>
+}
+else
+{
+    <div class="grid lg:grid-cols-2 gap-6">
+        <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 class="font-semibold text-slate-900 mb-4">Informazioni</h2>
+            <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                <div><dt class="text-slate-400">Nome</dt><dd class="text-slate-700">@(_me.FirstName ?? "—")</dd></div>
+                <div><dt class="text-slate-400">Cognome</dt><dd class="text-slate-700">@(_me.LastName ?? "—")</dd></div>
+                <div><dt class="text-slate-400">Email</dt><dd class="text-slate-700">@_me.Email</dd></div>
+                <div><dt class="text-slate-400">Telefono</dt><dd class="text-slate-700">@(_me.Phone ?? "—")</dd></div>
+                <div><dt class="text-slate-400">Ruolo in azienda</dt><dd class="text-slate-700">@(_me.JobTitle ?? "—")</dd></div>
+                <div><dt class="text-slate-400">Azienda</dt><dd class="text-slate-700">@(_me.CompanyName ?? "—")</dd></div>
+            </dl>
+        </div>
+
+        <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 class="font-semibold text-slate-900 mb-4">Cambia password</h2>
+            @if (_pwMsg is not null) { <div class="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">@_pwMsg</div> }
+            @if (_pwErr is not null) { <div class="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">@_pwErr</div> }
+            <div class="space-y-3">
+                <Field Label="Password attuale"><input @bind="_current" type="password" class="@Inp" /></Field>
+                <Field Label="Nuova password (min 8)"><input @bind="_new" type="password" class="@Inp" /></Field>
+                <Field Label="Conferma nuova password"><input @bind="_confirm" type="password" class="@Inp" /></Field>
+            </div>
+            <div class="mt-5 flex justify-end">
+                <button @onclick="ChangePw" disabled="@_busy" class="@BtnPrimary">@(_busy ? "Salvataggio…" : "Aggiorna password")</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private const string Inp = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
+    private const string BtnPrimary = "rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50";
+
+    private PortalProfile? _me;
+    private string _current = ""; private string _new = ""; private string _confirm = "";
+    private string? _pwMsg, _pwErr; private bool _busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _me = await Api.GetMeAsync(); } catch { }
+    }
+
+    private async Task ChangePw()
+    {
+        _pwMsg = null; _pwErr = null;
+        if (_new.Length < 8) { _pwErr = "La nuova password deve avere almeno 8 caratteri."; return; }
+        if (_new != _confirm) { _pwErr = "Le due password non coincidono."; return; }
+
+        _busy = true;
+        var r = await Api.ChangePasswordAsync(_current, _new);
+        _busy = false;
+        if (r.IsSuccessStatusCode) { _pwMsg = "Password aggiornata."; _current = _new = _confirm = ""; }
+        else _pwErr = $"Errore ({(int)r.StatusCode}). Verifica la password attuale.";
+    }
+}

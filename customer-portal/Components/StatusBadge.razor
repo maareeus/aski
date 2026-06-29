@@ -1,0 +1,25 @@
+<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium @Cls">@Label</span>
+
+@code {
+    [Parameter] public TicketStatus Status { get; set; }
+
+    private string Label => Status switch
+    {
+        TicketStatus.Open => "Aperto",
+        TicketStatus.InProgress => "In lavorazione",
+        TicketStatus.Waiting => "In attesa",
+        TicketStatus.Resolved => "Risolto",
+        TicketStatus.Closed => "Chiuso",
+        _ => Status.ToString()
+    };
+
+    private string Cls => Status switch
+    {
+        TicketStatus.Open => "bg-blue-100 text-blue-700",
+        TicketStatus.InProgress => "bg-indigo-100 text-indigo-700",
+        TicketStatus.Waiting => "bg-amber-100 text-amber-700",
+        TicketStatus.Resolved => "bg-emerald-100 text-emerald-700",
+        TicketStatus.Closed => "bg-slate-100 text-slate-600",
+        _ => "bg-slate-100 text-slate-600"
+    };
+}

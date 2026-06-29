@@ -251,6 +251,8 @@ public sealed class TicketsController : ControllerBase
         if (t is null) return NotFound();
         if (!await CanAccessAsync(t, ct)) return Forbid();
         if (string.IsNullOrWhiteSpace(dto.Body)) return BadRequest(new { error = "Testo obbligatorio." });
+        if (!User.IsStaff() && t.Status == TicketStatus.Closed)
+            return BadRequest(new { error = "Ticket chiuso: non sono ammesse altre operazioni." });
 
         var isClient = !User.IsStaff();
         _db.TicketComments.Add(new TicketComment { TicketId = t.Id, AuthorUserId = User.Id(), Body = dto.Body, IsInternal = dto.IsInternal && !isClient });
@@ -269,6 +271,8 @@ public sealed class TicketsController : ControllerBase
         var t = await _db.Tickets.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (t is null) return NotFound();
         if (!await CanAccessAsync(t, ct)) return Forbid();
+        if (!User.IsStaff() && t.Status == TicketStatus.Closed)
+            return BadRequest(new { error = "Ticket chiuso: non sono ammesse altre operazioni." });
         if (file is null || file.Length == 0) return BadRequest(new { error = "File mancante." });
 
         var dir = Path.Combine(_env.ContentRootPath, "uploads", id.ToString());

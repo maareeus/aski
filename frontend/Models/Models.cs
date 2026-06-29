@@ -56,7 +56,7 @@ public record Company(
 
 public record Software(int Id, string Name, string? Description, int VersionsCount, string? LatestVersion);
 public record SoftwareDetail(int Id, string Name, string? Description, bool IsActive);
-public record SoftwareVersion(int Id, string Version, string? Notes, DateTime? ReleasedAtUtc, bool IsActive, DateTime CreatedAtUtc);
+public record SoftwareVersion(int Id, string Version, string? Notes, string? ReleaseNotes, DateTime? ReleasedAtUtc, bool IsActive, DateTime CreatedAtUtc);
 public record CompanyUser(string Id, string Email, string? FirstName, string? LastName, string? Phone, bool IsActive);
 
 public record AppUserRow(
@@ -87,7 +87,7 @@ public record CreateContactRequest(string Name, string? Title, string? Email, st
 public record ResetPasswordRequest(string NewPassword);
 public record CreateCompanyRequest(string Name, string? VatNumber, string? ContactEmail, string? Phone, string? Address);
 public record CreateSoftwareRequest(string Name, string? Description);
-public record CreateVersionRequest(string Version, string? Notes, DateTime? ReleasedAtUtc);
+public record CreateVersionRequest(string Version, string? Notes, string? ReleaseNotes, DateTime? ReleasedAtUtc);
 public record CreateUserRequest(
     string Email, string Password, string Role,
     string? FirstName, string? LastName, string? JobTitle, string? Phone, int? CompanyId, List<int>? SoftwareIds);

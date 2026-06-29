@@ -1,7 +1,0 @@
-<Solution>
-  <Folder Name="/src/">
-    <Project Path="src/Aski.ControlPlane/Aski.ControlPlane.csproj" />
-    <Project Path="src/Aski.Shared/Aski.Shared.csproj" />
-    <Project Path="src/Aski.Ticketing.Api/Aski.Ticketing.Api.csproj" />
-  </Folder>
-</Solution>

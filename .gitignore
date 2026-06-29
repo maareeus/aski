@@ -1,101 +1,31 @@
-## ----------------------------------------------------------------------------
-## .gitignore dedicato — Aski (.NET 10 / ASP.NET Core)
-## ----------------------------------------------------------------------------
-
-## Build output
+## .NET
 [Bb]in/
 [Oo]bj/
 [Dd]ebug/
-[Dd]ebugPublic/
 [Rr]elease/
-[Rr]eleases/
-x64/
-x86/
-[Aa][Rr][Mm]/
-[Aa][Rr][Mm]64/
-build/
-bld/
-[Ww][Ii][Nn]32/
-[Oo]ut/
-publish/
-[Pp]ublish/
-*_i.c
-*_p.c
-*.obj
-*.pdb
-*.pgc
-*.pgd
-*.rsp
-*.sbr
-*.tlb
-*.tli
-*.tlh
-*.tmp
-*.tmp_proj
-*.vspscc
-*.vssscc
-
-## Visual Studio / Rider / VS Code
+*.user
 .vs/
 .vscode/
 .idea/
-*.user
-*.userosscache
-*.suo
-*.sln.docstates
-*.userprefs
-*.DotSettings.user
-
-## Test results
-[Tt]est[Rr]esult*/
-[Bb]uild[Ll]og.*
-*.trx
-*.coverage
-*.coveragexml
-coverage/
-TestResults/
 
 ## NuGet
 *.nupkg
-*.snupkg
-**/[Pp]ackages/*
-!**/[Pp]ackages/build/
-*.nuget.props
-*.nuget.targets
 .nuget/
 
-## Entity Framework
-# (le migration sono versionate; qui solo eventuali dump)
-*.mdf
-*.ldf
-*.ndf
+## SQLite (database locale, non versionare)
+*.db
+*.db-shm
+*.db-wal
 
-## ----------------------------------------------------------------------------
-## Segreti e dati sensibili — NON committare
-## ----------------------------------------------------------------------------
-
-## DataProtection key-ring (cifra i segreti Stripe)
-**/keys/
-*.pfx
-*.p12
-
-## Configurazioni locali / segreti
+## Segreti / config locali
 appsettings.*.local.json
-secrets.json
 .env
 .env.*
+secrets.json
 
-## ----------------------------------------------------------------------------
-## Vari
-## ----------------------------------------------------------------------------
-
-## Log temporanei (smoke-test, run locali)
+## Log temporanei
 *.log
 
-## File di sistema
+## OS
 .DS_Store
 Thumbs.db
-desktop.ini
-
-## Conversioni temporanee documentazione
-*.pdf.tmp

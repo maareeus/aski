@@ -1,0 +1,10 @@
+<div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+    <p class="text-sm text-slate-500">@Label</p>
+    <p class="mt-2 text-3xl font-bold @Accent">@Value</p>
+</div>
+
+@code {
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public int Value { get; set; }
+    [Parameter] public string Accent { get; set; } = "text-slate-900";
+}

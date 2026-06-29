@@ -1,0 +1,172 @@
+@page "/tickets"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthState
+
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Ticket</h1>
+        <p class="text-sm text-slate-500">Gestione richieste di assistenza.</p>
+    </div>
+    @if (_canCreate)
+    {
+        <button @onclick="() => _showCreate = !_showCreate"
+                class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+            @(_showCreate ? "Chiudi" : "Nuovo ticket")
+        </button>
+    }
+</div>
+
+@if (_showCreate)
+{
+    <div class="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 class="font-semibold text-slate-900 mb-4">Nuovo ticket</h2>
+        @if (_createError is not null)
+        {
+            <div class="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">@_createError</div>
+        }
+        <div class="grid md:grid-cols-2 gap-4">
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-slate-700">Titolo</label>
+                <input @bind="_title" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-slate-700">Descrizione</label>
+                <textarea @bind="_desc" rows="3" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"></textarea>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700">Priorità</label>
+                <select @bind="_priority" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                    <option value="0">Bassa</option><option value="1">Normale</option>
+                    <option value="2">Alta</option><option value="3">Urgente</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700">Software</label>
+                <select @bind="_softwareId" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                    <option value="">—</option>
+                    @foreach (var s in _software) { <option value="@s.Id">@s.Name</option> }
+                </select>
+            </div>
+            @if (_isAdmin)
+            {
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Azienda</label>
+                    <select @bind="_companyId" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                        <option value="">— seleziona —</option>
+                        @foreach (var c in _companies) { <option value="@c.Id">@c.Name</option> }
+                    </select>
+                </div>
+            }
+        </div>
+        <div class="mt-4">
+            <button @onclick="Create" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Crea ticket</button>
+        </div>
+    </div>
+}
+
+<div class="flex gap-2 mb-4 text-sm">
+    <button @onclick="() => Filter(null)" class="@FilterCls(null)">Tutti</button>
+    <button @onclick="() => Filter(TicketStatus.Open)" class="@FilterCls(TicketStatus.Open)">Aperti</button>
+    <button @onclick="() => Filter(TicketStatus.InProgress)" class="@FilterCls(TicketStatus.InProgress)">In lavorazione</button>
+    <button @onclick="() => Filter(TicketStatus.Resolved)" class="@FilterCls(TicketStatus.Resolved)">Risolti</button>
+    <button @onclick="() => Filter(TicketStatus.Closed)" class="@FilterCls(TicketStatus.Closed)">Chiusi</button>
+</div>
+
+<div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    @if (_loading)
+    {
+        <p class="px-5 py-8 text-center text-sm text-slate-400">Caricamento…</p>
+    }
+    else if (_items.Count == 0)
+    {
+        <p class="px-5 py-8 text-center text-sm text-slate-400">Nessun ticket.</p>
+    }
+    else
+    {
+        <table class="w-full text-sm">
+            <thead class="text-left text-slate-500 border-b border-slate-100">
+                <tr><th class="px-5 py-3 font-medium">#</th><th class="px-5 py-3 font-medium">Titolo</th>
+                    <th class="px-5 py-3 font-medium">Priorità</th><th class="px-5 py-3 font-medium">Stato</th>
+                    <th class="px-5 py-3 font-medium">Aggiornato</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                @foreach (var t in _items)
+                {
+                    <tr class="hover:bg-slate-50 cursor-pointer" @onclick="() => Open(t.Id)">
+                        <td class="px-5 py-3 text-slate-400">@t.Id</td>
+                        <td class="px-5 py-3 font-medium text-slate-900">@t.Title</td>
+                        <td class="px-5 py-3"><PriorityBadge Priority="t.Priority" /></td>
+                        <td class="px-5 py-3"><StatusBadge Status="t.Status" /></td>
+                        <td class="px-5 py-3 text-slate-500">@t.UpdatedAtUtc.ToLocalTime().ToString("dd/MM HH:mm")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private List<TicketListItem> _items = new();
+    private List<Software> _software = new();
+    private List<Company> _companies = new();
+    private bool _loading = true;
+    private TicketStatus? _filter;
+    private bool _showCreate;
+    private bool _isAdmin, _isClient, _canCreate;
+
+    // form
+    private string _title = "";
+    private string? _desc;
+    private int _priority = 1;
+    private string _softwareId = "";
+    private string _companyId = "";
+    private string? _createError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        _isAdmin = auth.User.IsInRole("Admin");
+        _isClient = auth.User.IsInRole("Client");
+        _canCreate = _isAdmin || _isClient; // gli Agent non aprono ticket
+        try
+        {
+            _software = await Api.GetSoftwareAsync();
+            if (_isAdmin) _companies = await Api.GetCompaniesAsync();
+        }
+        catch { }
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        _loading = true;
+        try { _items = await Api.GetTicketsAsync(_filter); }
+        catch { _items = new(); }
+        _loading = false;
+    }
+
+    private async Task Filter(TicketStatus? s) { _filter = s; await Load(); }
+
+    private void Open(int id) => Nav.NavigateTo($"tickets/{id}");
+
+    private string FilterCls(TicketStatus? s) =>
+        (_filter == s ? "bg-indigo-600 text-white" : "bg-white text-slate-600 border border-slate-300 hover:bg-slate-50")
+        + " rounded-lg px-3 py-1.5 font-medium";
+
+    private async Task Create()
+    {
+        _createError = null;
+        if (string.IsNullOrWhiteSpace(_title)) { _createError = "Titolo obbligatorio."; return; }
+        int? sw = int.TryParse(_softwareId, out var s) ? s : null;
+        int? co = _isAdmin && int.TryParse(_companyId, out var c) ? c : null;
+        if (_isAdmin && co is null) { _createError = "Seleziona un'azienda."; return; }
+
+        var resp = await Api.CreateTicketAsync(new CreateTicketRequest(_title.Trim(), _desc, sw, (TicketPriority)_priority, co));
+        if (!resp.IsSuccessStatusCode) { _createError = $"Errore creazione ({(int)resp.StatusCode})."; return; }
+
+        _title = ""; _desc = null; _softwareId = ""; _companyId = ""; _priority = 1; _showCreate = false;
+        await Load();
+    }
+}

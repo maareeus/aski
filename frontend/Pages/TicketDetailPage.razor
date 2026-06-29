@@ -1,0 +1,162 @@
+@page "/tickets/{Id:int}"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthState
+
+<a href="tickets" class="text-sm text-slate-500 hover:text-slate-700">← Ticket</a>
+
+@if (_loading)
+{
+    <p class="mt-4 text-sm text-slate-400">Caricamento…</p>
+}
+else if (_t is null)
+{
+    <p class="mt-4 text-sm text-rose-600">Ticket non trovato o accesso negato.</p>
+}
+else
+{
+    <div class="mt-3 flex items-start justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900">@_t.Title</h1>
+            <div class="mt-2 flex items-center gap-2">
+                <span class="text-slate-400 text-sm">#@_t.Id</span>
+                <StatusBadge Status="_t.Status" />
+                <PriorityBadge Priority="_t.Priority" />
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-6 grid lg:grid-cols-3 gap-6">
+        <!-- Conversazione -->
+        <div class="lg:col-span-2 space-y-6">
+            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 class="font-semibold text-slate-900 mb-1">Descrizione</h2>
+                <p class="text-sm text-slate-600 whitespace-pre-wrap">@(_t.Description ?? "—")</p>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+                <div class="px-5 py-4 border-b border-slate-200"><h2 class="font-semibold text-slate-900">Commenti</h2></div>
+                @if (_t.Comments.Count == 0)
+                {
+                    <p class="px-5 py-6 text-center text-sm text-slate-400">Nessun commento.</p>
+                }
+                else
+                {
+                    <ul class="divide-y divide-slate-100">
+                        @foreach (var c in _t.Comments)
+                        {
+                            <li class="px-5 py-3">
+                                <div class="flex items-center gap-2 text-xs text-slate-400">
+                                    <span>@c.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+                                    @if (c.IsInternal) { <span class="rounded bg-amber-100 text-amber-700 px-1.5 py-0.5 font-medium">interno</span> }
+                                </div>
+                                <p class="mt-1 text-sm text-slate-700 whitespace-pre-wrap">@c.Body</p>
+                            </li>
+                        }
+                    </ul>
+                }
+                <div class="px-5 py-4 border-t border-slate-200">
+                    <textarea @bind="_comment" rows="2" placeholder="Scrivi un commento…"
+                              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"></textarea>
+                    <div class="mt-2 flex items-center justify-between">
+                        @if (_isStaff)
+                        {
+                            <label class="flex items-center gap-2 text-xs text-slate-600">
+                                <input type="checkbox" @bind="_internal" class="rounded border-slate-300" /> Nota interna
+                            </label>
+                        }
+                        else { <span></span> }
+                        <button @onclick="AddComment" class="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700">Invia</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Azioni -->
+        <div class="space-y-6">
+            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 class="font-semibold text-slate-900 mb-3">Azioni</h2>
+                @if (_actionMsg is not null)
+                {
+                    <div class="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">@_actionMsg</div>
+                }
+                @if (_isStaff)
+                {
+                    <label class="block text-sm font-medium text-slate-700">Stato</label>
+                    <select @bind="_statusSel" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                        <option value="0">Aperto</option><option value="1">In lavorazione</option>
+                        <option value="2">In attesa</option><option value="3">Risolto</option><option value="4">Chiuso</option>
+                    </select>
+                    <button @onclick="ChangeStatus" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50">Aggiorna stato</button>
+                    <button @onclick="AssignToMe" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50">Assegna a me</button>
+                }
+                <button @onclick="Close" class="mt-2 w-full rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-900">Chiudi ticket</button>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm text-sm text-slate-600 space-y-1">
+                <p><span class="text-slate-400">Creato:</span> @_t.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
+                <p><span class="text-slate-400">Aggiornato:</span> @_t.UpdatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
+                <p><span class="text-slate-400">Assegnato:</span> @(_t.AssignedAgentUserId is null ? "—" : "sì")</p>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private TicketDetail? _t;
+    private bool _loading = true;
+    private bool _isStaff;
+    private string _comment = "";
+    private bool _internal;
+    private int _statusSel;
+    private string? _actionMsg;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        _isStaff = auth.User.IsInRole("Admin") || auth.User.IsInRole("Agent");
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        _loading = true;
+        try { _t = await Api.GetTicketAsync(Id); if (_t is not null) _statusSel = (int)_t.Status; }
+        catch { _t = null; }
+        _loading = false;
+    }
+
+    private async Task AddComment()
+    {
+        if (string.IsNullOrWhiteSpace(_comment)) return;
+        var resp = await Api.AddCommentAsync(Id, new AddCommentRequest(_comment.Trim(), _internal && _isStaff));
+        if (resp.IsSuccessStatusCode) { _comment = ""; _internal = false; await Load(); }
+    }
+
+    private async Task ChangeStatus()
+    {
+        var resp = await Api.ChangeStatusAsync(Id, (TicketStatus)_statusSel);
+        _actionMsg = resp.IsSuccessStatusCode ? "Stato aggiornato." : "Errore aggiornamento.";
+        await Load();
+    }
+
+    private async Task AssignToMe()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        var uid = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                  ?? auth.User.FindFirst("sub")?.Value;
+        if (uid is null) return;
+        var resp = await Api.AssignAsync(Id, uid);
+        _actionMsg = resp.IsSuccessStatusCode ? "Assegnato a te." : "Errore assegnazione.";
+        await Load();
+    }
+
+    private async Task Close()
+    {
+        var resp = await Api.CloseAsync(Id);
+        _actionMsg = resp.IsSuccessStatusCode ? "Ticket chiuso." : "Errore chiusura.";
+        await Load();
+    }
+}

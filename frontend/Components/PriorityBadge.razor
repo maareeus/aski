@@ -1,0 +1,23 @@
+<span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium @Cls">@Label</span>
+
+@code {
+    [Parameter] public TicketPriority Priority { get; set; }
+
+    private string Label => Priority switch
+    {
+        TicketPriority.Low => "Bassa",
+        TicketPriority.Normal => "Normale",
+        TicketPriority.High => "Alta",
+        TicketPriority.Urgent => "Urgente",
+        _ => Priority.ToString()
+    };
+
+    private string Cls => Priority switch
+    {
+        TicketPriority.Low => "bg-slate-100 text-slate-600",
+        TicketPriority.Normal => "bg-sky-100 text-sky-700",
+        TicketPriority.High => "bg-orange-100 text-orange-700",
+        TicketPriority.Urgent => "bg-rose-100 text-rose-700",
+        _ => "bg-slate-100 text-slate-600"
+    };
+}

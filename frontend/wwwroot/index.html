@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aski Tickets</title>
+    <base href="/" />
+    <link rel="preload" id="webassembly" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        html, body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; background:#f8fafc; }
+        /* Loader iniziale */
+        #app .boot { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
+    </style>
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link href="Aski.Tickets.Web.styles.css" rel="stylesheet" />
+    <script type="importmap"></script>
+</head>
+
+<body>
+    <div id="app">
+        <div class="boot">
+            <div style="display:flex;align-items:center;gap:10px;color:#475569;font-weight:600">
+                <div style="width:34px;height:34px;border-radius:9px;background:#4f46e5;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800">A</div>
+                Caricamento…
+            </div>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#fee2e2;color:#991b1b;padding:10px 16px;font-size:14px">
+        Si è verificato un errore.
+        <a href="." class="reload" style="text-decoration:underline">Ricarica</a>
+        <span class="dismiss" style="float:right;cursor:pointer">🗙</span>
+    </div>
+    <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
+</body>
+
+</html>

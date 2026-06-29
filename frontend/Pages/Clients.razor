@@ -1,0 +1,64 @@
+@page "/clients"
+@attribute [Authorize(Roles = "Admin")]
+@inject ApiClient Api
+
+<h1 class="text-2xl font-bold tracking-tight text-slate-900 mb-1">Clienti</h1>
+<p class="text-sm text-slate-500 mb-6">Aziende assistite.</p>
+
+<div class="grid lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div class="px-5 py-4 border-b border-slate-200"><h2 class="font-semibold text-slate-900">Elenco (@_items.Count)</h2></div>
+        @if (_items.Count == 0)
+        {
+            <p class="px-5 py-8 text-center text-sm text-slate-400">Nessuna azienda.</p>
+        }
+        else
+        {
+            <table class="w-full text-sm">
+                <thead class="text-left text-slate-500 border-b border-slate-100">
+                    <tr><th class="px-5 py-3 font-medium">Nome</th><th class="px-5 py-3 font-medium">Email</th><th class="px-5 py-3 font-medium">Stato</th></tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @foreach (var c in _items)
+                    {
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-5 py-3 font-medium text-slate-900">@c.Name</td>
+                            <td class="px-5 py-3 text-slate-600">@(c.ContactEmail ?? "—")</td>
+                            <td class="px-5 py-3">
+                                @if (c.IsActive) { <span class="text-xs text-emerald-600 font-medium">attiva</span> }
+                                else { <span class="text-xs text-slate-400">disattiva</span> }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
+    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm h-fit">
+        <h2 class="font-semibold text-slate-900 mb-4">Nuova azienda</h2>
+        @if (_err is not null) { <div class="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">@_err</div> }
+        <div class="space-y-3">
+            <input @bind="_name" placeholder="Nome azienda" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <input @bind="_email" placeholder="Email contatto" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <button @onclick="Create" class="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Crea</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Company> _items = new();
+    private string _name = ""; private string? _email; private string? _err;
+
+    protected override async Task OnInitializedAsync() => await Load();
+    private async Task Load() { try { _items = await Api.GetCompaniesAsync(); } catch { } }
+
+    private async Task Create()
+    {
+        _err = null;
+        if (string.IsNullOrWhiteSpace(_name)) { _err = "Nome obbligatorio."; return; }
+        var resp = await Api.CreateCompanyAsync(new CreateCompanyRequest(_name.Trim(), _email));
+        if (!resp.IsSuccessStatusCode) { _err = $"Errore ({(int)resp.StatusCode})."; return; }
+        _name = ""; _email = null; await Load();
+    }
+}

@@ -31,7 +31,8 @@ else
         {
             <table class="w-full text-sm">
                 <thead class="text-left text-slate-500 border-b border-slate-100">
-                    <tr><th class="px-5 py-3 font-medium">Versione</th><th class="px-5 py-3 font-medium">Rilascio</th>
+                    <tr><th class="px-5 py-3 font-medium">Versione</th><th class="px-5 py-3 font-medium">Stato</th>
+                        <th class="px-5 py-3 font-medium">Rilascio</th>
                         <th class="px-5 py-3 font-medium">Note</th><th class="px-5 py-3 font-medium">Inserita</th><th class="px-5 py-3"></th></tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -39,10 +40,16 @@ else
                     {
                         <tr class="hover:bg-slate-50">
                             <td class="px-5 py-3"><span class="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">v@(v.Version)</span></td>
+                            <td class="px-5 py-3">
+                                @if (v.IsActive) { <span class="rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-medium">Attiva</span> }
+                                else { <span class="rounded-full bg-slate-200 text-slate-500 px-2 py-0.5 text-xs font-medium">Obsoleta</span> }
+                            </td>
                             <td class="px-5 py-3 text-slate-600">@(v.ReleasedAtUtc?.ToLocalTime().ToString("dd/MM/yyyy") ?? "—")</td>
                             <td class="px-5 py-3 text-slate-500">@(v.Notes ?? "—")</td>
                             <td class="px-5 py-3 text-slate-400">@v.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy")</td>
                             <td class="px-5 py-3 text-right space-x-3">
+                                @if (v.IsActive) { <button @onclick="() => SetActive(v.Id, false)" class="text-xs text-amber-600 hover:underline">Obsoleta</button> }
+                                else { <button @onclick="() => SetActive(v.Id, true)" class="text-xs text-emerald-600 hover:underline">Riattiva</button> }
                                 <button @onclick="() => OpenEditVersion(v)" class="text-xs text-indigo-600 hover:underline">Modifica</button>
                                 <button @onclick="() => DeleteVersion(v.Id)" class="text-xs text-rose-600 hover:underline">Elimina</button>
                             </td>
@@ -125,6 +132,12 @@ else
     private async Task DeleteVersion(int versionId)
     {
         await Api.DeleteVersionAsync(Id, versionId);
+        await Load();
+    }
+
+    private async Task SetActive(int versionId, bool enabled)
+    {
+        await Api.SetVersionActiveAsync(Id, versionId, enabled);
         await Load();
     }
 

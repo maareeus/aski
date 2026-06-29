@@ -1,7 +1,9 @@
 @page "/tickets/{Id:int}"
 @attribute [Authorize]
+@using Microsoft.AspNetCore.Components.Forms
 @inject ApiClient Api
 @inject AuthenticationStateProvider AuthState
+@inject IJSRuntime JS
 
 <a href="tickets" class="text-sm text-slate-500 hover:text-slate-700">← Ticket</a>
 
@@ -18,10 +20,10 @@ else
     <div class="mt-3">
         <h1 class="text-2xl font-bold tracking-tight text-slate-900">@_t.Title</h1>
         <div class="mt-2 flex items-center gap-2">
-            <span class="text-slate-400 text-sm">#@_t.Id</span>
+            <span class="font-mono text-xs text-indigo-600">@(_t.Number ?? $"#{_t.Id}")</span>
             <StatusBadge Status="_t.Status" />
             <PriorityBadge Priority="_t.Priority" />
-            @if (_t.AssigneeUserId is not null) { <span class="rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-0.5 text-xs font-medium">Preso in carico</span> }
+            @if (_t.CompanyName is not null) { <span class="text-slate-400 text-sm">• @_t.CompanyName</span> }
         </div>
     </div>
 
@@ -30,6 +32,35 @@ else
             <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 class="font-semibold text-slate-900 mb-1">Descrizione</h2>
                 <p class="text-sm text-slate-600 whitespace-pre-wrap">@(_t.Description ?? "—")</p>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="font-semibold text-slate-900">Allegati</h2>
+                    <label class="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50">
+                        @(_uploading ? "Caricamento…" : "+ Allega file")
+                        <InputFile OnChange="OnFileSelected" class="hidden" disabled="@_uploading" />
+                    </label>
+                </div>
+                @if (_t.Attachments.Count == 0)
+                {
+                    <p class="text-sm text-slate-400">Nessun allegato.</p>
+                }
+                else
+                {
+                    <ul class="divide-y divide-slate-100">
+                        @foreach (var a in _t.Attachments)
+                        {
+                            <li class="flex items-center justify-between py-2 text-sm">
+                                <div>
+                                    <span class="font-medium text-slate-700">@a.FileName</span>
+                                    <span class="text-slate-400 text-xs ml-2">@FmtSize(a.Size)</span>
+                                </div>
+                                <button @onclick="() => Download(a)" class="text-indigo-600 hover:text-indigo-800 font-medium">Scarica</button>
+                            </li>
+                        }
+                    </ul>
+                }
             </div>
 
             <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -46,7 +77,7 @@ else
                             <div class="flex @(c.AuthorIsStaff ? "justify-end" : "justify-start")">
                                 <div class="max-w-[78%]">
                                     <div class="flex items-center gap-2 mb-1 text-xs text-slate-400 @(c.AuthorIsStaff ? "justify-end" : "")">
-                                        <span class="font-medium text-slate-600">@(c.AuthorName ?? "Utente")</span>
+                                        <span class="font-medium text-slate-600">@c.AuthorName</span>
                                         <span>@c.CreatedAtUtc.ToLocalTime().ToString("dd/MM HH:mm")</span>
                                         @if (c.IsInternal) { <span class="rounded bg-amber-100 text-amber-700 px-1.5 py-0.5 font-medium">interno</span> }
                                     </div>
@@ -68,6 +99,29 @@ else
         </div>
 
         <div class="space-y-6">
+            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 class="font-semibold text-slate-900 mb-3">Assegnazione</h2>
+                @if (_t.AssignedUserId is not null)
+                {
+                    <p class="text-sm text-slate-700 font-medium">@_t.AssignedUserName</p>
+                    @if (_t.AssignedUnitName is not null) { <p class="text-xs text-slate-400">Unit: @_t.AssignedUnitName</p> }
+                }
+                else
+                {
+                    <p class="text-sm text-slate-400">Nessuna assegnazione.</p>
+                }
+                @if (_isPm)
+                {
+                    <div class="mt-3 flex gap-2">
+                        <button @onclick="OpenAssign" class="flex-1 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Assegna</button>
+                        @if (_t.AssignedUserId is not null)
+                        {
+                            <button @onclick="Unassign" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">Rimuovi</button>
+                        }
+                    </div>
+                }
+            </div>
+
             <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 class="font-semibold text-slate-900 mb-3">Azioni</h2>
                 @if (_msg is not null) { <div class="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">@_msg</div> }
@@ -95,44 +149,49 @@ else
                 }
                 <button @onclick="Close" class="mt-2 w-full rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-900">Chiudi ticket</button>
             </div>
-
-            @if (_isPm)
-            {
-                <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <h2 class="font-semibold text-slate-900 mb-3">Assegna (PM)</h2>
-                    <label class="block text-sm font-medium text-slate-700">Unit</label>
-                    <select @bind="_asgUnitId" @bind:after="OnAsgUnitChanged" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                        <option value="">— seleziona —</option>
-                        @foreach (var u in _managedUnits) { <option value="@u.Id">@u.Name</option> }
-                    </select>
-                    @if (!string.IsNullOrEmpty(_asgUnitId))
-                    {
-                        var assignable = _asgMembers.Where(m => !m.IsManager).ToList();
-                        <label class="block text-sm font-medium text-slate-700 mt-2">Utente</label>
-                        @if (assignable.Count == 0)
-                        {
-                            <p class="text-xs text-slate-400 mt-1">Nessun membro in questa Unit. Aggiungi membri da “Unit”.</p>
-                        }
-                        else
-                        {
-                            <select @bind="_asgUserId" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                                <option value="">— seleziona —</option>
-                                @foreach (var m in assignable) { <option value="@m.UserId">@(string.IsNullOrWhiteSpace($"{m.FirstName} {m.LastName}".Trim()) ? m.Email : $"{m.FirstName} {m.LastName}")</option> }
-                            </select>
-                            <button @onclick="Assign" class="mt-2 w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Assegna</button>
-                        }
-                    }
-                    @if (_t.Assignments.Count > 0) { <p class="text-xs text-slate-500 mt-3">Assegnazioni: @_t.Assignments.Count</p> }
-                </div>
-            }
         </div>
     </div>
+
+    <Modal Visible="_showAssign" Title="Assegna ticket" MaxWidth="max-w-md" OnClose="() => _showAssign = false">
+        <div class="space-y-3">
+            <Field Label="Unit">
+                <select @bind="_asgUnitId" @bind:after="OnAsgUnitChanged" class="@Inp">
+                    <option value="">— seleziona —</option>
+                    @foreach (var u in _managedUnits) { <option value="@u.Id">@u.Name</option> }
+                </select>
+            </Field>
+            @if (!string.IsNullOrEmpty(_asgUnitId))
+            {
+                <Field Label="Utente">
+                    @if (_asgMembers.Count == 0)
+                    {
+                        <p class="text-xs text-slate-400 mt-1">Nessun membro in questa Unit. Aggiungi membri da “Unit”.</p>
+                    }
+                    else
+                    {
+                        <select @bind="_asgUserId" class="@Inp">
+                            <option value="">— seleziona —</option>
+                            @foreach (var m in _asgMembers) { <option value="@m.UserId">@MemberName(m)@(m.IsManager ? " (PM)" : "")</option> }
+                        </select>
+                    }
+                </Field>
+            }
+        </div>
+        <div class="mt-5 flex items-center justify-end gap-2">
+            <button @onclick="() => _showAssign = false" class="@BtnGhost">Annulla</button>
+            <button @onclick="Assign" disabled="@(string.IsNullOrEmpty(_asgUserId))" class="@BtnPrimary">Assegna</button>
+        </div>
+    </Modal>
 }
 
 @code {
+    private const string Inp = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
+    private const string BtnPrimary = "rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50";
+    private const string BtnGhost = "rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50";
+
     [Parameter] public int Id { get; set; }
     private TicketDetail? _t;
-    private bool _loading = true, _isStaff, _isPm;
+    private bool _loading = true, _isStaff, _isPm, _uploading;
     private string _comment = ""; private bool _internal; private int _statusSel; private string? _msg;
 
     private List<MyUnit> _myUnits = new();
@@ -140,7 +199,7 @@ else
 
     private List<UnitRow> _managedUnits = new();
     private List<UnitMemberDto> _asgMembers = new();
-    private string _asgUnitId = ""; private string _asgUserId = "";
+    private bool _showAssign; private string _asgUnitId = ""; private string _asgUserId = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -160,11 +219,48 @@ else
         _loading = false;
     }
 
+    private static string MemberName(UnitMemberDto m) =>
+        string.IsNullOrWhiteSpace($"{m.FirstName} {m.LastName}".Trim()) ? m.Email : $"{m.FirstName} {m.LastName}".Trim();
+
+    private static string FmtSize(long b) =>
+        b < 1024 ? $"{b} B" : b < 1024 * 1024 ? $"{b / 1024.0:0.#} KB" : $"{b / (1024.0 * 1024):0.#} MB";
+
     private async Task AddComment()
     {
         if (string.IsNullOrWhiteSpace(_comment)) return;
         var r = await Api.AddCommentAsync(Id, new AddCommentRequest(_comment.Trim(), _internal && _isStaff));
         if (r.IsSuccessStatusCode) { _comment = ""; _internal = false; await Load(); }
+    }
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) return;
+        _uploading = true; _msg = null;
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            var stream = file.OpenReadStream(20 * 1024 * 1024);
+            var fileContent = new StreamContent(stream);
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
+                string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType);
+            content.Add(fileContent, "file", file.Name);
+            var r = await Api.UploadAttachmentAsync(Id, content);
+            _msg = r.IsSuccessStatusCode ? "Allegato caricato." : $"Errore upload ({(int)r.StatusCode}).";
+        }
+        catch (Exception ex) { _msg = $"Errore upload: {ex.Message}"; }
+        _uploading = false;
+        await Load();
+    }
+
+    private async Task Download(TicketAttachmentDto a)
+    {
+        try
+        {
+            var bytes = await Api.GetAttachmentBytesAsync(Id, a.Id);
+            await JS.InvokeVoidAsync("downloadFile", a.FileName, a.ContentType, Convert.ToBase64String(bytes));
+        }
+        catch (Exception ex) { _msg = $"Errore download: {ex.Message}"; }
     }
 
     private async Task ChangeStatus()
@@ -200,6 +296,11 @@ else
         await Load();
     }
 
+    private void OpenAssign()
+    {
+        _asgUnitId = ""; _asgUserId = ""; _asgMembers = new(); _showAssign = true;
+    }
+
     private async Task OnAsgUnitChanged()
     {
         _asgMembers = new(); _asgUserId = "";
@@ -213,9 +314,16 @@ else
     private async Task Assign()
     {
         if (!int.TryParse(_asgUnitId, out var unit) || string.IsNullOrEmpty(_asgUserId)) return;
-        var r = await Api.AddAssignmentAsync(Id, _asgUserId, unit);
+        var r = await Api.AssignAsync(Id, _asgUserId, unit);
         _msg = r.IsSuccessStatusCode ? "Assegnato." : "Errore assegnazione.";
-        _asgUserId = "";
+        _showAssign = false;
+        await Load();
+    }
+
+    private async Task Unassign()
+    {
+        var r = await Api.UnassignAsync(Id);
+        _msg = r.IsSuccessStatusCode ? "Assegnazione rimossa." : "Errore.";
         await Load();
     }
 }

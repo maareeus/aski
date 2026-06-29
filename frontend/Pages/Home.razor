@@ -65,7 +65,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        try { _all = await Api.GetTicketsAsync(); }
+        try { _all = (await Api.GetTicketsAsync(pageSize: 200)).Items; }
         catch (Exception ex) { _error = ex.Message; }
         finally { _loading = false; }
     }

@@ -10,10 +10,16 @@ public sealed class ApiClient
     public ApiClient(HttpClient http) => _http = http;
 
     // --- Tickets ---
-    public async Task<List<TicketListItem>> GetTicketsAsync(TicketStatus? status = null)
+    public async Task<TicketListResult> GetTicketsAsync(TicketStatus? status = null, TicketPriority? priority = null,
+        int? companyId = null, string? q = null, int page = 1, int pageSize = 20)
     {
-        var url = "api/tickets" + (status is null ? "" : $"?status={(int)status}");
-        return await _http.GetFromJsonAsync<List<TicketListItem>>(url) ?? new();
+        var qs = new List<string> { $"page={page}", $"pageSize={pageSize}" };
+        if (status is not null) qs.Add($"status={(int)status}");
+        if (priority is not null) qs.Add($"priority={(int)priority}");
+        if (companyId is not null) qs.Add($"companyId={companyId}");
+        if (!string.IsNullOrWhiteSpace(q)) qs.Add($"q={Uri.EscapeDataString(q)}");
+        return await _http.GetFromJsonAsync<TicketListResult>("api/tickets?" + string.Join("&", qs))
+               ?? new TicketListResult(new(), 0, page, pageSize);
     }
 
     public Task<TicketDetail?> GetTicketAsync(int id) => _http.GetFromJsonAsync<TicketDetail>($"api/tickets/{id}");
@@ -29,13 +35,17 @@ public sealed class ApiClient
 
     public Task<HttpResponseMessage> TakeAsync(int id, int? unitId) =>
         _http.PostAsJsonAsync($"api/tickets/{id}/take", new TakeRequest(unitId));
-    public Task<HttpResponseMessage> AddAssignmentAsync(int id, string userId, int unitId) =>
-        _http.PostAsJsonAsync($"api/tickets/{id}/assignments", new AssignRequest(userId, unitId));
-    public Task<HttpResponseMessage> RemoveAssignmentAsync(int id, int assignmentId) =>
-        _http.DeleteAsync($"api/tickets/{id}/assignments/{assignmentId}");
-
+    public Task<HttpResponseMessage> AssignAsync(int id, string userId, int unitId) =>
+        _http.PostAsJsonAsync($"api/tickets/{id}/assign", new AssignRequest(userId, unitId));
+    public Task<HttpResponseMessage> UnassignAsync(int id) =>
+        _http.PostAsync($"api/tickets/{id}/unassign", null);
     public Task<HttpResponseMessage> CloseAsync(int id) =>
         _http.PostAsync($"api/tickets/{id}/close", null);
+
+    public Task<HttpResponseMessage> UploadAttachmentAsync(int id, MultipartFormDataContent content) =>
+        _http.PostAsync($"api/tickets/{id}/attachments", content);
+    public Task<byte[]> GetAttachmentBytesAsync(int id, int attId) =>
+        _http.GetByteArrayAsync($"api/tickets/{id}/attachments/{attId}");
 
     // --- Lookup ---
     public async Task<List<AppUserRow>> GetStaffUsersAsync() =>
@@ -71,6 +81,8 @@ public sealed class ApiClient
     public Task<HttpResponseMessage> SetCompanySoftwareAsync(int id, List<int> softwareIds) =>
         _http.PutAsJsonAsync($"api/companies/{id}/software", new SoftwareIdsRequest(softwareIds));
     public Task<Company?> GetCompanyAsync(int id) => _http.GetFromJsonAsync<Company>($"api/companies/{id}");
+    public async Task<List<CompanyTicket>> GetCompanyTicketsAsync(int id) =>
+        await _http.GetFromJsonAsync<List<CompanyTicket>>($"api/companies/{id}/tickets") ?? new();
     public Task<HttpResponseMessage> UpdateCompanyAsync(int id, CreateCompanyRequest req) =>
         _http.PutAsJsonAsync($"api/companies/{id}", req);
     public async Task<List<CompanyUser>> GetCompanyUsersAsync(int id) =>
@@ -93,6 +105,8 @@ public sealed class ApiClient
         _http.PutAsJsonAsync($"api/software/{softwareId}/versions/{versionId}", req);
     public Task<HttpResponseMessage> DeleteVersionAsync(int softwareId, int versionId) =>
         _http.DeleteAsync($"api/software/{softwareId}/versions/{versionId}");
+    public Task<HttpResponseMessage> SetVersionActiveAsync(int softwareId, int versionId, bool enabled) =>
+        _http.PostAsync($"api/software/{softwareId}/versions/{versionId}/active/{enabled.ToString().ToLower()}", null);
 
     // --- Users ---
     public async Task<List<AppUserRow>> GetUsersAsync() =>
@@ -103,6 +117,17 @@ public sealed class ApiClient
         _http.PostAsJsonAsync("api/users", req);
     public Task<HttpResponseMessage> UpdateUserAsync(string id, UpdateUserRequest req) =>
         _http.PutAsJsonAsync($"api/users/{id}", req);
+    public Task<AppUserRow?> GetUserAsync(string id) => _http.GetFromJsonAsync<AppUserRow>($"api/users/{id}");
     public Task<HttpResponseMessage> SetUserSoftwareAsync(string id, List<int> softwareIds) =>
         _http.PutAsJsonAsync($"api/users/{id}/software", new SoftwareIdsRequest(softwareIds));
+    public Task<HttpResponseMessage> SetUserActiveAsync(string id, bool enabled) =>
+        _http.PostAsync($"api/users/{id}/active/{enabled.ToString().ToLower()}", null);
+    public Task<HttpResponseMessage> ResetPasswordAsync(string id, string newPassword) =>
+        _http.PostAsJsonAsync($"api/users/{id}/reset-password", new ResetPasswordRequest(newPassword));
+    public async Task<List<UserUnit>> GetUserUnitsAsync(string id) =>
+        await _http.GetFromJsonAsync<List<UserUnit>>($"api/users/{id}/units") ?? new();
+    public async Task<List<UserTicket>> GetUserAssignedTicketsAsync(string id) =>
+        await _http.GetFromJsonAsync<List<UserTicket>>($"api/users/{id}/tickets") ?? new();
+    public async Task<List<UserTicket>> GetUserVisibleTicketsAsync(string id) =>
+        await _http.GetFromJsonAsync<List<UserTicket>>($"api/users/{id}/visible-tickets") ?? new();
 }

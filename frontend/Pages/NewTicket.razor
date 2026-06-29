@@ -1,0 +1,115 @@
+@page "/tickets/new"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthState
+
+<div class="mb-6">
+    <button @onclick="@(() => Nav.NavigateTo("tickets"))" class="text-sm text-slate-500 hover:text-slate-700">← Ticket</button>
+    <h1 class="text-2xl font-bold tracking-tight text-slate-900 mt-2">Nuovo ticket</h1>
+    <p class="text-sm text-slate-500">Apri una nuova richiesta di assistenza.</p>
+</div>
+
+<div class="max-w-2xl rounded-xl border border-slate-200 bg-white shadow-sm p-6">
+    @if (_error is not null) { <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">@_error</div> }
+    <div class="space-y-4">
+        <Field Label="Titolo *"><input @bind="_title" class="@Inp" /></Field>
+        <Field Label="Descrizione"><textarea @bind="_desc" rows="4" class="@Inp"></textarea></Field>
+        <div class="grid grid-cols-2 gap-4">
+            <Field Label="Priorità">
+                <select @bind="_priority" class="@Inp">
+                    <option value="0">Bassa</option><option value="1">Normale</option><option value="2">Alta</option><option value="3">Urgente</option>
+                </select>
+            </Field>
+            @if (_isAdmin)
+            {
+                <Field Label="Azienda *">
+                    <select @bind="_companyId" @bind:after="OnCompanyChanged" class="@Inp">
+                        <option value="">— seleziona —</option>
+                        @foreach (var c in _companies) { <option value="@c.Id">@c.Name</option> }
+                    </select>
+                </Field>
+            }
+            <Field Label="Software">
+                <select @bind="_softwareId" @bind:after="OnSoftwareChanged" class="@Inp">
+                    <option value="">—</option>
+                    @foreach (var s in _software) { <option value="@s.Id">@s.Name</option> }
+                </select>
+            </Field>
+            @if (_versions.Count > 0)
+            {
+                <Field Label="Versione">
+                    <select @bind="_versionId" class="@Inp">
+                        <option value="">—</option>
+                        @foreach (var v in _versions) { <option value="@v.Id">v@(v.Version)</option> }
+                    </select>
+                </Field>
+            }
+        </div>
+    </div>
+    <div class="mt-6 flex items-center justify-end gap-2">
+        <button @onclick="@(() => Nav.NavigateTo("tickets"))" class="@BtnGhost">Annulla</button>
+        <button @onclick="Create" disabled="@_saving" class="@BtnPrimary">@(_saving ? "Creazione…" : "Crea ticket")</button>
+    </div>
+</div>
+
+@code {
+    private const string Inp = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
+    private const string BtnPrimary = "rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50";
+    private const string BtnGhost = "rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50";
+
+    private List<Software> _software = new();
+    private List<Company> _companies = new();
+    private List<SoftwareVersion> _versions = new();
+    private bool _isAdmin, _saving;
+    private string _title = ""; private string? _desc; private int _priority = 1;
+    private string _softwareId = ""; private string _versionId = ""; private string _companyId = ""; private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        _isAdmin = auth.User.IsInRole("Admin");
+        try
+        {
+            if (_isAdmin) _companies = await Api.GetCompaniesAsync();
+            else _software = await Api.GetSoftwareAsync();
+        }
+        catch { }
+    }
+
+    private async Task OnSoftwareChanged()
+    {
+        _versionId = ""; _versions = new();
+        if (int.TryParse(_softwareId, out var sid))
+        {
+            try { _versions = (await Api.GetVersionsAsync(sid)).Where(v => v.IsActive).ToList(); } catch { }
+        }
+    }
+
+    private async Task OnCompanyChanged()
+    {
+        _software = new(); _softwareId = ""; _versions = new(); _versionId = "";
+        if (int.TryParse(_companyId, out var cid))
+        {
+            var all = await Api.GetSoftwareAsync();
+            var company = _companies.FirstOrDefault(c => c.Id == cid);
+            _software = company is null ? all : all.Where(s => company.SoftwareIds.Contains(s.Id)).ToList();
+        }
+    }
+
+    private async Task Create()
+    {
+        _error = null;
+        if (string.IsNullOrWhiteSpace(_title)) { _error = "Titolo obbligatorio."; return; }
+        int? sw = int.TryParse(_softwareId, out var s) ? s : null;
+        int? ver = int.TryParse(_versionId, out var v) ? v : null;
+        int? co = _isAdmin && int.TryParse(_companyId, out var c) ? c : null;
+        if (_isAdmin && co is null) { _error = "Seleziona un'azienda."; return; }
+
+        _saving = true;
+        var resp = await Api.CreateTicketAsync(new CreateTicketRequest(_title.Trim(), _desc, sw, ver, (TicketPriority)_priority, co));
+        _saving = false;
+        if (!resp.IsSuccessStatusCode) { _error = $"Errore creazione ({(int)resp.StatusCode})."; return; }
+        Nav.NavigateTo("tickets");
+    }
+}

@@ -7,9 +7,14 @@ public record UserInfo(string Id, string Email, string? FullName, int? CompanyId
 public record AuthResponse(string AccessToken, string RefreshToken, int ExpiresInSeconds, UserInfo User);
 
 public record TicketListItem(
-    int Id, string Title, TicketStatus Status, TicketPriority Priority,
-    int CompanyId, int? SoftwareId, int? SoftwareVersionId, string? AssigneeUserId, int? AssigneeUnitId,
+    int Id, string? Number, string Title, TicketStatus Status, TicketPriority Priority,
+    int CompanyId, string? CompanyName, int? SoftwareId, string? SoftwareName,
+    string? AssignedUserId, string? AssignedUserName, string? AssignedUnitName,
     DateTime CreatedAtUtc, DateTime UpdatedAtUtc, DateTime? ClosedAtUtc);
+
+public record TicketListResult(List<TicketListItem> Items, int Total, int Page, int PageSize);
+
+public record TicketAttachmentDto(int Id, string FileName, string ContentType, long Size, DateTime CreatedAtUtc);
 
 public record TicketComment(
     int Id, string Body, bool IsInternal, string AuthorUserId, DateTime CreatedAtUtc,
@@ -24,14 +29,16 @@ public record TicketComment(
         }
     }
 }
-public record TicketAssignmentDto(int Id, int UnitId, string UserId);
-
 public record TicketDetail(
-    int Id, string Title, string? Description, TicketStatus Status, TicketPriority Priority,
-    int CompanyId, int? SoftwareId, int? SoftwareVersionId, string CreatedByUserId,
-    string? AssigneeUserId, int? AssigneeUnitId,
+    int Id, string? Number, string Title, string? Description, TicketStatus Status, TicketPriority Priority,
+    int CompanyId, string? CompanyName, int? SoftwareId, int? SoftwareVersionId, string CreatedByUserId,
+    string? AssignedUserId, string? AssignedUserName, string? AssignedUserEmail, int? AssignedUnitId, string? AssignedUnitName,
     DateTime CreatedAtUtc, DateTime UpdatedAtUtc, DateTime? ClosedAtUtc,
-    List<TicketAssignmentDto> Assignments, List<TicketComment> Comments);
+    List<TicketAttachmentDto> Attachments, List<TicketComment> Comments);
+
+public record CompanyTicket(int Id, string? Number, string Title, TicketStatus Status, TicketPriority Priority, DateTime CreatedAtUtc, DateTime UpdatedAtUtc);
+public record UserUnit(int UnitId, string Name, bool IsManager);
+public record UserTicket(int Id, string? Number, string Title, TicketStatus Status, string? CompanyName);
 
 // Unit
 public record UnitRow(int Id, string Name, string? Description, int MembersCount, List<string> Managers);
@@ -77,6 +84,7 @@ public record CreateUnitRequest(string Name, string? Description);
 public record UserIdsRequest(List<string> UserIds);
 public record UserIdRequest(string UserId);
 public record CreateContactRequest(string Name, string? Title, string? Email, string? Phone, string? Notes);
+public record ResetPasswordRequest(string NewPassword);
 public record CreateCompanyRequest(string Name, string? VatNumber, string? ContactEmail, string? Phone, string? Address);
 public record CreateSoftwareRequest(string Name, string? Description);
 public record CreateVersionRequest(string Version, string? Notes, DateTime? ReleasedAtUtc);

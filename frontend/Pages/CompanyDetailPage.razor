@@ -1,6 +1,7 @@
 @page "/companies/{Id:int}"
 @attribute [Authorize(Roles = "Admin")]
 @inject ApiClient Api
+@inject NavigationManager Nav
 
 <a href="companies" class="text-sm text-slate-500 hover:text-slate-700">← Aziende</a>
 
@@ -98,6 +99,37 @@ else
             </table>
         }
     </div>
+
+    <!-- Ticket azienda -->
+    <div class="mt-6 rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
+        <div class="px-5 py-4 border-b border-slate-200"><h2 class="font-semibold text-slate-900">Ticket (@_tickets.Count)</h2></div>
+        @if (_tickets.Count == 0)
+        {
+            <p class="px-5 py-6 text-center text-sm text-slate-400">Nessun ticket.</p>
+        }
+        else
+        {
+            <table class="w-full text-sm">
+                <thead class="text-left text-slate-500 border-b border-slate-100">
+                    <tr><th class="px-5 py-3 font-medium">Numero</th><th class="px-5 py-3 font-medium">Titolo</th>
+                        <th class="px-5 py-3 font-medium">Priorità</th><th class="px-5 py-3 font-medium">Stato</th>
+                        <th class="px-5 py-3 font-medium">Aggiornato</th></tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @foreach (var t in _tickets)
+                    {
+                        <tr class="hover:bg-slate-50 cursor-pointer" @onclick="() => Open(t.Id)">
+                            <td class="px-5 py-3 font-mono text-xs text-indigo-600">@(t.Number ?? $"#{t.Id}")</td>
+                            <td class="px-5 py-3 font-medium text-slate-900">@t.Title</td>
+                            <td class="px-5 py-3"><PriorityBadge Priority="t.Priority" /></td>
+                            <td class="px-5 py-3"><StatusBadge Status="t.Status" /></td>
+                            <td class="px-5 py-3 text-slate-500">@t.UpdatedAtUtc.ToLocalTime().ToString("dd/MM HH:mm")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
 }
 
 <!-- Modal nuovo contatto rubrica -->
@@ -182,6 +214,7 @@ else
     private List<CompanyUser> _users = new();
     private List<Software> _allSoftware = new();
     private List<Contact> _contacts = new();
+    private List<CompanyTicket> _tickets = new();
 
     private bool _showContact;
     private string _kName = ""; private string? _kTitle, _kEmail, _kPhone, _kNotes; private string? _kErr;
@@ -199,9 +232,11 @@ else
 
     private async Task Load()
     {
-        try { _c = await Api.GetCompanyAsync(Id); _users = await Api.GetCompanyUsersAsync(Id); _contacts = await Api.GetContactsAsync(Id); }
+        try { _c = await Api.GetCompanyAsync(Id); _users = await Api.GetCompanyUsersAsync(Id); _contacts = await Api.GetContactsAsync(Id); _tickets = await Api.GetCompanyTicketsAsync(Id); }
         catch { _c = null; }
     }
+
+    private void Open(int id) => Nav.NavigateTo($"tickets/{id}");
 
     private void OpenAddContact() { _kName = ""; _kTitle = _kEmail = _kPhone = _kNotes = null; _kErr = null; _showContact = true; }
 

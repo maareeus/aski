@@ -79,6 +79,15 @@ public sealed class CompaniesController : ControllerBase
         return Ok(new { c.Id, c.IsActive });
     }
 
+    /// <summary>Ticket dell'azienda.</summary>
+    [HttpGet("{id:int}/tickets")]
+    public async Task<IActionResult> Tickets(int id, CancellationToken ct) =>
+        Ok(await _db.Tickets.AsNoTracking()
+            .Where(t => t.CompanyId == id)
+            .OrderByDescending(t => t.UpdatedAtUtc)
+            .Select(t => new { t.Id, t.Number, t.Title, t.Status, t.Priority, t.CreatedAtUtc, t.UpdatedAtUtc })
+            .ToListAsync(ct));
+
     /// <summary>Utenti (Client) appartenenti all'azienda.</summary>
     [HttpGet("{id:int}/users")]
     public async Task<IActionResult> Users(int id, CancellationToken ct) =>

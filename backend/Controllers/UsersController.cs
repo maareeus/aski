@@ -149,6 +149,58 @@ public sealed class UsersController : ControllerBase
         return NoContent();
     }
 
+    public record ResetPwDto(string NewPassword);
+
+    [HttpPost("{id}/reset-password")]
+    public async Task<IActionResult> ResetPassword(string id, ResetPwDto dto, CancellationToken ct)
+    {
+        var user = await _users.FindByIdAsync(id);
+        if (user is null) return NotFound();
+        if (string.IsNullOrWhiteSpace(dto.NewPassword) || dto.NewPassword.Length < 8)
+            return BadRequest(new { error = "Password minimo 8 caratteri." });
+        var token = await _users.GeneratePasswordResetTokenAsync(user);
+        var res = await _users.ResetPasswordAsync(user, token, dto.NewPassword);
+        if (!res.Succeeded) return BadRequest(new { errors = res.Errors.Select(e => e.Description) });
+        return NoContent();
+    }
+
+    /// <summary>Unit a cui appartiene l'utente.</summary>
+    [HttpGet("{id}/units")]
+    public async Task<IActionResult> Units(string id, CancellationToken ct) =>
+        Ok(await _db.UnitMemberships.AsNoTracking().Where(m => m.UserId == id)
+            .Select(m => new { m.UnitId, m.Unit.Name, m.IsManager }).ToListAsync(ct));
+
+    /// <summary>Ticket assegnati all'utente.</summary>
+    [HttpGet("{id}/tickets")]
+    public async Task<IActionResult> AssignedTickets(string id, CancellationToken ct) =>
+        Ok(await _db.Tickets.AsNoTracking().Where(t => t.AssignedUserId == id)
+            .OrderByDescending(t => t.UpdatedAtUtc)
+            .Select(t => new { t.Id, t.Number, t.Title, t.Status, t.Priority, CompanyName = t.Company.Name }).ToListAsync(ct));
+
+    /// <summary>Ticket che l'utente può vedere (stessa regola di visibilità).</summary>
+    [HttpGet("{id}/visible-tickets")]
+    public async Task<IActionResult> VisibleTickets(string id, CancellationToken ct)
+    {
+        var user = await _users.FindByIdAsync(id);
+        if (user is null) return NotFound();
+        var roles = await _users.GetRolesAsync(user);
+
+        IQueryable<Ticket> q = _db.Tickets.AsNoTracking();
+        if (roles.Contains(Roles.Admin)) { /* tutti */ }
+        else if (roles.Contains(Roles.Client))
+            q = q.Where(t => t.CompanyId == user.CompanyId);
+        else
+        {
+            var swIds = await _db.Users.Where(u => u.Id == id).SelectMany(u => u.Softwares.Select(s => s.Id)).ToListAsync(ct);
+            var managed = await _db.UnitMemberships.Where(m => m.UserId == id && m.IsManager).Select(m => m.UnitId).ToListAsync(ct);
+            q = q.Where(t => t.AssignedUserId == id
+                          || (t.AssignedUnitId != null && managed.Contains(t.AssignedUnitId.Value))
+                          || (t.SoftwareId != null && swIds.Contains(t.SoftwareId.Value)));
+        }
+        return Ok(await q.OrderByDescending(t => t.UpdatedAtUtc)
+            .Select(t => new { t.Id, t.Number, t.Title, t.Status, CompanyName = t.Company.Name }).ToListAsync(ct));
+    }
+
     private async Task SetSoftwareInternal(string userId, List<int> softwareIds, CancellationToken ct)
     {
         var user = await _db.Users.Include(u => u.Softwares).FirstAsync(u => u.Id == userId, ct);

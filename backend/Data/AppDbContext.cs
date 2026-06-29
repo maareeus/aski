@@ -22,7 +22,7 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole, string>
     public DbSet<Contact> Contacts => Set<Contact>();
     public DbSet<Unit> Units => Set<Unit>();
     public DbSet<UnitMembership> UnitMemberships => Set<UnitMembership>();
-    public DbSet<TicketAssignment> TicketAssignments => Set<TicketAssignment>();
+    public DbSet<TicketAttachment> TicketAttachments => Set<TicketAttachment>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -92,8 +92,10 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole, string>
         builder.Entity<Ticket>(e =>
         {
             e.Property(x => x.Title).HasMaxLength(300).IsRequired();
+            e.Property(x => x.Number).HasMaxLength(20);
+            e.HasIndex(x => x.Number).IsUnique();
             e.HasIndex(x => new { x.CompanyId, x.Status });
-            e.HasIndex(x => x.AssigneeUserId);
+            e.HasIndex(x => x.AssignedUserId);
             e.HasOne(x => x.Company)
                 .WithMany()
                 .HasForeignKey(x => x.CompanyId)
@@ -110,14 +112,22 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole, string>
                 .WithMany()
                 .HasForeignKey(x => x.CreatedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(x => x.AssigneeUser)
+            e.HasOne(x => x.AssignedUser)
                 .WithMany()
-                .HasForeignKey(x => x.AssigneeUserId)
+                .HasForeignKey(x => x.AssignedUserId)
                 .OnDelete(DeleteBehavior.SetNull);
-            e.HasOne(x => x.AssigneeUnit)
+            e.HasOne(x => x.AssignedUnit)
                 .WithMany()
-                .HasForeignKey(x => x.AssigneeUnitId)
+                .HasForeignKey(x => x.AssignedUnitId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<TicketAttachment>(e =>
+        {
+            e.Property(x => x.FileName).HasMaxLength(260).IsRequired();
+            e.Property(x => x.ContentType).HasMaxLength(120);
+            e.Property(x => x.StoredPath).HasMaxLength(400).IsRequired();
+            e.HasOne(x => x.Ticket).WithMany(t => t.Attachments).HasForeignKey(x => x.TicketId).OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<TicketComment>(e =>
@@ -155,12 +165,5 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole, string>
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
-        builder.Entity<TicketAssignment>(e =>
-        {
-            e.HasIndex(x => new { x.TicketId, x.UnitId, x.UserId }).IsUnique();
-            e.HasOne(x => x.Ticket).WithMany(t => t.Assignments).HasForeignKey(x => x.TicketId).OnDelete(DeleteBehavior.Cascade);
-            e.HasOne(x => x.Unit).WithMany().HasForeignKey(x => x.UnitId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
-        });
     }
 }

@@ -21,6 +21,7 @@ builder.Services
     {
         o.User.RequireUniqueEmail = true;
         o.Password.RequiredLength = 8;
+        o.Password.RequireNonAlphanumeric = false; // lunghezza + maiusc/minusc/cifra bastano
     })
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()

@@ -27,7 +27,7 @@ public sealed class TicketsController : ControllerBase
         _users = users;
     }
 
-    public record CreateTicketDto(string Title, string? Description, int? SoftwareId, TicketPriority Priority, int? CompanyId);
+    public record CreateTicketDto(string Title, string? Description, int? SoftwareId, int? SoftwareVersionId, TicketPriority Priority, int? CompanyId);
     public record ChangeStatusDto(TicketStatus Status);
     public record AssignDto(string AgentUserId);
     public record AddCommentDto(string Body, bool IsInternal);
@@ -79,7 +79,7 @@ public sealed class TicketsController : ControllerBase
         var isClient = User.IsClient() && !User.IsStaff();
         return Ok(new
         {
-            t.Id, t.Title, t.Description, t.Status, t.Priority, t.CompanyId, t.SoftwareId,
+            t.Id, t.Title, t.Description, t.Status, t.Priority, t.CompanyId, t.SoftwareId, t.SoftwareVersionId,
             t.CreatedByUserId, t.AssignedAgentUserId, t.CreatedAtUtc, t.UpdatedAtUtc, t.ClosedAtUtc,
             Comments = t.Comments
                 .Where(c => !isClient || !c.IsInternal)
@@ -123,6 +123,7 @@ public sealed class TicketsController : ControllerBase
             Priority = dto.Priority,
             CompanyId = companyId,
             SoftwareId = dto.SoftwareId,
+            SoftwareVersionId = dto.SoftwareVersionId,
             CreatedByUserId = User.Id(),
             Status = TicketStatus.Open
         };

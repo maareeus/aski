@@ -79,6 +79,15 @@ public sealed class CompaniesController : ControllerBase
         return Ok(new { c.Id, c.IsActive });
     }
 
+    /// <summary>Utenti (Client) appartenenti all'azienda.</summary>
+    [HttpGet("{id:int}/users")]
+    public async Task<IActionResult> Users(int id, CancellationToken ct) =>
+        Ok(await _db.Users.AsNoTracking()
+            .Where(u => u.CompanyId == id)
+            .OrderBy(u => u.Email)
+            .Select(u => new { u.Id, u.Email, u.FirstName, u.LastName, u.Phone, u.IsActive })
+            .ToListAsync(ct));
+
     /// <summary>Imposta l'elenco dei software associati all'azienda (sostituisce il set).</summary>
     [HttpPut("{id:int}/software")]
     public async Task<IActionResult> SetSoftware(int id, SoftwareIdsDto dto, CancellationToken ct)

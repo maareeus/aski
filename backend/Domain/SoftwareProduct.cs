@@ -1,14 +1,19 @@
 namespace Aski.Tickets.Api.Domain;
 
-/// <summary>Software assistito. La versione è obbligatoria (ogni software è versionato).</summary>
+/// <summary>
+/// Software assistito. Contiene lo storico delle <see cref="Versions"/>:
+/// il software si crea una volta, poi al suo interno si aggiungono le versioni.
+/// </summary>
 public class SoftwareProduct
 {
     public int Id { get; set; }
     public required string Name { get; set; }
-    public required string Version { get; set; }
     public string? Description { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    /// <summary>Storico versioni del software.</summary>
+    public List<SoftwareVersion> Versions { get; set; } = new();
 
     public List<Ticket> Tickets { get; set; } = new();
 

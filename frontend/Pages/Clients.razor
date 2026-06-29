@@ -1,11 +1,12 @@
 @page "/clients"
 @attribute [Authorize(Roles = "Admin")]
 @inject ApiClient Api
+@inject NavigationManager Nav
 
 <div class="flex items-center justify-between mb-6">
     <div>
         <h1 class="text-2xl font-bold tracking-tight text-slate-900">Clienti</h1>
-        <p class="text-sm text-slate-500">Aziende assistite e relativi software.</p>
+        <p class="text-sm text-slate-500">Aziende assistite. Apri un'azienda per gestirla nel dettaglio.</p>
     </div>
     <button @onclick="OpenCreate" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Nuova azienda</button>
 </div>
@@ -21,20 +22,17 @@
             <thead class="text-left text-slate-500 border-b border-slate-100">
                 <tr><th class="px-5 py-3 font-medium">Azienda</th><th class="px-5 py-3 font-medium">P.IVA</th>
                     <th class="px-5 py-3 font-medium">Contatti</th><th class="px-5 py-3 font-medium">Utenti</th>
-                    <th class="px-5 py-3 font-medium">Software</th><th class="px-5 py-3"></th></tr>
+                    <th class="px-5 py-3 font-medium">Software</th></tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
                 @foreach (var c in _items)
                 {
-                    <tr class="hover:bg-slate-50">
+                    <tr class="hover:bg-slate-50 cursor-pointer" @onclick="() => Open(c.Id)">
                         <td class="px-5 py-3 font-medium text-slate-900">@c.Name</td>
                         <td class="px-5 py-3 text-slate-600">@(c.VatNumber ?? "—")</td>
                         <td class="px-5 py-3 text-slate-600">@(c.ContactEmail ?? c.Phone ?? "—")</td>
                         <td class="px-5 py-3 text-slate-600">@c.UsersCount</td>
                         <td class="px-5 py-3 text-slate-600">@c.SoftwareIds.Count</td>
-                        <td class="px-5 py-3 text-right">
-                            <button @onclick="() => OpenSoftware(c)" class="text-xs text-indigo-600 hover:underline">Software</button>
-                        </td>
                     </tr>
                 }
             </tbody>
@@ -42,7 +40,6 @@
     }
 </div>
 
-<!-- Modal crea azienda -->
 <Modal Visible="_showCreate" Title="Nuova azienda" OnClose="() => _showCreate = false">
     @if (_err is not null) { <div class="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">@_err</div> }
     <div class="space-y-3">
@@ -58,51 +55,19 @@
     </div>
 </Modal>
 
-<!-- Modal software azienda -->
-<Modal Visible="_showSoftware" Title="@($"Software · {_editing?.Name}")" OnClose="() => _showSoftware = false">
-    @if (_allSoftware.Count == 0)
-    {
-        <p class="text-sm text-slate-400">Nessun software disponibile.</p>
-    }
-    else
-    {
-        <div class="space-y-2">
-            @foreach (var s in _allSoftware)
-            {
-                <label class="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked="@_sel.Contains(s.Id)" @onchange="e => Toggle(s.Id, e)" class="rounded border-slate-300" />
-                    <span class="text-slate-700">@s.Name <span class="text-slate-400">v@s.Version</span></span>
-                </label>
-            }
-        </div>
-    }
-    <div class="mt-5 flex items-center justify-end gap-2">
-        <button @onclick="() => _showSoftware = false" class="@BtnGhost">Annulla</button>
-        <button @onclick="SaveSoftware" class="@BtnPrimary">Salva</button>
-    </div>
-</Modal>
-
 @code {
     private const string Inp = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
     private const string BtnPrimary = "rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700";
     private const string BtnGhost = "rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50";
 
     private List<Company> _items = new();
-    private List<Software> _allSoftware = new();
-
-    private bool _showCreate, _showSoftware;
+    private bool _showCreate;
     private string _name = ""; private string? _vat, _email, _phone, _address; private string? _err;
 
-    private Company? _editing;
-    private HashSet<int> _sel = new();
-
-    protected override async Task OnInitializedAsync()
-    {
-        try { _allSoftware = await Api.GetSoftwareAsync(); } catch { }
-        await Load();
-    }
+    protected override async Task OnInitializedAsync() => await Load();
     private async Task Load() { try { _items = await Api.GetCompaniesAsync(); } catch { } }
 
+    private void Open(int id) => Nav.NavigateTo($"clients/{id}");
     private void OpenCreate() { _name = ""; _vat = _email = _phone = _address = null; _err = null; _showCreate = true; }
 
     private async Task Create()
@@ -113,15 +78,4 @@
         if (!resp.IsSuccessStatusCode) { _err = $"Errore ({(int)resp.StatusCode})."; return; }
         _showCreate = false; await Load();
     }
-
-    private void OpenSoftware(Company c) { _editing = c; _sel = new HashSet<int>(c.SoftwareIds); _showSoftware = true; }
-    private void Toggle(int id, ChangeEventArgs e) { if ((bool)e.Value!) _sel.Add(id); else _sel.Remove(id); }
-
-    private async Task SaveSoftware()
-    {
-        if (_editing is null) return;
-        await Api.SetCompanySoftwareAsync(_editing.Id, _sel.ToList());
-        _showSoftware = false; await Load();
-    }
 }
-

@@ -76,7 +76,7 @@
                 {
                     <label class="flex items-center gap-2 text-sm">
                         <input type="checkbox" checked="@_sel.Contains(s.Id)" @onchange="e => Toggle(s.Id, e)" class="rounded border-slate-300" />
-                        <span class="text-slate-700">@s.Name <span class="text-slate-400">v@s.Version</span></span>
+                        <span class="text-slate-700">@s.Name </span>
                     </label>
                 }
             </div>
@@ -95,7 +95,7 @@
         {
             <label class="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked="@_sel.Contains(s.Id)" @onchange="e => Toggle(s.Id, e)" class="rounded border-slate-300" />
-                <span class="text-slate-700">@s.Name <span class="text-slate-400">v@s.Version</span></span>
+                <span class="text-slate-700">@s.Name </span>
             </label>
         }
     </div>
@@ -157,4 +157,5 @@
         _showSoftware = false; await Load();
     }
 }
+
 

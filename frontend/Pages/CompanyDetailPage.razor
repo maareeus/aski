@@ -1,0 +1,183 @@
+@page "/clients/{Id:int}"
+@attribute [Authorize(Roles = "Admin")]
+@inject ApiClient Api
+
+<a href="clients" class="text-sm text-slate-500 hover:text-slate-700">← Clienti</a>
+
+@if (_c is null)
+{
+    <p class="mt-4 text-sm text-slate-400">Caricamento…</p>
+}
+else
+{
+    <div class="mt-3 flex items-start justify-between">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900">@_c.Name</h1>
+            <p class="text-sm text-slate-500 mt-1">@(_c.VatNumber ?? "—") · @(_c.ContactEmail ?? "—") · @(_c.Phone ?? "—")</p>
+            @if (!string.IsNullOrWhiteSpace(_c.Address)) { <p class="text-sm text-slate-500">@_c.Address</p> }
+        </div>
+        <button @onclick="OpenEdit" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">Modifica</button>
+    </div>
+
+    <div class="mt-6 grid lg:grid-cols-2 gap-6">
+        <!-- Utenti -->
+        <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+                <h2 class="font-semibold text-slate-900">Utenti (@_users.Count)</h2>
+                <button @onclick="OpenAddUser" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700">Nuovo utente</button>
+            </div>
+            @if (_users.Count == 0)
+            {
+                <p class="px-5 py-6 text-center text-sm text-slate-400">Nessun utente.</p>
+            }
+            else
+            {
+                <ul class="divide-y divide-slate-100">
+                    @foreach (var u in _users)
+                    {
+                        <li class="px-5 py-3">
+                            <p class="font-medium text-slate-900">@(string.IsNullOrWhiteSpace($"{u.FirstName} {u.LastName}".Trim()) ? u.Email : $"{u.FirstName} {u.LastName}")</p>
+                            <p class="text-xs text-slate-500">@u.Email @(u.Phone is null ? "" : "· " + u.Phone)</p>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+
+        <!-- Software -->
+        <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+                <h2 class="font-semibold text-slate-900">Software associati (@_c.SoftwareIds.Count)</h2>
+                <button @onclick="OpenSoftware" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Gestisci</button>
+            </div>
+            @if (_c.SoftwareIds.Count == 0)
+            {
+                <p class="px-5 py-6 text-center text-sm text-slate-400">Nessun software associato.</p>
+            }
+            else
+            {
+                <ul class="divide-y divide-slate-100">
+                    @foreach (var s in _allSoftware.Where(s => _c.SoftwareIds.Contains(s.Id)))
+                    {
+                        <li class="px-5 py-3 text-sm text-slate-700">@s.Name @if (s.LatestVersion is not null) { <span class="text-slate-400">v@s.LatestVersion</span> }</li>
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+}
+
+<!-- Modal modifica anagrafica -->
+<Modal Visible="_showEdit" Title="Modifica azienda" OnClose="() => _showEdit = false">
+    <div class="space-y-3">
+        <Field Label="Nome *"><input @bind="_name" class="@Inp" /></Field>
+        <Field Label="P.IVA / C.F."><input @bind="_vat" class="@Inp" /></Field>
+        <Field Label="Email"><input @bind="_email" class="@Inp" /></Field>
+        <Field Label="Telefono"><input @bind="_phone" class="@Inp" /></Field>
+        <Field Label="Indirizzo"><input @bind="_address" class="@Inp" /></Field>
+    </div>
+    <div class="mt-5 flex items-center justify-end gap-2">
+        <button @onclick="() => _showEdit = false" class="@BtnGhost">Annulla</button>
+        <button @onclick="SaveEdit" class="@BtnPrimary">Salva</button>
+    </div>
+</Modal>
+
+<!-- Modal nuovo utente cliente -->
+<Modal Visible="_showUser" Title="Nuovo utente cliente" MaxWidth="max-w-xl" OnClose="() => _showUser = false">
+    @if (_uErr is not null) { <div class="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">@_uErr</div> }
+    <div class="grid grid-cols-2 gap-3">
+        <Field Label="Nome"><input @bind="_uFirst" class="@Inp" /></Field>
+        <Field Label="Cognome"><input @bind="_uLast" class="@Inp" /></Field>
+        <Field Label="Email *"><input @bind="_uEmail" class="@Inp" /></Field>
+        <Field Label="Telefono"><input @bind="_uPhone" class="@Inp" /></Field>
+        <Field Label="Password * (min 8)"><input @bind="_uPwd" type="password" class="@Inp" /></Field>
+    </div>
+    <div class="mt-5 flex items-center justify-end gap-2">
+        <button @onclick="() => _showUser = false" class="@BtnGhost">Annulla</button>
+        <button @onclick="AddUser" class="@BtnPrimary">Crea</button>
+    </div>
+</Modal>
+
+<!-- Modal software associati -->
+<Modal Visible="_showSoftware" Title="Software associati" OnClose="() => _showSoftware = false">
+    @if (_allSoftware.Count == 0)
+    {
+        <p class="text-sm text-slate-400">Nessun software disponibile.</p>
+    }
+    else
+    {
+        <div class="space-y-2">
+            @foreach (var s in _allSoftware)
+            {
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked="@_sel.Contains(s.Id)" @onchange="e => Toggle(s.Id, e)" class="rounded border-slate-300" />
+                    <span class="text-slate-700">@s.Name</span>
+                </label>
+            }
+        </div>
+    }
+    <div class="mt-5 flex items-center justify-end gap-2">
+        <button @onclick="() => _showSoftware = false" class="@BtnGhost">Annulla</button>
+        <button @onclick="SaveSoftware" class="@BtnPrimary">Salva</button>
+    </div>
+</Modal>
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private const string Inp = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
+    private const string BtnPrimary = "rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700";
+    private const string BtnGhost = "rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50";
+
+    private Company? _c;
+    private List<CompanyUser> _users = new();
+    private List<Software> _allSoftware = new();
+
+    private bool _showEdit, _showUser, _showSoftware;
+    private string _name = ""; private string? _vat, _email, _phone, _address;
+    private string _uEmail = ""; private string? _uFirst, _uLast, _uPhone; private string _uPwd = ""; private string? _uErr;
+    private HashSet<int> _sel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _allSoftware = await Api.GetSoftwareAsync(); } catch { }
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        try { _c = await Api.GetCompanyAsync(Id); _users = await Api.GetCompanyUsersAsync(Id); }
+        catch { _c = null; }
+    }
+
+    private void OpenEdit()
+    {
+        _name = _c!.Name; _vat = _c.VatNumber; _email = _c.ContactEmail; _phone = _c.Phone; _address = _c.Address;
+        _showEdit = true;
+    }
+
+    private async Task SaveEdit()
+    {
+        await Api.UpdateCompanyAsync(Id, new CreateCompanyRequest(_name.Trim(), _vat, _email, _phone, _address));
+        _showEdit = false; await Load();
+    }
+
+    private void OpenAddUser() { _uEmail = ""; _uFirst = _uLast = _uPhone = null; _uPwd = ""; _uErr = null; _showUser = true; }
+
+    private async Task AddUser()
+    {
+        _uErr = null;
+        if (string.IsNullOrWhiteSpace(_uEmail) || _uPwd.Length < 8) { _uErr = "Email e password (min 8) obbligatorie."; return; }
+        var resp = await Api.CreateUserAsync(new CreateUserRequest(_uEmail.Trim(), _uPwd, "Client", _uFirst, _uLast, _uPhone, Id, null));
+        if (!resp.IsSuccessStatusCode) { _uErr = $"Errore ({(int)resp.StatusCode})."; return; }
+        _showUser = false; await Load();
+    }
+
+    private void OpenSoftware() { _sel = new HashSet<int>(_c!.SoftwareIds); _showSoftware = true; }
+    private void Toggle(int id, ChangeEventArgs e) { if ((bool)e.Value!) _sel.Add(id); else _sel.Remove(id); }
+
+    private async Task SaveSoftware()
+    {
+        await Api.SetCompanySoftwareAsync(Id, _sel.ToList());
+        _showSoftware = false; await Load();
+    }
+}

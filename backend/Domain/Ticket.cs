@@ -19,6 +19,10 @@ public class Ticket
     public int? SoftwareId { get; set; }
     public SoftwareProduct? Software { get; set; }
 
+    /// <summary>Versione specifica del software a cui si riferisce (opzionale).</summary>
+    public int? SoftwareVersionId { get; set; }
+    public SoftwareVersion? SoftwareVersion { get; set; }
+
     /// <summary>Utente che ha aperto il ticket (Client o Admin).</summary>
     public required string CreatedByUserId { get; set; }
     public AppUser CreatedByUser { get; set; } = null!;

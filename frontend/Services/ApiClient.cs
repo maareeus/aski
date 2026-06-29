@@ -40,12 +40,25 @@ public sealed class ApiClient
         _http.PostAsJsonAsync("api/companies", req);
     public Task<HttpResponseMessage> SetCompanySoftwareAsync(int id, List<int> softwareIds) =>
         _http.PutAsJsonAsync($"api/companies/{id}/software", new SoftwareIdsRequest(softwareIds));
+    public Task<Company?> GetCompanyAsync(int id) => _http.GetFromJsonAsync<Company>($"api/companies/{id}");
+    public Task<HttpResponseMessage> UpdateCompanyAsync(int id, CreateCompanyRequest req) =>
+        _http.PutAsJsonAsync($"api/companies/{id}", req);
+    public async Task<List<CompanyUser>> GetCompanyUsersAsync(int id) =>
+        await _http.GetFromJsonAsync<List<CompanyUser>>($"api/companies/{id}/users") ?? new();
 
     // --- Software ---
     public async Task<List<Software>> GetSoftwareAsync() =>
         await _http.GetFromJsonAsync<List<Software>>("api/software") ?? new();
+    public Task<SoftwareDetail?> GetSoftwareDetailAsync(int id) =>
+        _http.GetFromJsonAsync<SoftwareDetail>($"api/software/{id}");
     public Task<HttpResponseMessage> CreateSoftwareAsync(CreateSoftwareRequest req) =>
         _http.PostAsJsonAsync("api/software", req);
+    public Task<HttpResponseMessage> UpdateSoftwareAsync(int id, CreateSoftwareRequest req) =>
+        _http.PutAsJsonAsync($"api/software/{id}", req);
+    public async Task<List<SoftwareVersion>> GetVersionsAsync(int softwareId) =>
+        await _http.GetFromJsonAsync<List<SoftwareVersion>>($"api/software/{softwareId}/versions") ?? new();
+    public Task<HttpResponseMessage> AddVersionAsync(int softwareId, CreateVersionRequest req) =>
+        _http.PostAsJsonAsync($"api/software/{softwareId}/versions", req);
 
     // --- Users ---
     public async Task<List<AppUserRow>> GetUsersAsync() =>

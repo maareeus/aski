@@ -16,6 +16,7 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole, string>
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<SoftwareProduct> Software => Set<SoftwareProduct>();
+    public DbSet<SoftwareVersion> SoftwareVersions => Set<SoftwareVersion>();
     public DbSet<Ticket> Tickets => Set<Ticket>();
     public DbSet<TicketComment> TicketComments => Set<TicketComment>();
 
@@ -70,8 +71,17 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole, string>
         builder.Entity<SoftwareProduct>(e =>
         {
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.HasIndex(x => x.Name);
+            e.HasMany(x => x.Versions)
+                .WithOne(v => v.Software)
+                .HasForeignKey(v => v.SoftwareId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<SoftwareVersion>(e =>
+        {
             e.Property(x => x.Version).HasMaxLength(50).IsRequired();
-            e.HasIndex(x => new { x.Name, x.Version });
+            e.HasIndex(x => new { x.SoftwareId, x.Version });
         });
 
         builder.Entity<Ticket>(e =>
@@ -86,6 +96,10 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole, string>
             e.HasOne(x => x.Software)
                 .WithMany(s => s.Tickets)
                 .HasForeignKey(x => x.SoftwareId)
+                .OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.SoftwareVersion)
+                .WithMany()
+                .HasForeignKey(x => x.SoftwareVersionId)
                 .OnDelete(DeleteBehavior.SetNull);
             e.HasOne(x => x.CreatedByUser)
                 .WithMany()

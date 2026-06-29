@@ -77,11 +77,20 @@
                 </Field>
             }
             <Field Label="Software">
-                <select @bind="_softwareId" class="@Inp">
+                <select @bind="_softwareId" @bind:after="OnSoftwareChanged" class="@Inp">
                     <option value="">—</option>
-                    @foreach (var s in _software) { <option value="@s.Id">@s.Name v@s.Version</option> }
+                    @foreach (var s in _software) { <option value="@s.Id">@s.Name</option> }
                 </select>
             </Field>
+            @if (_versions.Count > 0)
+            {
+                <Field Label="Versione">
+                    <select @bind="_versionId" class="@Inp">
+                        <option value="">—</option>
+                        @foreach (var v in _versions) { <option value="@v.Id">v@v.Version</option> }
+                    </select>
+                </Field>
+            }
         </div>
     </div>
     <div class="mt-5 flex items-center justify-end gap-2">
@@ -104,7 +113,8 @@
     private bool _isAdmin, _isClient, _canCreate;
 
     private string _title = ""; private string? _desc; private int _priority = 1;
-    private string _softwareId = ""; private string _companyId = ""; private string? _createError;
+    private string _softwareId = ""; private string _versionId = ""; private string _companyId = ""; private string? _createError;
+    private List<SoftwareVersion> _versions = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -137,8 +147,18 @@
 
     private void OpenCreate()
     {
-        _title = ""; _desc = null; _priority = 1; _softwareId = ""; _companyId = ""; _createError = null;
+        _title = ""; _desc = null; _priority = 1; _softwareId = ""; _versionId = ""; _companyId = ""; _createError = null;
+        _versions = new();
         _showCreate = true;
+    }
+
+    private async Task OnSoftwareChanged()
+    {
+        _versionId = ""; _versions = new();
+        if (int.TryParse(_softwareId, out var sid))
+        {
+            try { _versions = await Api.GetVersionsAsync(sid); } catch { }
+        }
     }
 
     // Admin: caricando l'azienda, mostro i software associati a quell'azienda.
@@ -158,10 +178,11 @@
         _createError = null;
         if (string.IsNullOrWhiteSpace(_title)) { _createError = "Titolo obbligatorio."; return; }
         int? sw = int.TryParse(_softwareId, out var s) ? s : null;
+        int? ver = int.TryParse(_versionId, out var v) ? v : null;
         int? co = _isAdmin && int.TryParse(_companyId, out var c) ? c : null;
         if (_isAdmin && co is null) { _createError = "Seleziona un'azienda."; return; }
 
-        var resp = await Api.CreateTicketAsync(new CreateTicketRequest(_title.Trim(), _desc, sw, (TicketPriority)_priority, co));
+        var resp = await Api.CreateTicketAsync(new CreateTicketRequest(_title.Trim(), _desc, sw, ver, (TicketPriority)_priority, co));
         if (!resp.IsSuccessStatusCode) { _createError = $"Errore creazione ({(int)resp.StatusCode})."; return; }
         _showCreate = false; await Load();
     }

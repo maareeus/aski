@@ -23,7 +23,10 @@ public record Company(
     int Id, string Name, string? VatNumber, string? ContactEmail, string? Phone, string? Address,
     bool IsActive, DateTime CreatedAtUtc, int UsersCount, List<int> SoftwareIds);
 
-public record Software(int Id, string Name, string Version, string? Description);
+public record Software(int Id, string Name, string? Description, int VersionsCount, string? LatestVersion);
+public record SoftwareDetail(int Id, string Name, string? Description, bool IsActive);
+public record SoftwareVersion(int Id, string Version, string? Notes, DateTime? ReleasedAtUtc, bool IsActive, DateTime CreatedAtUtc);
+public record CompanyUser(string Id, string Email, string? FirstName, string? LastName, string? Phone, bool IsActive);
 
 public record AppUserRow(
     string Id, string Email, string? FirstName, string? LastName, string? Phone,
@@ -34,12 +37,13 @@ public record AppUserRow(
 
 // Richieste
 public record LoginRequest(string Email, string Password);
-public record CreateTicketRequest(string Title, string? Description, int? SoftwareId, TicketPriority Priority, int? CompanyId);
+public record CreateTicketRequest(string Title, string? Description, int? SoftwareId, int? SoftwareVersionId, TicketPriority Priority, int? CompanyId);
 public record AddCommentRequest(string Body, bool IsInternal);
 public record ChangeStatusRequest(TicketStatus Status);
 public record AssignRequest(string AgentUserId);
 public record CreateCompanyRequest(string Name, string? VatNumber, string? ContactEmail, string? Phone, string? Address);
-public record CreateSoftwareRequest(string Name, string Version, string? Description);
+public record CreateSoftwareRequest(string Name, string? Description);
+public record CreateVersionRequest(string Version, string? Notes, DateTime? ReleasedAtUtc);
 public record CreateUserRequest(
     string Email, string Password, string Role,
     string? FirstName, string? LastName, string? Phone, int? CompanyId, List<int>? SoftwareIds);

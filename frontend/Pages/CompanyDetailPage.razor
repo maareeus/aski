@@ -1,8 +1,8 @@
-@page "/clients/{Id:int}"
+@page "/companies/{Id:int}"
 @attribute [Authorize(Roles = "Admin")]
 @inject ApiClient Api
 
-<a href="clients" class="text-sm text-slate-500 hover:text-slate-700">← Clienti</a>
+<a href="companies" class="text-sm text-slate-500 hover:text-slate-700">← Aziende</a>
 
 @if (_c is null)
 {
@@ -59,7 +59,7 @@ else
                 <ul class="divide-y divide-slate-100">
                     @foreach (var s in _allSoftware.Where(s => _c.SoftwareIds.Contains(s.Id)))
                     {
-                        <li class="px-5 py-3 text-sm text-slate-700">@s.Name @if (s.LatestVersion is not null) { <span class="text-slate-400">v@s.LatestVersion</span> }</li>
+                        <li class="px-5 py-3 text-sm text-slate-700">@s.Name @if (s.LatestVersion is not null) { <span class="text-slate-400">v@(s.LatestVersion)</span> }</li>
                     }
                 </ul>
             }
@@ -137,8 +137,9 @@ else
     <div class="grid grid-cols-2 gap-3">
         <Field Label="Nome"><input @bind="_uFirst" class="@Inp" /></Field>
         <Field Label="Cognome"><input @bind="_uLast" class="@Inp" /></Field>
-        <Field Label="Email *"><input @bind="_uEmail" class="@Inp" /></Field>
+        <Field Label="Ruolo in azienda"><input @bind="_uJob" class="@Inp" /></Field>
         <Field Label="Telefono"><input @bind="_uPhone" class="@Inp" /></Field>
+        <Field Label="Email *"><input @bind="_uEmail" class="@Inp" /></Field>
         <Field Label="Password * (min 8)"><input @bind="_uPwd" type="password" class="@Inp" /></Field>
     </div>
     <div class="mt-5 flex items-center justify-end gap-2">
@@ -187,7 +188,7 @@ else
 
     private bool _showEdit, _showUser, _showSoftware;
     private string _name = ""; private string? _vat, _email, _phone, _address;
-    private string _uEmail = ""; private string? _uFirst, _uLast, _uPhone; private string _uPwd = ""; private string? _uErr;
+    private string _uEmail = ""; private string? _uFirst, _uLast, _uJob, _uPhone; private string _uPwd = ""; private string? _uErr;
     private HashSet<int> _sel = new();
 
     protected override async Task OnInitializedAsync()
@@ -227,13 +228,13 @@ else
         _showEdit = false; await Load();
     }
 
-    private void OpenAddUser() { _uEmail = ""; _uFirst = _uLast = _uPhone = null; _uPwd = ""; _uErr = null; _showUser = true; }
+    private void OpenAddUser() { _uEmail = ""; _uFirst = _uLast = _uJob = _uPhone = null; _uPwd = ""; _uErr = null; _showUser = true; }
 
     private async Task AddUser()
     {
         _uErr = null;
         if (string.IsNullOrWhiteSpace(_uEmail) || _uPwd.Length < 8) { _uErr = "Email e password (min 8) obbligatorie."; return; }
-        var resp = await Api.CreateUserAsync(new CreateUserRequest(_uEmail.Trim(), _uPwd, "Client", _uFirst, _uLast, _uPhone, Id, null));
+        var resp = await Api.CreateUserAsync(new CreateUserRequest(_uEmail.Trim(), _uPwd, "Client", _uFirst, _uLast, _uJob, _uPhone, Id, null));
         if (!resp.IsSuccessStatusCode) { _uErr = $"Errore ({(int)resp.StatusCode})."; return; }
         _showUser = false; await Load();
     }
@@ -247,3 +248,4 @@ else
         _showSoftware = false; await Load();
     }
 }
+

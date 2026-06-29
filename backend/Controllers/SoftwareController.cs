@@ -107,6 +107,29 @@ public sealed class SoftwareController : ControllerBase
         return CreatedAtAction(nameof(Versions), new { id }, new { v.Id });
     }
 
+    [HttpPut("{id:int}/versions/{versionId:int}")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<IActionResult> UpdateVersion(int id, int versionId, VersionDto dto, CancellationToken ct)
+    {
+        var v = await _db.SoftwareVersions.FirstOrDefaultAsync(x => x.Id == versionId && x.SoftwareId == id, ct);
+        if (v is null) return NotFound();
+        if (string.IsNullOrWhiteSpace(dto.Version)) return BadRequest(new { error = "Versione obbligatoria." });
+        v.Version = dto.Version.Trim(); v.Notes = dto.Notes; v.ReleasedAtUtc = dto.ReleasedAtUtc;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:int}/versions/{versionId:int}")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<IActionResult> DeleteVersion(int id, int versionId, CancellationToken ct)
+    {
+        var v = await _db.SoftwareVersions.FirstOrDefaultAsync(x => x.Id == versionId && x.SoftwareId == id, ct);
+        if (v is null) return NotFound();
+        _db.SoftwareVersions.Remove(v);
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     [HttpPost("{id:int}/versions/{versionId:int}/active/{enabled:bool}")]
     [Authorize(Roles = Roles.Admin)]
     public async Task<IActionResult> SetVersionActive(int id, int versionId, bool enabled, CancellationToken ct)

@@ -29,7 +29,7 @@
                     <tr class="hover:bg-slate-50 cursor-pointer" @onclick="() => Open(s.Id)">
                         <td class="px-5 py-3 font-medium text-slate-900">@s.Name</td>
                         <td class="px-5 py-3">
-                            @if (s.LatestVersion is not null) { <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">v@s.LatestVersion</span> }
+                            @if (s.LatestVersion is not null) { <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">v@(s.LatestVersion)</span> }
                             else { <span class="text-xs text-slate-400">nessuna</span> }
                         </td>
                         <td class="px-5 py-3 text-slate-600">@s.VersionsCount</td>
@@ -77,3 +77,4 @@
         _show = false; await Load();
     }
 }
+

@@ -1,0 +1,81 @@
+@page "/companies"
+@attribute [Authorize(Roles = "Admin")]
+@inject ApiClient Api
+@inject NavigationManager Nav
+
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Aziende</h1>
+        <p class="text-sm text-slate-500">Aziende assistite. Apri un'azienda per il dettaglio.</p>
+    </div>
+    <button @onclick="OpenCreate" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Nuova azienda</button>
+</div>
+
+<div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    @if (_items.Count == 0)
+    {
+        <p class="px-5 py-8 text-center text-sm text-slate-400">Nessuna azienda.</p>
+    }
+    else
+    {
+        <table class="w-full text-sm">
+            <thead class="text-left text-slate-500 border-b border-slate-100">
+                <tr><th class="px-5 py-3 font-medium">Azienda</th><th class="px-5 py-3 font-medium">P.IVA</th>
+                    <th class="px-5 py-3 font-medium">Contatti</th><th class="px-5 py-3 font-medium">Utenti</th>
+                    <th class="px-5 py-3 font-medium">Software</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                @foreach (var c in _items)
+                {
+                    <tr class="hover:bg-slate-50 cursor-pointer" @onclick="() => Open(c.Id)">
+                        <td class="px-5 py-3 font-medium text-slate-900">@c.Name</td>
+                        <td class="px-5 py-3 text-slate-600">@(c.VatNumber ?? "—")</td>
+                        <td class="px-5 py-3 text-slate-600">@(c.ContactEmail ?? c.Phone ?? "—")</td>
+                        <td class="px-5 py-3 text-slate-600">@c.UsersCount</td>
+                        <td class="px-5 py-3 text-slate-600">@c.SoftwareIds.Count</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+<Modal Visible="_showCreate" Title="Nuova azienda" MaxWidth="max-w-xl" OnClose="() => _showCreate = false">
+    @if (_err is not null) { <div class="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">@_err</div> }
+    <div class="grid grid-cols-2 gap-3">
+        <Field Label="Nome *"><input @bind="_name" class="@Inp" /></Field>
+        <Field Label="P.IVA / C.F."><input @bind="_vat" class="@Inp" /></Field>
+        <Field Label="Email"><input @bind="_email" class="@Inp" /></Field>
+        <Field Label="Telefono"><input @bind="_phone" class="@Inp" /></Field>
+        <div class="col-span-2"><Field Label="Indirizzo"><input @bind="_address" class="@Inp" /></Field></div>
+    </div>
+    <div class="mt-5 flex items-center justify-end gap-2">
+        <button @onclick="() => _showCreate = false" class="@BtnGhost">Annulla</button>
+        <button @onclick="Create" class="@BtnPrimary">Crea</button>
+    </div>
+</Modal>
+
+@code {
+    private const string Inp = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
+    private const string BtnPrimary = "rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700";
+    private const string BtnGhost = "rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50";
+
+    private List<Company> _items = new();
+    private bool _showCreate;
+    private string _name = ""; private string? _vat, _email, _phone, _address; private string? _err;
+
+    protected override async Task OnInitializedAsync() => await Load();
+    private async Task Load() { try { _items = await Api.GetCompaniesAsync(); } catch { } }
+
+    private void Open(int id) => Nav.NavigateTo($"companies/{id}");
+    private void OpenCreate() { _name = ""; _vat = _email = _phone = _address = null; _err = null; _showCreate = true; }
+
+    private async Task Create()
+    {
+        _err = null;
+        if (string.IsNullOrWhiteSpace(_name)) { _err = "Nome obbligatorio."; return; }
+        var resp = await Api.CreateCompanyAsync(new CreateCompanyRequest(_name.Trim(), _vat, _email, _phone, _address));
+        if (!resp.IsSuccessStatusCode) { _err = $"Errore ({(int)resp.StatusCode})."; return; }
+        _showCreate = false; await Load();
+    }
+}

@@ -7,7 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Aski.Tickets.Api.Controllers;
 
-/// <summary>Gestione utenti (solo Admin): anagrafica, ruoli, software assegnati.</summary>
+/// <summary>
+/// Gestione utenti (solo Admin). "Utenti" = staff (Admin/PM/Agent); i Client si
+/// gestiscono come "Clienti" (endpoint dedicato) perché legati a un'azienda.
+/// </summary>
 [ApiController]
 [Route("api/users")]
 [Authorize(Roles = Roles.Admin)]
@@ -24,32 +27,60 @@ public sealed class UsersController : ControllerBase
 
     public record CreateUserDto(
         string Email, string Password, string Role,
-        string? FirstName, string? LastName, string? Phone,
+        string? FirstName, string? LastName, string? JobTitle, string? Phone,
         int? CompanyId, List<int>? SoftwareIds);
-    public record UpdateUserDto(string? FirstName, string? LastName, string? Phone, int? CompanyId);
+    public record UpdateUserDto(string? FirstName, string? LastName, string? JobTitle, string? Phone, int? CompanyId);
     public record SetRoleDto(string Role);
     public record SoftwareIdsDto(List<int> SoftwareIds);
 
+    /// <summary>Solo staff (esclude i Client).</summary>
     [HttpGet]
     public async Task<IActionResult> List(CancellationToken ct)
     {
-        var rows = await _db.Users.AsNoTracking()
-            .OrderBy(u => u.Email)
-            .Select(u => new
-            {
-                u.Id, u.Email, u.FirstName, u.LastName, u.Phone, u.CompanyId, u.IsActive,
-                SoftwareIds = u.Softwares.Select(s => s.Id).ToList()
-            })
-            .ToListAsync(ct);
+        var rows = await _db.Users.AsNoTracking().OrderBy(u => u.Email)
+            .Select(u => new { u.Id, u.Email, u.FirstName, u.LastName, u.JobTitle, u.Phone, u.CompanyId, u.IsActive,
+                SoftwareIds = u.Softwares.Select(s => s.Id).ToList() }).ToListAsync(ct);
 
         var result = new List<object>();
         foreach (var u in rows)
         {
             var appUser = await _users.FindByIdAsync(u.Id);
             var roles = appUser is null ? Array.Empty<string>() : (await _users.GetRolesAsync(appUser)).ToArray();
-            result.Add(new { u.Id, u.Email, u.FirstName, u.LastName, u.Phone, u.CompanyId, u.IsActive, u.SoftwareIds, Roles = roles });
+            if (roles.Contains(Roles.Client)) continue; // esclude i client
+            result.Add(new { u.Id, u.Email, u.FirstName, u.LastName, u.JobTitle, u.Phone, u.CompanyId, u.IsActive, u.SoftwareIds, Roles = roles });
         }
         return Ok(result);
+    }
+
+    /// <summary>Solo Client, con azienda.</summary>
+    [HttpGet("clients")]
+    public async Task<IActionResult> Clients(CancellationToken ct)
+    {
+        var rows = await _db.Users.AsNoTracking().Where(u => u.CompanyId != null).OrderBy(u => u.Email)
+            .Select(u => new { u.Id, u.Email, u.FirstName, u.LastName, u.JobTitle, u.Phone, u.CompanyId, u.IsActive,
+                CompanyName = u.Company!.Name, SoftwareIds = new List<int>() }).ToListAsync(ct);
+
+        var result = new List<object>();
+        foreach (var u in rows)
+        {
+            var appUser = await _users.FindByIdAsync(u.Id);
+            var roles = appUser is null ? Array.Empty<string>() : (await _users.GetRolesAsync(appUser)).ToArray();
+            if (roles.Contains(Roles.Client))
+                result.Add(new { u.Id, u.Email, u.FirstName, u.LastName, u.JobTitle, u.Phone, u.CompanyId, u.CompanyName, u.IsActive, Roles = roles });
+        }
+        return Ok(result);
+    }
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> Get(string id, CancellationToken ct)
+    {
+        var u = await _db.Users.AsNoTracking().Where(x => x.Id == id)
+            .Select(x => new { x.Id, x.Email, x.FirstName, x.LastName, x.JobTitle, x.Phone, x.CompanyId, x.IsActive,
+                SoftwareIds = x.Softwares.Select(s => s.Id).ToList() }).FirstOrDefaultAsync(ct);
+        if (u is null) return NotFound();
+        var appUser = await _users.FindByIdAsync(id);
+        var roles = (await _users.GetRolesAsync(appUser!)).ToArray();
+        return Ok(new { u.Id, u.Email, u.FirstName, u.LastName, u.JobTitle, u.Phone, u.CompanyId, u.IsActive, u.SoftwareIds, Roles = roles });
     }
 
     [HttpPost]
@@ -58,31 +89,23 @@ public sealed class UsersController : ControllerBase
         if (!Roles.All.Contains(dto.Role))
             return BadRequest(new { error = $"Ruolo non valido. Ammessi: {string.Join(", ", Roles.All)}." });
         if (dto.Role == Roles.Client && dto.CompanyId is null)
-            return BadRequest(new { error = "CompanyId obbligatorio per i Client." });
+            return BadRequest(new { error = "Azienda obbligatoria per i Client." });
         if (dto.CompanyId is not null && !await _db.Companies.AnyAsync(c => c.Id == dto.CompanyId, ct))
             return BadRequest(new { error = "Azienda inesistente." });
 
         var user = new AppUser
         {
-            UserName = dto.Email,
-            Email = dto.Email,
-            EmailConfirmed = true,
-            FirstName = dto.FirstName,
-            LastName = dto.LastName,
-            Phone = dto.Phone,
-            CompanyId = dto.Role == Roles.Client ? dto.CompanyId : null,
-            IsActive = true
+            UserName = dto.Email, Email = dto.Email, EmailConfirmed = true,
+            FirstName = dto.FirstName, LastName = dto.LastName, JobTitle = dto.JobTitle, Phone = dto.Phone,
+            CompanyId = dto.Role == Roles.Client ? dto.CompanyId : null, IsActive = true
         };
         var created = await _users.CreateAsync(user, dto.Password);
         if (!created.Succeeded)
             return BadRequest(new { errors = created.Errors.Select(e => e.Description) });
 
         await _users.AddToRoleAsync(user, dto.Role);
-
-        if (dto.SoftwareIds is { Count: > 0 })
-            await SetSoftwareInternal(user.Id, dto.SoftwareIds, ct);
-
-        return CreatedAtAction(nameof(List), new { id = user.Id }, new { user.Id });
+        if (dto.SoftwareIds is { Count: > 0 }) await SetSoftwareInternal(user.Id, dto.SoftwareIds, ct);
+        return CreatedAtAction(nameof(Get), new { id = user.Id }, new { user.Id });
     }
 
     [HttpPut("{id}")]
@@ -90,9 +113,7 @@ public sealed class UsersController : ControllerBase
     {
         var user = await _users.FindByIdAsync(id);
         if (user is null) return NotFound();
-        user.FirstName = dto.FirstName;
-        user.LastName = dto.LastName;
-        user.Phone = dto.Phone;
+        user.FirstName = dto.FirstName; user.LastName = dto.LastName; user.JobTitle = dto.JobTitle; user.Phone = dto.Phone;
         if (dto.CompanyId is not null) user.CompanyId = dto.CompanyId;
         await _users.UpdateAsync(user);
         return NoContent();

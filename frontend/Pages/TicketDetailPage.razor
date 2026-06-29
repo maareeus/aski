@@ -33,25 +33,28 @@ else
             </div>
 
             <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div class="px-5 py-4 border-b border-slate-200"><h2 class="font-semibold text-slate-900">Commenti</h2></div>
+                <div class="px-5 py-4 border-b border-slate-200"><h2 class="font-semibold text-slate-900">Conversazione</h2></div>
                 @if (_t.Comments.Count == 0)
                 {
-                    <p class="px-5 py-6 text-center text-sm text-slate-400">Nessun commento.</p>
+                    <p class="px-5 py-6 text-center text-sm text-slate-400">Nessun messaggio.</p>
                 }
                 else
                 {
-                    <ul class="divide-y divide-slate-100">
+                    <div class="px-5 py-4 space-y-4 bg-slate-50/50">
                         @foreach (var c in _t.Comments)
                         {
-                            <li class="px-5 py-3">
-                                <div class="flex items-center gap-2 text-xs text-slate-400">
-                                    <span>@c.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
-                                    @if (c.IsInternal) { <span class="rounded bg-amber-100 text-amber-700 px-1.5 py-0.5 font-medium">interno</span> }
+                            <div class="flex @(c.AuthorIsStaff ? "justify-end" : "justify-start")">
+                                <div class="max-w-[78%]">
+                                    <div class="flex items-center gap-2 mb-1 text-xs text-slate-400 @(c.AuthorIsStaff ? "justify-end" : "")">
+                                        <span class="font-medium text-slate-600">@(c.AuthorName ?? "Utente")</span>
+                                        <span>@c.CreatedAtUtc.ToLocalTime().ToString("dd/MM HH:mm")</span>
+                                        @if (c.IsInternal) { <span class="rounded bg-amber-100 text-amber-700 px-1.5 py-0.5 font-medium">interno</span> }
+                                    </div>
+                                    <div class="rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap @(c.IsInternal ? "bg-amber-50 border border-amber-200 text-amber-900" : c.AuthorIsStaff ? "bg-indigo-600 text-white" : "bg-white border border-slate-200 text-slate-700")">@c.Body</div>
                                 </div>
-                                <p class="mt-1 text-sm text-slate-700 whitespace-pre-wrap">@c.Body</p>
-                            </li>
+                            </div>
                         }
-                    </ul>
+                    </div>
                 }
                 <div class="px-5 py-4 border-t border-slate-200">
                     <textarea @bind="_comment" rows="2" placeholder="Scrivi un commento…" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"></textarea>
@@ -102,14 +105,22 @@ else
                         <option value="">— seleziona —</option>
                         @foreach (var u in _managedUnits) { <option value="@u.Id">@u.Name</option> }
                     </select>
-                    @if (_asgMembers.Count > 0)
+                    @if (!string.IsNullOrEmpty(_asgUnitId))
                     {
+                        var assignable = _asgMembers.Where(m => !m.IsManager).ToList();
                         <label class="block text-sm font-medium text-slate-700 mt-2">Utente</label>
-                        <select @bind="_asgUserId" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                            <option value="">— seleziona —</option>
-                            @foreach (var m in _asgMembers.Where(m => !m.IsManager)) { <option value="@m.UserId">@(string.IsNullOrWhiteSpace($"{m.FirstName} {m.LastName}".Trim()) ? m.Email : $"{m.FirstName} {m.LastName}")</option> }
-                        </select>
-                        <button @onclick="Assign" class="mt-2 w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Assegna</button>
+                        @if (assignable.Count == 0)
+                        {
+                            <p class="text-xs text-slate-400 mt-1">Nessun membro in questa Unit. Aggiungi membri da “Unit”.</p>
+                        }
+                        else
+                        {
+                            <select @bind="_asgUserId" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                                <option value="">— seleziona —</option>
+                                @foreach (var m in assignable) { <option value="@m.UserId">@(string.IsNullOrWhiteSpace($"{m.FirstName} {m.LastName}".Trim()) ? m.Email : $"{m.FirstName} {m.LastName}")</option> }
+                            </select>
+                            <button @onclick="Assign" class="mt-2 w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Assegna</button>
+                        }
                     }
                     @if (_t.Assignments.Count > 0) { <p class="text-xs text-slate-500 mt-3">Assegnazioni: @_t.Assignments.Count</p> }
                 </div>

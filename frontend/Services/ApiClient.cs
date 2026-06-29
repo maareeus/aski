@@ -89,12 +89,20 @@ public sealed class ApiClient
         await _http.GetFromJsonAsync<List<SoftwareVersion>>($"api/software/{softwareId}/versions") ?? new();
     public Task<HttpResponseMessage> AddVersionAsync(int softwareId, CreateVersionRequest req) =>
         _http.PostAsJsonAsync($"api/software/{softwareId}/versions", req);
+    public Task<HttpResponseMessage> UpdateVersionAsync(int softwareId, int versionId, CreateVersionRequest req) =>
+        _http.PutAsJsonAsync($"api/software/{softwareId}/versions/{versionId}", req);
+    public Task<HttpResponseMessage> DeleteVersionAsync(int softwareId, int versionId) =>
+        _http.DeleteAsync($"api/software/{softwareId}/versions/{versionId}");
 
     // --- Users ---
     public async Task<List<AppUserRow>> GetUsersAsync() =>
         await _http.GetFromJsonAsync<List<AppUserRow>>("api/users") ?? new();
+    public async Task<List<ClientRow>> GetClientUsersAsync() =>
+        await _http.GetFromJsonAsync<List<ClientRow>>("api/users/clients") ?? new();
     public Task<HttpResponseMessage> CreateUserAsync(CreateUserRequest req) =>
         _http.PostAsJsonAsync("api/users", req);
+    public Task<HttpResponseMessage> UpdateUserAsync(string id, UpdateUserRequest req) =>
+        _http.PutAsJsonAsync($"api/users/{id}", req);
     public Task<HttpResponseMessage> SetUserSoftwareAsync(string id, List<int> softwareIds) =>
         _http.PutAsJsonAsync($"api/users/{id}/software", new SoftwareIdsRequest(softwareIds));
 }

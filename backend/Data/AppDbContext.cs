@@ -42,6 +42,7 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole, string>
         {
             e.Property(x => x.FirstName).HasMaxLength(100);
             e.Property(x => x.LastName).HasMaxLength(100);
+            e.Property(x => x.JobTitle).HasMaxLength(120);
             e.Property(x => x.Phone).HasMaxLength(40);
             e.Ignore(x => x.FullName); // proprietà calcolata
             e.HasOne(x => x.Company)

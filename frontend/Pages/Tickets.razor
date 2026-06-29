@@ -87,7 +87,7 @@
                 <Field Label="Versione">
                     <select @bind="_versionId" class="@Inp">
                         <option value="">—</option>
-                        @foreach (var v in _versions) { <option value="@v.Id">v@v.Version</option> }
+                        @foreach (var v in _versions) { <option value="@v.Id">v@(v.Version)</option> }
                     </select>
                 </Field>
             }
@@ -187,4 +187,5 @@
         _showCreate = false; await Load();
     }
 }
+
 

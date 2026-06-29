@@ -13,6 +13,7 @@ public class AppUser : IdentityUser
     // Anagrafica
     public string? FirstName { get; set; }
     public string? LastName { get; set; }
+    public string? JobTitle { get; set; }   // ruolo in azienda
     public string? Phone { get; set; }
 
     /// <summary>Nome visualizzato (composto da nome/cognome se presenti).</summary>

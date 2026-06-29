@@ -32,16 +32,20 @@ else
             <table class="w-full text-sm">
                 <thead class="text-left text-slate-500 border-b border-slate-100">
                     <tr><th class="px-5 py-3 font-medium">Versione</th><th class="px-5 py-3 font-medium">Rilascio</th>
-                        <th class="px-5 py-3 font-medium">Note</th><th class="px-5 py-3 font-medium">Inserita</th></tr>
+                        <th class="px-5 py-3 font-medium">Note</th><th class="px-5 py-3 font-medium">Inserita</th><th class="px-5 py-3"></th></tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     @foreach (var v in _versions)
                     {
                         <tr class="hover:bg-slate-50">
-                            <td class="px-5 py-3"><span class="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">v@v.Version</span></td>
+                            <td class="px-5 py-3"><span class="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">v@(v.Version)</span></td>
                             <td class="px-5 py-3 text-slate-600">@(v.ReleasedAtUtc?.ToLocalTime().ToString("dd/MM/yyyy") ?? "—")</td>
                             <td class="px-5 py-3 text-slate-500">@(v.Notes ?? "—")</td>
                             <td class="px-5 py-3 text-slate-400">@v.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                            <td class="px-5 py-3 text-right space-x-3">
+                                <button @onclick="() => OpenEditVersion(v)" class="text-xs text-indigo-600 hover:underline">Modifica</button>
+                                <button @onclick="() => DeleteVersion(v.Id)" class="text-xs text-rose-600 hover:underline">Elimina</button>
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -50,8 +54,8 @@ else
     </div>
 }
 
-<!-- Modal nuova versione -->
-<Modal Visible="_showVersion" Title="Nuova versione" OnClose="() => _showVersion = false">
+<!-- Modal versione (nuova/modifica) -->
+<Modal Visible="_showVersion" Title="@(_editVersionId is null ? "Nuova versione" : "Modifica versione")" OnClose="() => _showVersion = false">
     @if (_err is not null) { <div class="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">@_err</div> }
     <div class="space-y-3">
         <Field Label="Versione *"><input @bind="_version" placeholder="es. 1.2.0" class="@Inp" /></Field>
@@ -60,7 +64,7 @@ else
     </div>
     <div class="mt-5 flex items-center justify-end gap-2">
         <button @onclick="() => _showVersion = false" class="@BtnGhost">Annulla</button>
-        <button @onclick="AddVersion" class="@BtnPrimary">Aggiungi</button>
+        <button @onclick="SaveVersion" class="@BtnPrimary">@(_editVersionId is null ? "Aggiungi" : "Salva")</button>
     </div>
 </Modal>
 
@@ -86,6 +90,7 @@ else
     private List<SoftwareVersion> _versions = new();
 
     private bool _showVersion, _showEdit;
+    private int? _editVersionId;
     private string _version = ""; private string? _notes; private DateTime? _released; private string? _err;
     private string _name = ""; private string? _desc;
 
@@ -97,15 +102,30 @@ else
         catch { _sw = null; }
     }
 
-    private void OpenAddVersion() { _version = ""; _notes = null; _released = null; _err = null; _showVersion = true; }
+    private void OpenAddVersion() { _editVersionId = null; _version = ""; _notes = null; _released = null; _err = null; _showVersion = true; }
 
-    private async Task AddVersion()
+    private void OpenEditVersion(SoftwareVersion v)
+    {
+        _editVersionId = v.Id; _version = v.Version; _notes = v.Notes;
+        _released = v.ReleasedAtUtc?.ToLocalTime(); _err = null; _showVersion = true;
+    }
+
+    private async Task SaveVersion()
     {
         _err = null;
         if (string.IsNullOrWhiteSpace(_version)) { _err = "Versione obbligatoria."; return; }
-        var resp = await Api.AddVersionAsync(Id, new CreateVersionRequest(_version.Trim(), _notes, _released?.ToUniversalTime()));
+        var req = new CreateVersionRequest(_version.Trim(), _notes, _released?.ToUniversalTime());
+        var resp = _editVersionId is null
+            ? await Api.AddVersionAsync(Id, req)
+            : await Api.UpdateVersionAsync(Id, _editVersionId.Value, req);
         if (!resp.IsSuccessStatusCode) { _err = $"Errore ({(int)resp.StatusCode})."; return; }
         _showVersion = false; await Load();
+    }
+
+    private async Task DeleteVersion(int versionId)
+    {
+        await Api.DeleteVersionAsync(Id, versionId);
+        await Load();
     }
 
     private void OpenEdit() { _name = _sw!.Name; _desc = _sw.Description; _showEdit = true; }
@@ -116,3 +136,4 @@ else
         _showEdit = false; await Load();
     }
 }
+

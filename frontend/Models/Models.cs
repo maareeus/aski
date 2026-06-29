@@ -11,7 +11,19 @@ public record TicketListItem(
     int CompanyId, int? SoftwareId, int? SoftwareVersionId, string? AssigneeUserId, int? AssigneeUnitId,
     DateTime CreatedAtUtc, DateTime UpdatedAtUtc, DateTime? ClosedAtUtc);
 
-public record TicketComment(int Id, string Body, bool IsInternal, string AuthorUserId, DateTime CreatedAtUtc);
+public record TicketComment(
+    int Id, string Body, bool IsInternal, string AuthorUserId, DateTime CreatedAtUtc,
+    string? AuthorFirst, string? AuthorLast, string? AuthorEmail, bool AuthorIsStaff)
+{
+    public string AuthorName
+    {
+        get
+        {
+            var n = $"{AuthorFirst} {AuthorLast}".Trim();
+            return string.IsNullOrWhiteSpace(n) ? (AuthorEmail ?? "Utente") : n;
+        }
+    }
+}
 public record TicketAssignmentDto(int Id, int UnitId, string UserId);
 
 public record TicketDetail(
@@ -41,8 +53,15 @@ public record SoftwareVersion(int Id, string Version, string? Notes, DateTime? R
 public record CompanyUser(string Id, string Email, string? FirstName, string? LastName, string? Phone, bool IsActive);
 
 public record AppUserRow(
-    string Id, string Email, string? FirstName, string? LastName, string? Phone,
+    string Id, string Email, string? FirstName, string? LastName, string? JobTitle, string? Phone,
     int? CompanyId, bool IsActive, List<int> SoftwareIds, List<string> Roles)
+{
+    public string Display => string.Join(" ", new[] { FirstName, LastName }.Where(s => !string.IsNullOrWhiteSpace(s)));
+}
+
+public record ClientRow(
+    string Id, string Email, string? FirstName, string? LastName, string? JobTitle, string? Phone,
+    int? CompanyId, string? CompanyName, bool IsActive, List<string> Roles)
 {
     public string Display => string.Join(" ", new[] { FirstName, LastName }.Where(s => !string.IsNullOrWhiteSpace(s)));
 }
@@ -63,5 +82,6 @@ public record CreateSoftwareRequest(string Name, string? Description);
 public record CreateVersionRequest(string Version, string? Notes, DateTime? ReleasedAtUtc);
 public record CreateUserRequest(
     string Email, string Password, string Role,
-    string? FirstName, string? LastName, string? Phone, int? CompanyId, List<int>? SoftwareIds);
+    string? FirstName, string? LastName, string? JobTitle, string? Phone, int? CompanyId, List<int>? SoftwareIds);
+public record UpdateUserRequest(string? FirstName, string? LastName, string? JobTitle, string? Phone, int? CompanyId);
 public record SoftwareIdsRequest(List<int> SoftwareIds);

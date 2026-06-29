@@ -1,38 +1,38 @@
 @page "/clients"
 @attribute [Authorize(Roles = "Admin")]
 @inject ApiClient Api
-@inject NavigationManager Nav
 
 <div class="flex items-center justify-between mb-6">
     <div>
         <h1 class="text-2xl font-bold tracking-tight text-slate-900">Clienti</h1>
-        <p class="text-sm text-slate-500">Aziende assistite. Apri un'azienda per gestirla nel dettaglio.</p>
+        <p class="text-sm text-slate-500">Utenti delle aziende clienti.</p>
     </div>
-    <button @onclick="OpenCreate" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Nuova azienda</button>
+    <button @onclick="OpenCreate" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Nuovo cliente</button>
 </div>
 
 <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
     @if (_items.Count == 0)
     {
-        <p class="px-5 py-8 text-center text-sm text-slate-400">Nessuna azienda.</p>
+        <p class="px-5 py-8 text-center text-sm text-slate-400">Nessun cliente.</p>
     }
     else
     {
         <table class="w-full text-sm">
             <thead class="text-left text-slate-500 border-b border-slate-100">
-                <tr><th class="px-5 py-3 font-medium">Azienda</th><th class="px-5 py-3 font-medium">P.IVA</th>
-                    <th class="px-5 py-3 font-medium">Contatti</th><th class="px-5 py-3 font-medium">Utenti</th>
-                    <th class="px-5 py-3 font-medium">Software</th></tr>
+                <tr><th class="px-5 py-3 font-medium">Nome</th><th class="px-5 py-3 font-medium">Ruolo az.</th>
+                    <th class="px-5 py-3 font-medium">Azienda</th><th class="px-5 py-3 font-medium">Email</th>
+                    <th class="px-5 py-3 font-medium">Telefono</th><th class="px-5 py-3"></th></tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-                @foreach (var c in _items)
+                @foreach (var u in _items)
                 {
-                    <tr class="hover:bg-slate-50 cursor-pointer" @onclick="() => Open(c.Id)">
-                        <td class="px-5 py-3 font-medium text-slate-900">@c.Name</td>
-                        <td class="px-5 py-3 text-slate-600">@(c.VatNumber ?? "—")</td>
-                        <td class="px-5 py-3 text-slate-600">@(c.ContactEmail ?? c.Phone ?? "—")</td>
-                        <td class="px-5 py-3 text-slate-600">@c.UsersCount</td>
-                        <td class="px-5 py-3 text-slate-600">@c.SoftwareIds.Count</td>
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-5 py-3 font-medium text-slate-900">@(string.IsNullOrWhiteSpace(u.Display) ? "—" : u.Display)</td>
+                        <td class="px-5 py-3 text-slate-600">@(u.JobTitle ?? "—")</td>
+                        <td class="px-5 py-3 text-slate-600">@(u.CompanyName ?? "—")</td>
+                        <td class="px-5 py-3 text-slate-600">@u.Email</td>
+                        <td class="px-5 py-3 text-slate-600">@(u.Phone ?? "—")</td>
+                        <td class="px-5 py-3 text-right"><button @onclick="() => OpenEdit(u)" class="text-xs text-indigo-600 hover:underline">Modifica</button></td>
                     </tr>
                 }
             </tbody>
@@ -40,18 +40,45 @@
     }
 </div>
 
-<Modal Visible="_showCreate" Title="Nuova azienda" OnClose="() => _showCreate = false">
+<!-- Crea -->
+<Modal Visible="_showCreate" Title="Nuovo cliente" MaxWidth="max-w-xl" OnClose="() => _showCreate = false">
     @if (_err is not null) { <div class="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">@_err</div> }
-    <div class="space-y-3">
-        <Field Label="Nome *"><input @bind="_name" class="@Inp" /></Field>
-        <Field Label="P.IVA / C.F."><input @bind="_vat" class="@Inp" /></Field>
-        <Field Label="Email"><input @bind="_email" class="@Inp" /></Field>
+    <div class="grid grid-cols-2 gap-3">
+        <Field Label="Nome"><input @bind="_first" class="@Inp" /></Field>
+        <Field Label="Cognome"><input @bind="_last" class="@Inp" /></Field>
+        <Field Label="Ruolo in azienda"><input @bind="_job" class="@Inp" /></Field>
         <Field Label="Telefono"><input @bind="_phone" class="@Inp" /></Field>
-        <Field Label="Indirizzo"><input @bind="_address" class="@Inp" /></Field>
+        <Field Label="Email *"><input @bind="_email" class="@Inp" /></Field>
+        <Field Label="Password * (min 8)"><input @bind="_pwd" type="password" class="@Inp" /></Field>
+        <div class="col-span-2"><Field Label="Azienda *">
+            <select @bind="_companyId" class="@Inp">
+                <option value="">— seleziona —</option>
+                @foreach (var c in _companies) { <option value="@c.Id">@c.Name</option> }
+            </select>
+        </Field></div>
     </div>
     <div class="mt-5 flex items-center justify-end gap-2">
         <button @onclick="() => _showCreate = false" class="@BtnGhost">Annulla</button>
         <button @onclick="Create" class="@BtnPrimary">Crea</button>
+    </div>
+</Modal>
+
+<!-- Modifica -->
+<Modal Visible="_showEdit" Title="Modifica cliente" MaxWidth="max-w-xl" OnClose="() => _showEdit = false">
+    <div class="grid grid-cols-2 gap-3">
+        <Field Label="Nome"><input @bind="_first" class="@Inp" /></Field>
+        <Field Label="Cognome"><input @bind="_last" class="@Inp" /></Field>
+        <Field Label="Ruolo in azienda"><input @bind="_job" class="@Inp" /></Field>
+        <Field Label="Telefono"><input @bind="_phone" class="@Inp" /></Field>
+        <div class="col-span-2"><Field Label="Azienda">
+            <select @bind="_companyId" class="@Inp">
+                @foreach (var c in _companies) { <option value="@c.Id">@c.Name</option> }
+            </select>
+        </Field></div>
+    </div>
+    <div class="mt-5 flex items-center justify-end gap-2">
+        <button @onclick="() => _showEdit = false" class="@BtnGhost">Annulla</button>
+        <button @onclick="SaveEdit" class="@BtnPrimary">Salva</button>
     </div>
 </Modal>
 
@@ -60,22 +87,45 @@
     private const string BtnPrimary = "rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700";
     private const string BtnGhost = "rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50";
 
-    private List<Company> _items = new();
-    private bool _showCreate;
-    private string _name = ""; private string? _vat, _email, _phone, _address; private string? _err;
+    private List<ClientRow> _items = new();
+    private List<Company> _companies = new();
+    private bool _showCreate, _showEdit;
+    private string _email = ""; private string? _first, _last, _job, _phone; private string _pwd = ""; private string _companyId = ""; private string? _err;
+    private ClientRow? _editing;
 
-    protected override async Task OnInitializedAsync() => await Load();
-    private async Task Load() { try { _items = await Api.GetCompaniesAsync(); } catch { } }
+    protected override async Task OnInitializedAsync()
+    {
+        try { _companies = await Api.GetCompaniesAsync(); } catch { }
+        await Load();
+    }
+    private async Task Load() { try { _items = await Api.GetClientUsersAsync(); } catch { } }
 
-    private void Open(int id) => Nav.NavigateTo($"clients/{id}");
-    private void OpenCreate() { _name = ""; _vat = _email = _phone = _address = null; _err = null; _showCreate = true; }
+    private void OpenCreate()
+    {
+        _email = ""; _first = _last = _job = _phone = null; _pwd = ""; _companyId = ""; _err = null; _showCreate = true;
+    }
 
     private async Task Create()
     {
         _err = null;
-        if (string.IsNullOrWhiteSpace(_name)) { _err = "Nome obbligatorio."; return; }
-        var resp = await Api.CreateCompanyAsync(new CreateCompanyRequest(_name.Trim(), _vat, _email, _phone, _address));
+        if (string.IsNullOrWhiteSpace(_email) || _pwd.Length < 8) { _err = "Email e password (min 8) obbligatorie."; return; }
+        if (!int.TryParse(_companyId, out var co)) { _err = "Seleziona un'azienda."; return; }
+        var resp = await Api.CreateUserAsync(new CreateUserRequest(_email.Trim(), _pwd, "Client", _first, _last, _job, _phone, co, null));
         if (!resp.IsSuccessStatusCode) { _err = $"Errore ({(int)resp.StatusCode})."; return; }
         _showCreate = false; await Load();
+    }
+
+    private void OpenEdit(ClientRow u)
+    {
+        _editing = u; _first = u.FirstName; _last = u.LastName; _job = u.JobTitle; _phone = u.Phone;
+        _companyId = u.CompanyId?.ToString() ?? ""; _showEdit = true;
+    }
+
+    private async Task SaveEdit()
+    {
+        if (_editing is null) return;
+        int? co = int.TryParse(_companyId, out var c) ? c : null;
+        await Api.UpdateUserAsync(_editing.Id, new UpdateUserRequest(_first, _last, _job, _phone, co));
+        _showEdit = false; await Load();
     }
 }

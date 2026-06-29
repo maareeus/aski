@@ -60,7 +60,7 @@ public sealed class TicketsController : ControllerBase
     public async Task<IActionResult> Get(int id, CancellationToken ct)
     {
         var t = await _db.Tickets.AsNoTracking()
-            .Include(x => x.Comments)
+            .Include(x => x.Comments).ThenInclude(c => c.AuthorUser)
             .Include(x => x.Assignments)
             .FirstOrDefaultAsync(x => x.Id == id, ct);
         if (t is null) return NotFound();
@@ -75,7 +75,14 @@ public sealed class TicketsController : ControllerBase
             Comments = t.Comments
                 .Where(c => !isClient || !c.IsInternal)
                 .OrderBy(c => c.CreatedAtUtc)
-                .Select(c => new { c.Id, c.Body, c.IsInternal, c.AuthorUserId, c.CreatedAtUtc })
+                .Select(c => new
+                {
+                    c.Id, c.Body, c.IsInternal, c.AuthorUserId, c.CreatedAtUtc,
+                    AuthorFirst = c.AuthorUser.FirstName,
+                    AuthorLast = c.AuthorUser.LastName,
+                    AuthorEmail = c.AuthorUser.Email,
+                    AuthorIsStaff = c.AuthorUser.CompanyId == null
+                })
         });
     }
 

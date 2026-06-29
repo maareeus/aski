@@ -4,6 +4,7 @@
 @inject ApiClient Api
 @inject AuthenticationStateProvider AuthState
 @inject IJSRuntime JS
+@inject NavigationManager Nav
 
 <a href="tickets" class="text-sm text-slate-500 hover:text-slate-700">← Ticket</a>
 
@@ -17,50 +18,27 @@ else if (_t is null)
 }
 else
 {
-    <div class="mt-3">
-        <h1 class="text-2xl font-bold tracking-tight text-slate-900">@_t.Title</h1>
-        <div class="mt-2 flex items-center gap-2">
-            <span class="font-mono text-xs text-indigo-600">@(_t.Number ?? $"#{_t.Id}")</span>
-            <StatusBadge Status="_t.Status" />
-            <PriorityBadge Priority="_t.Priority" />
-            @if (_t.CompanyName is not null) { <span class="text-slate-400 text-sm">• @_t.CompanyName</span> }
+    <div class="mt-3 flex items-start justify-between">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900">@_t.Title</h1>
+            <div class="mt-2 flex items-center gap-2">
+                <span class="font-mono text-xs text-indigo-600">@(_t.Number ?? $"#{_t.Id}")</span>
+                <StatusBadge Status="_t.Status" />
+                <PriorityBadge Priority="_t.Priority" />
+                @if (_t.CompanyName is not null) { <span class="text-slate-400 text-sm">• @_t.CompanyName</span> }
+            </div>
         </div>
+        @if (_isAdmin)
+        {
+            <button @onclick="GoEdit" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">Modifica</button>
+        }
     </div>
 
-    <div class="mt-6 grid lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 space-y-6">
+    <div class="mt-6 grid lg:grid-cols-4 gap-6">
+        <div class="lg:col-span-3 space-y-6">
             <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 class="font-semibold text-slate-900 mb-1">Descrizione</h2>
                 <p class="text-sm text-slate-600 whitespace-pre-wrap">@(_t.Description ?? "—")</p>
-            </div>
-
-            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div class="flex items-center justify-between mb-3">
-                    <h2 class="font-semibold text-slate-900">Allegati</h2>
-                    <label class="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50">
-                        @(_uploading ? "Caricamento…" : "+ Allega file")
-                        <InputFile OnChange="OnFileSelected" class="hidden" disabled="@_uploading" />
-                    </label>
-                </div>
-                @if (_t.Attachments.Count == 0)
-                {
-                    <p class="text-sm text-slate-400">Nessun allegato.</p>
-                }
-                else
-                {
-                    <ul class="divide-y divide-slate-100">
-                        @foreach (var a in _t.Attachments)
-                        {
-                            <li class="flex items-center justify-between py-2 text-sm">
-                                <div>
-                                    <span class="font-medium text-slate-700">@a.FileName</span>
-                                    <span class="text-slate-400 text-xs ml-2">@FmtSize(a.Size)</span>
-                                </div>
-                                <button @onclick="() => Download(a)" class="text-indigo-600 hover:text-indigo-800 font-medium">Scarica</button>
-                            </li>
-                        }
-                    </ul>
-                }
             </div>
 
             <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -95,6 +73,35 @@ else
                         <button @onclick="AddComment" class="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700">Invia</button>
                     </div>
                 </div>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="font-semibold text-slate-900">Allegati</h2>
+                    <label class="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50">
+                        @(_uploading ? "Caricamento…" : "+ Allega file")
+                        <InputFile OnChange="OnFileSelected" class="hidden" disabled="@_uploading" />
+                    </label>
+                </div>
+                @if (_t.Attachments.Count == 0)
+                {
+                    <p class="text-sm text-slate-400">Nessun allegato.</p>
+                }
+                else
+                {
+                    <ul class="divide-y divide-slate-100">
+                        @foreach (var a in _t.Attachments)
+                        {
+                            <li class="flex items-center justify-between py-2 text-sm">
+                                <div>
+                                    <span class="font-medium text-slate-700">@a.FileName</span>
+                                    <span class="text-slate-400 text-xs ml-2">@FmtSize(a.Size)</span>
+                                </div>
+                                <button @onclick="() => Download(a)" class="text-indigo-600 hover:text-indigo-800 font-medium">Scarica</button>
+                            </li>
+                        }
+                    </ul>
+                }
             </div>
         </div>
 
@@ -191,7 +198,7 @@ else
 
     [Parameter] public int Id { get; set; }
     private TicketDetail? _t;
-    private bool _loading = true, _isStaff, _isPm, _uploading;
+    private bool _loading = true, _isStaff, _isPm, _isAdmin, _uploading;
     private string _comment = ""; private bool _internal; private int _statusSel; private string? _msg;
 
     private List<MyUnit> _myUnits = new();
@@ -204,8 +211,9 @@ else
     protected override async Task OnInitializedAsync()
     {
         var auth = await AuthState.GetAuthenticationStateAsync();
-        _isStaff = auth.User.IsInRole("Admin") || auth.User.IsInRole("Agent") || auth.User.IsInRole("PM");
-        _isPm = auth.User.IsInRole("PM") || auth.User.IsInRole("Admin");
+        _isAdmin = auth.User.IsInRole("Admin");
+        _isStaff = _isAdmin || auth.User.IsInRole("Agent") || auth.User.IsInRole("PM");
+        _isPm = auth.User.IsInRole("PM") || _isAdmin;
         if (_isStaff) { try { _myUnits = await Api.GetMyUnitsAsync(); } catch { } }
         if (_isPm) { try { _managedUnits = await Api.GetUnitsAsync(); } catch { } }
         await Load();
@@ -218,6 +226,8 @@ else
         catch { _t = null; }
         _loading = false;
     }
+
+    private void GoEdit() => Nav.NavigateTo($"tickets/{Id}/edit");
 
     private static string MemberName(UnitMemberDto m) =>
         string.IsNullOrWhiteSpace($"{m.FirstName} {m.LastName}".Trim()) ? m.Email : $"{m.FirstName} {m.LastName}".Trim();

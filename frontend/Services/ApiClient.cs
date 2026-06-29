@@ -26,6 +26,8 @@ public sealed class ApiClient
 
     public Task<HttpResponseMessage> CreateTicketAsync(CreateTicketRequest req) =>
         _http.PostAsJsonAsync("api/tickets", req);
+    public Task<HttpResponseMessage> UpdateTicketAsync(int id, CreateTicketRequest req) =>
+        _http.PutAsJsonAsync($"api/tickets/{id}", req);
 
     public Task<HttpResponseMessage> AddCommentAsync(int id, AddCommentRequest req) =>
         _http.PostAsJsonAsync($"api/tickets/{id}/comments", req);

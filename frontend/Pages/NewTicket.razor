@@ -1,21 +1,22 @@
 @page "/tickets/new"
+@page "/tickets/{Id:int}/edit"
 @attribute [Authorize]
 @inject ApiClient Api
 @inject NavigationManager Nav
 @inject AuthenticationStateProvider AuthState
 
 <div class="mb-6">
-    <button @onclick="@(() => Nav.NavigateTo("tickets"))" class="text-sm text-slate-500 hover:text-slate-700">← Ticket</button>
-    <h1 class="text-2xl font-bold tracking-tight text-slate-900 mt-2">Nuovo ticket</h1>
-    <p class="text-sm text-slate-500">Apri una nuova richiesta di assistenza.</p>
+    <button @onclick="Back" class="text-sm text-slate-500 hover:text-slate-700">← Ticket</button>
+    <h1 class="text-2xl font-bold tracking-tight text-slate-900 mt-2">@(_isEdit ? "Modifica ticket" : "Nuovo ticket")</h1>
+    <p class="text-sm text-slate-500">@(_isEdit ? "Aggiorna i dati del ticket." : "Apri una nuova richiesta di assistenza.")</p>
 </div>
 
-<div class="max-w-2xl rounded-xl border border-slate-200 bg-white shadow-sm p-6">
+<div class="rounded-xl border border-slate-200 bg-white shadow-sm p-6">
     @if (_error is not null) { <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">@_error</div> }
     <div class="space-y-4">
         <Field Label="Titolo *"><input @bind="_title" class="@Inp" /></Field>
-        <Field Label="Descrizione"><textarea @bind="_desc" rows="4" class="@Inp"></textarea></Field>
-        <div class="grid grid-cols-2 gap-4">
+        <Field Label="Descrizione"><textarea @bind="_desc" rows="5" class="@Inp"></textarea></Field>
+        <div class="grid gap-4 md:grid-cols-4">
             <Field Label="Priorità">
                 <select @bind="_priority" class="@Inp">
                     <option value="0">Bassa</option><option value="1">Normale</option><option value="2">Alta</option><option value="3">Urgente</option>
@@ -48,8 +49,8 @@
         </div>
     </div>
     <div class="mt-6 flex items-center justify-end gap-2">
-        <button @onclick="@(() => Nav.NavigateTo("tickets"))" class="@BtnGhost">Annulla</button>
-        <button @onclick="Create" disabled="@_saving" class="@BtnPrimary">@(_saving ? "Creazione…" : "Crea ticket")</button>
+        <button @onclick="Back" class="@BtnGhost">Annulla</button>
+        <button @onclick="Save" disabled="@_saving" class="@BtnPrimary">@(_saving ? "Salvataggio…" : _isEdit ? "Salva modifiche" : "Crea ticket")</button>
     </div>
 </div>
 
@@ -57,6 +58,9 @@
     private const string Inp = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
     private const string BtnPrimary = "rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50";
     private const string BtnGhost = "rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50";
+
+    [Parameter] public int Id { get; set; }
+    private bool _isEdit => Id > 0;
 
     private List<Software> _software = new();
     private List<Company> _companies = new();
@@ -75,15 +79,33 @@
             else _software = await Api.GetSoftwareAsync();
         }
         catch { }
+
+        if (_isEdit)
+        {
+            var t = await Api.GetTicketAsync(Id);
+            if (t is null) { _error = "Ticket non trovato."; return; }
+            _title = t.Title; _desc = t.Description; _priority = (int)t.Priority;
+            _companyId = t.CompanyId.ToString();
+            if (_isAdmin) await OnCompanyChanged();
+            _softwareId = t.SoftwareId?.ToString() ?? "";
+            if (!string.IsNullOrEmpty(_softwareId)) await LoadVersions();
+            _versionId = t.SoftwareVersionId?.ToString() ?? "";
+        }
     }
 
-    private async Task OnSoftwareChanged()
+    private async Task LoadVersions()
     {
-        _versionId = ""; _versions = new();
+        _versions = new();
         if (int.TryParse(_softwareId, out var sid))
         {
             try { _versions = (await Api.GetVersionsAsync(sid)).Where(v => v.IsActive).ToList(); } catch { }
         }
+    }
+
+    private async Task OnSoftwareChanged()
+    {
+        _versionId = "";
+        await LoadVersions();
     }
 
     private async Task OnCompanyChanged()
@@ -97,7 +119,9 @@
         }
     }
 
-    private async Task Create()
+    private void Back() => Nav.NavigateTo(_isEdit ? $"tickets/{Id}" : "tickets");
+
+    private async Task Save()
     {
         _error = null;
         if (string.IsNullOrWhiteSpace(_title)) { _error = "Titolo obbligatorio."; return; }
@@ -107,9 +131,10 @@
         if (_isAdmin && co is null) { _error = "Seleziona un'azienda."; return; }
 
         _saving = true;
-        var resp = await Api.CreateTicketAsync(new CreateTicketRequest(_title.Trim(), _desc, sw, ver, (TicketPriority)_priority, co));
+        var req = new CreateTicketRequest(_title.Trim(), _desc, sw, ver, (TicketPriority)_priority, co);
+        var resp = _isEdit ? await Api.UpdateTicketAsync(Id, req) : await Api.CreateTicketAsync(req);
         _saving = false;
-        if (!resp.IsSuccessStatusCode) { _error = $"Errore creazione ({(int)resp.StatusCode})."; return; }
-        Nav.NavigateTo("tickets");
+        if (!resp.IsSuccessStatusCode) { _error = $"Errore ({(int)resp.StatusCode})."; return; }
+        Nav.NavigateTo(_isEdit ? $"tickets/{Id}" : "tickets");
     }
 }

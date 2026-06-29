@@ -22,6 +22,7 @@ public sealed class TicketsController : ControllerBase
     public TicketsController(AppDbContext db, IWebHostEnvironment env) { _db = db; _env = env; }
 
     public record CreateTicketDto(string Title, string? Description, int? SoftwareId, int? SoftwareVersionId, TicketPriority Priority, int? CompanyId);
+    public record UpdateTicketDto(string Title, string? Description, int? SoftwareId, int? SoftwareVersionId, TicketPriority Priority, int? CompanyId);
     public record ChangeStatusDto(TicketStatus Status);
     public record AssignDto(string UserId, int UnitId);
     public record TakeDto(int? UnitId);
@@ -134,6 +135,28 @@ public sealed class TicketsController : ControllerBase
         ticket.Number = $"T{ticket.Id:D5}";
         await _db.SaveChangesAsync(ct);
         return CreatedAtAction(nameof(Get), new { id = ticket.Id }, new { ticket.Id, ticket.Number });
+    }
+
+    /// <summary>Modifica ticket (solo Admin). I commenti restano immutabili.</summary>
+    [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Update(int id, UpdateTicketDto dto, CancellationToken ct)
+    {
+        var t = await _db.Tickets.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (t is null) return NotFound();
+        if (string.IsNullOrWhiteSpace(dto.Title)) return BadRequest(new { error = "Titolo obbligatorio." });
+        if (dto.CompanyId is not null && !await _db.Companies.AnyAsync(c => c.Id == dto.CompanyId, ct))
+            return BadRequest(new { error = "Azienda inesistente." });
+        if (dto.SoftwareVersionId is not null &&
+            !await _db.SoftwareVersions.AnyAsync(v => v.Id == dto.SoftwareVersionId && v.IsActive, ct))
+            return BadRequest(new { error = "Versione non valida o obsoleta." });
+
+        t.Title = dto.Title.Trim(); t.Description = dto.Description; t.Priority = dto.Priority;
+        if (dto.CompanyId is not null) t.CompanyId = dto.CompanyId.Value;
+        t.SoftwareId = dto.SoftwareId; t.SoftwareVersionId = dto.SoftwareVersionId;
+        t.UpdatedAtUtc = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
     }
 
     // --- assegnazione (singola) ---

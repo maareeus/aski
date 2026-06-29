@@ -38,8 +38,22 @@ public sealed class TicketsController : ControllerBase
     public async Task<IActionResult> List([FromQuery] TicketStatus? status, CancellationToken ct)
     {
         var q = _db.Tickets.AsNoTracking().AsQueryable();
-        if (User.IsClient() && !User.IsStaff())
+        if (User.IsAdmin())
+        {
+            // tutti
+        }
+        else if (User.IsAgent())
+        {
+            // L'Agent vede i ticket dei software che gli sono assegnati (o assegnati direttamente a lui).
+            var uid = User.Id();
+            var swIds = await AgentSoftwareIdsAsync(uid, ct);
+            q = q.Where(t => t.AssignedAgentUserId == uid ||
+                             (t.SoftwareId != null && swIds.Contains(t.SoftwareId.Value)));
+        }
+        else // Client
+        {
             q = q.Where(t => t.CompanyId == (User.CompanyId() ?? 0));
+        }
         if (status is not null)
             q = q.Where(t => t.Status == status);
 
@@ -60,7 +74,7 @@ public sealed class TicketsController : ControllerBase
             .Include(x => x.Comments)
             .FirstOrDefaultAsync(x => x.Id == id, ct);
         if (t is null) return NotFound();
-        if (!CanAccess(t)) return Forbid();
+        if (!await CanAccessAsync(t, ct)) return Forbid();
 
         var isClient = User.IsClient() && !User.IsStaff();
         return Ok(new
@@ -160,7 +174,7 @@ public sealed class TicketsController : ControllerBase
     {
         var t = await _db.Tickets.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (t is null) return NotFound();
-        if (!CanAccess(t)) return Forbid();
+        if (!await CanAccessAsync(t, ct)) return Forbid();
 
         t.Status = TicketStatus.Closed;
         t.ClosedAtUtc = DateTime.UtcNow;
@@ -176,7 +190,7 @@ public sealed class TicketsController : ControllerBase
     {
         var t = await _db.Tickets.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (t is null) return NotFound();
-        if (!CanAccess(t)) return Forbid();
+        if (!await CanAccessAsync(t, ct)) return Forbid();
         if (string.IsNullOrWhiteSpace(dto.Body)) return BadRequest(new { error = "Testo obbligatorio." });
 
         var isClient = User.IsClient() && !User.IsStaff();
@@ -197,10 +211,23 @@ public sealed class TicketsController : ControllerBase
         return CreatedAtAction(nameof(Get), new { id = t.Id }, new { comment.Id });
     }
 
-    /// <summary>Staff accede a tutto; il Client solo ai ticket della propria azienda.</summary>
-    private bool CanAccess(Ticket t)
+    /// <summary>
+    /// Admin: tutto. Agent: ticket dei software assegnati o assegnati a lui.
+    /// Client: solo la propria azienda.
+    /// </summary>
+    private async Task<bool> CanAccessAsync(Ticket t, CancellationToken ct)
     {
-        if (User.IsStaff()) return true;
+        if (User.IsAdmin()) return true;
+        if (User.IsAgent())
+        {
+            var uid = User.Id();
+            if (t.AssignedAgentUserId == uid) return true;
+            var swIds = await AgentSoftwareIdsAsync(uid, ct);
+            return t.SoftwareId is not null && swIds.Contains(t.SoftwareId.Value);
+        }
         return t.CompanyId == (User.CompanyId() ?? 0);
     }
+
+    private Task<List<int>> AgentSoftwareIdsAsync(string userId, CancellationToken ct) =>
+        _db.Users.Where(u => u.Id == userId).SelectMany(u => u.Softwares.Select(s => s.Id)).ToListAsync(ct);
 }

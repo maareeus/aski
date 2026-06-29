@@ -93,12 +93,19 @@ Authorization: Bearer eyJ...
 | GET/POST | `/api/companies` | Admin | Lista / crea azienda cliente |
 | PUT | `/api/companies/{id}` | Admin | Aggiorna azienda |
 | POST | `/api/companies/{id}/active/{bool}` | Admin | Attiva/disattiva |
-| GET | `/api/software` | Bearer | Lista software attivi (per aprire ticket) |
-| POST/PUT | `/api/software[/{id}]` | Admin | Crea/aggiorna software |
-| GET | `/api/users` | Admin | Lista utenti + ruoli |
-| POST | `/api/users` | Admin | Crea utente (`role`: Admin/Agent/Client; `companyId` per Client) |
+| PUT | `/api/companies/{id}/software` | Admin | Imposta i software associati all'azienda |
+| GET | `/api/software` | Bearer | Software attivi (Admin: tutti; Agent: assegnati; Client: della sua azienda) |
+| POST/PUT | `/api/software[/{id}]` | Admin | Crea/aggiorna software (versione obbligatoria) |
+| GET | `/api/users` | Admin | Lista utenti (anagrafica, ruoli, software) |
+| POST | `/api/users` | Admin | Crea utente (anagrafica, `role`, `companyId` per Client, `softwareIds`) |
+| PUT | `/api/users/{id}` | Admin | Aggiorna anagrafica |
+| PUT | `/api/users/{id}/software` | Admin | Imposta i software di competenza (Agent) |
 | POST | `/api/users/{id}/active/{bool}` | Admin | Attiva/disattiva utente |
 | PUT | `/api/users/{id}/role` | Admin | Cambia ruolo |
+
+**Modello:** anagrafica su utenti (nome/cognome/telefono) e aziende (P.IVA/telefono/indirizzo);
+software **versionati**; Azienda↔Software e Utente↔Software molti-a-molti. L'**Agent** vede e
+lavora solo i ticket dei software che gli sono assegnati (oltre a quelli assegnati direttamente a lui).
 
 ## Ticket
 

@@ -38,6 +38,8 @@ public sealed class ApiClient
         await _http.GetFromJsonAsync<List<Company>>("api/companies") ?? new();
     public Task<HttpResponseMessage> CreateCompanyAsync(CreateCompanyRequest req) =>
         _http.PostAsJsonAsync("api/companies", req);
+    public Task<HttpResponseMessage> SetCompanySoftwareAsync(int id, List<int> softwareIds) =>
+        _http.PutAsJsonAsync($"api/companies/{id}/software", new SoftwareIdsRequest(softwareIds));
 
     // --- Software ---
     public async Task<List<Software>> GetSoftwareAsync() =>
@@ -50,4 +52,6 @@ public sealed class ApiClient
         await _http.GetFromJsonAsync<List<AppUserRow>>("api/users") ?? new();
     public Task<HttpResponseMessage> CreateUserAsync(CreateUserRequest req) =>
         _http.PostAsJsonAsync("api/users", req);
+    public Task<HttpResponseMessage> SetUserSoftwareAsync(string id, List<int> softwareIds) =>
+        _http.PutAsJsonAsync($"api/users/{id}/software", new SoftwareIdsRequest(softwareIds));
 }

@@ -70,6 +70,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "Aski Tickets API", Version = "v1" });
+    // Evita conflitti di schemaId tra DTO annidati con lo stesso nome in controller diversi.
+    c.CustomSchemaIds(t => t.FullName?.Replace("+", ".") ?? t.Name);
     var scheme = new OpenApiSecurityScheme
     {
         Name = "Authorization",

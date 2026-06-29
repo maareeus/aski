@@ -2,61 +2,74 @@
 @attribute [Authorize(Roles = "Admin")]
 @inject ApiClient Api
 
-<h1 class="text-2xl font-bold tracking-tight text-slate-900 mb-1">Software</h1>
-<p class="text-sm text-slate-500 mb-6">Prodotti su cui si fornisce assistenza.</p>
-
-<div class="grid lg:grid-cols-3 gap-6">
-    <div class="lg:col-span-2 rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div class="px-5 py-4 border-b border-slate-200"><h2 class="font-semibold text-slate-900">Elenco (@_items.Count)</h2></div>
-        @if (_items.Count == 0)
-        {
-            <p class="px-5 py-8 text-center text-sm text-slate-400">Nessun software.</p>
-        }
-        else
-        {
-            <table class="w-full text-sm">
-                <thead class="text-left text-slate-500 border-b border-slate-100">
-                    <tr><th class="px-5 py-3 font-medium">Nome</th><th class="px-5 py-3 font-medium">Versione</th><th class="px-5 py-3 font-medium">Descrizione</th></tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                    @foreach (var s in _items)
-                    {
-                        <tr class="hover:bg-slate-50">
-                            <td class="px-5 py-3 font-medium text-slate-900">@s.Name</td>
-                            <td class="px-5 py-3 text-slate-600">@(s.Version ?? "—")</td>
-                            <td class="px-5 py-3 text-slate-500">@(s.Description ?? "—")</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        }
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Software</h1>
+        <p class="text-sm text-slate-500">Prodotti assistiti (versionati).</p>
     </div>
-
-    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm h-fit">
-        <h2 class="font-semibold text-slate-900 mb-4">Nuovo software</h2>
-        @if (_err is not null) { <div class="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">@_err</div> }
-        <div class="space-y-3">
-            <input @bind="_name" placeholder="Nome" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <input @bind="_version" placeholder="Versione (es. 1.0)" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <textarea @bind="_desc" placeholder="Descrizione" rows="2" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"></textarea>
-            <button @onclick="Create" class="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Crea</button>
-        </div>
-    </div>
+    <button @onclick="OpenCreate" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Nuovo software</button>
 </div>
 
+<div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    @if (_items.Count == 0)
+    {
+        <p class="px-5 py-8 text-center text-sm text-slate-400">Nessun software.</p>
+    }
+    else
+    {
+        <table class="w-full text-sm">
+            <thead class="text-left text-slate-500 border-b border-slate-100">
+                <tr><th class="px-5 py-3 font-medium">Nome</th><th class="px-5 py-3 font-medium">Versione</th><th class="px-5 py-3 font-medium">Descrizione</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                @foreach (var s in _items)
+                {
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-5 py-3 font-medium text-slate-900">@s.Name</td>
+                        <td class="px-5 py-3"><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">v@s.Version</span></td>
+                        <td class="px-5 py-3 text-slate-500">@(s.Description ?? "—")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+<Modal Visible="_show" Title="Nuovo software" OnClose="() => _show = false">
+    @if (_err is not null) { <div class="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">@_err</div> }
+    <div class="space-y-3">
+        <Field Label="Nome *"><input @bind="_name" class="@Inp" /></Field>
+        <Field Label="Versione *"><input @bind="_version" placeholder="es. 1.0.0" class="@Inp" /></Field>
+        <Field Label="Descrizione"><textarea @bind="_desc" rows="2" class="@Inp"></textarea></Field>
+    </div>
+    <div class="mt-5 flex items-center justify-end gap-2">
+        <button @onclick="() => _show = false" class="@BtnGhost">Annulla</button>
+        <button @onclick="Create" class="@BtnPrimary">Crea</button>
+    </div>
+</Modal>
+
 @code {
+    private const string Inp = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
+    private const string BtnPrimary = "rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700";
+    private const string BtnGhost = "rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50";
+
     private List<Software> _items = new();
-    private string _name = ""; private string? _version; private string? _desc; private string? _err;
+    private bool _show;
+    private string _name = ""; private string _version = ""; private string? _desc; private string? _err;
 
     protected override async Task OnInitializedAsync() => await Load();
     private async Task Load() { try { _items = await Api.GetSoftwareAsync(); } catch { } }
+
+    private void OpenCreate() { _name = ""; _version = ""; _desc = null; _err = null; _show = true; }
 
     private async Task Create()
     {
         _err = null;
         if (string.IsNullOrWhiteSpace(_name)) { _err = "Nome obbligatorio."; return; }
-        var resp = await Api.CreateSoftwareAsync(new CreateSoftwareRequest(_name.Trim(), _desc, _version));
+        if (string.IsNullOrWhiteSpace(_version)) { _err = "Versione obbligatoria."; return; }
+        var resp = await Api.CreateSoftwareAsync(new CreateSoftwareRequest(_name.Trim(), _version.Trim(), _desc));
         if (!resp.IsSuccessStatusCode) { _err = $"Errore ({(int)resp.StatusCode})."; return; }
-        _name = ""; _version = null; _desc = null; await Load();
+        _show = false; await Load();
     }
 }
+

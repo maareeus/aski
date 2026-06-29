@@ -24,7 +24,7 @@ public static class DbSeeder
                 UserName = email,
                 Email = email,
                 EmailConfirmed = true,
-                FullName = "Administrator",
+                FirstName = "Administrator",
                 IsActive = true
             };
             var result = await userMgr.CreateAsync(admin, password);

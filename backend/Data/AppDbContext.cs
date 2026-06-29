@@ -26,18 +26,36 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole, string>
         builder.Entity<Company>(e =>
         {
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.VatNumber).HasMaxLength(32);
             e.Property(x => x.ContactEmail).HasMaxLength(256);
+            e.Property(x => x.Phone).HasMaxLength(40);
+            e.Property(x => x.Address).HasMaxLength(300);
             e.HasIndex(x => x.Name);
         });
 
         builder.Entity<AppUser>(e =>
         {
-            e.Property(x => x.FullName).HasMaxLength(200);
+            e.Property(x => x.FirstName).HasMaxLength(100);
+            e.Property(x => x.LastName).HasMaxLength(100);
+            e.Property(x => x.Phone).HasMaxLength(40);
+            e.Ignore(x => x.FullName); // proprietà calcolata
             e.HasOne(x => x.Company)
                 .WithMany(c => c.Users)
                 .HasForeignKey(x => x.CompanyId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
+
+        // Molti-a-molti: Azienda <-> Software
+        builder.Entity<Company>()
+            .HasMany(c => c.Softwares)
+            .WithMany(s => s.Companies)
+            .UsingEntity("CompanySoftware");
+
+        // Molti-a-molti: Utente <-> Software (ambito assistenza)
+        builder.Entity<AppUser>()
+            .HasMany(u => u.Softwares)
+            .WithMany(s => s.Users)
+            .UsingEntity("UserSoftware");
 
         builder.Entity<RefreshToken>(e =>
         {
@@ -52,8 +70,8 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole, string>
         builder.Entity<SoftwareProduct>(e =>
         {
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
-            e.Property(x => x.Version).HasMaxLength(50);
-            e.HasIndex(x => x.Name);
+            e.Property(x => x.Version).HasMaxLength(50).IsRequired();
+            e.HasIndex(x => new { x.Name, x.Version });
         });
 
         builder.Entity<Ticket>(e =>

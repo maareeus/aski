@@ -2,87 +2,159 @@
 @attribute [Authorize(Roles = "Admin")]
 @inject ApiClient Api
 
-<h1 class="text-2xl font-bold tracking-tight text-slate-900 mb-1">Utenti</h1>
-<p class="text-sm text-slate-500 mb-6">Staff e clienti del sistema.</p>
-
-<div class="grid lg:grid-cols-3 gap-6">
-    <div class="lg:col-span-2 rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div class="px-5 py-4 border-b border-slate-200"><h2 class="font-semibold text-slate-900">Elenco (@_items.Count)</h2></div>
-        @if (_items.Count == 0)
-        {
-            <p class="px-5 py-8 text-center text-sm text-slate-400">Nessun utente.</p>
-        }
-        else
-        {
-            <table class="w-full text-sm">
-                <thead class="text-left text-slate-500 border-b border-slate-100">
-                    <tr><th class="px-5 py-3 font-medium">Email</th><th class="px-5 py-3 font-medium">Nome</th>
-                        <th class="px-5 py-3 font-medium">Ruolo</th><th class="px-5 py-3 font-medium">Stato</th></tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                    @foreach (var u in _items)
-                    {
-                        <tr class="hover:bg-slate-50">
-                            <td class="px-5 py-3 font-medium text-slate-900">@u.Email</td>
-                            <td class="px-5 py-3 text-slate-600">@(u.FullName ?? "—")</td>
-                            <td class="px-5 py-3 text-slate-600">@string.Join(", ", u.Roles)</td>
-                            <td class="px-5 py-3">
-                                @if (u.IsActive) { <span class="text-xs text-emerald-600 font-medium">attivo</span> }
-                                else { <span class="text-xs text-slate-400">disattivo</span> }
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        }
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Utenti</h1>
+        <p class="text-sm text-slate-500">Staff e clienti. Agli Agent assegni i software di competenza.</p>
     </div>
-
-    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm h-fit">
-        <h2 class="font-semibold text-slate-900 mb-4">Nuovo utente</h2>
-        @if (_err is not null) { <div class="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">@_err</div> }
-        <div class="space-y-3">
-            <input @bind="_email" placeholder="Email" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <input @bind="_fullName" placeholder="Nome completo" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <input @bind="_password" type="password" placeholder="Password (min 8)" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <select @bind="_role" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                <option value="Agent">Agent (operatore)</option>
-                <option value="Client">Client (cliente)</option>
-                <option value="Admin">Admin</option>
-            </select>
-            @if (_role == "Client")
-            {
-                <select @bind="_companyId" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                    <option value="">— azienda —</option>
-                    @foreach (var c in _companies) { <option value="@c.Id">@c.Name</option> }
-                </select>
-            }
-            <button @onclick="Create" class="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Crea</button>
-        </div>
-    </div>
+    <button @onclick="OpenCreate" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Nuovo utente</button>
 </div>
 
+<div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    @if (_items.Count == 0)
+    {
+        <p class="px-5 py-8 text-center text-sm text-slate-400">Nessun utente.</p>
+    }
+    else
+    {
+        <table class="w-full text-sm">
+            <thead class="text-left text-slate-500 border-b border-slate-100">
+                <tr><th class="px-5 py-3 font-medium">Nome</th><th class="px-5 py-3 font-medium">Email</th>
+                    <th class="px-5 py-3 font-medium">Ruolo</th><th class="px-5 py-3 font-medium">Software</th><th class="px-5 py-3"></th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                @foreach (var u in _items)
+                {
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-5 py-3 font-medium text-slate-900">@(string.IsNullOrWhiteSpace(u.Display) ? "—" : u.Display)</td>
+                        <td class="px-5 py-3 text-slate-600">@u.Email</td>
+                        <td class="px-5 py-3 text-slate-600">@string.Join(", ", u.Roles)</td>
+                        <td class="px-5 py-3 text-slate-600">@(u.Roles.Contains("Agent") || u.Roles.Contains("Admin") ? u.SoftwareIds.Count.ToString() : "—")</td>
+                        <td class="px-5 py-3 text-right">
+                            @if (u.Roles.Contains("Agent") || u.Roles.Contains("Admin"))
+                            {
+                                <button @onclick="() => OpenSoftware(u)" class="text-xs text-indigo-600 hover:underline">Software</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+<!-- Modal nuovo utente -->
+<Modal Visible="_showCreate" Title="Nuovo utente" MaxWidth="max-w-xl" OnClose="() => _showCreate = false">
+    @if (_err is not null) { <div class="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">@_err</div> }
+    <div class="grid grid-cols-2 gap-3">
+        <Field Label="Nome"><input @bind="_firstName" class="@Inp" /></Field>
+        <Field Label="Cognome"><input @bind="_lastName" class="@Inp" /></Field>
+        <Field Label="Email *"><input @bind="_email" class="@Inp" /></Field>
+        <Field Label="Telefono"><input @bind="_phone" class="@Inp" /></Field>
+        <Field Label="Password * (min 8)"><input @bind="_password" type="password" class="@Inp" /></Field>
+        <Field Label="Ruolo">
+            <select @bind="_role" class="@Inp">
+                <option value="Agent">Agent</option><option value="Client">Client</option><option value="Admin">Admin</option>
+            </select>
+        </Field>
+        @if (_role == "Client")
+        {
+            <Field Label="Azienda *">
+                <select @bind="_companyId" class="@Inp">
+                    <option value="">— seleziona —</option>
+                    @foreach (var c in _companies) { <option value="@c.Id">@c.Name</option> }
+                </select>
+            </Field>
+        }
+    </div>
+    @if (_role is "Agent" or "Admin")
+    {
+        <div class="mt-4">
+            <p class="text-sm font-medium text-slate-700 mb-2">Software di competenza</p>
+            <div class="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto rounded-lg border border-slate-200 p-2">
+                @foreach (var s in _allSoftware)
+                {
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked="@_sel.Contains(s.Id)" @onchange="e => Toggle(s.Id, e)" class="rounded border-slate-300" />
+                        <span class="text-slate-700">@s.Name <span class="text-slate-400">v@s.Version</span></span>
+                    </label>
+                }
+            </div>
+        </div>
+    }
+    <div class="mt-5 flex items-center justify-end gap-2">
+        <button @onclick="() => _showCreate = false" class="@BtnGhost">Annulla</button>
+        <button @onclick="Create" class="@BtnPrimary">Crea</button>
+    </div>
+</Modal>
+
+<!-- Modal software utente -->
+<Modal Visible="_showSoftware" Title="@($"Software · {_editing?.Email}")" OnClose="() => _showSoftware = false">
+    <div class="space-y-2">
+        @foreach (var s in _allSoftware)
+        {
+            <label class="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked="@_sel.Contains(s.Id)" @onchange="e => Toggle(s.Id, e)" class="rounded border-slate-300" />
+                <span class="text-slate-700">@s.Name <span class="text-slate-400">v@s.Version</span></span>
+            </label>
+        }
+    </div>
+    <div class="mt-5 flex items-center justify-end gap-2">
+        <button @onclick="() => _showSoftware = false" class="@BtnGhost">Annulla</button>
+        <button @onclick="SaveSoftware" class="@BtnPrimary">Salva</button>
+    </div>
+</Modal>
+
 @code {
+    private const string Inp = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
+    private const string BtnPrimary = "rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700";
+    private const string BtnGhost = "rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50";
+
     private List<AppUserRow> _items = new();
     private List<Company> _companies = new();
-    private string _email = ""; private string? _fullName; private string _password = "";
+    private List<Software> _allSoftware = new();
+
+    private bool _showCreate, _showSoftware;
+    private string _email = ""; private string? _firstName, _lastName, _phone; private string _password = "";
     private string _role = "Agent"; private string _companyId = ""; private string? _err;
+    private HashSet<int> _sel = new();
+    private AppUserRow? _editing;
 
     protected override async Task OnInitializedAsync()
     {
-        try { _companies = await Api.GetCompaniesAsync(); } catch { }
+        try { _companies = await Api.GetCompaniesAsync(); _allSoftware = await Api.GetSoftwareAsync(); } catch { }
         await Load();
     }
     private async Task Load() { try { _items = await Api.GetUsersAsync(); } catch { } }
+
+    private void OpenCreate()
+    {
+        _email = ""; _firstName = _lastName = _phone = null; _password = ""; _role = "Agent"; _companyId = "";
+        _sel = new(); _err = null; _showCreate = true;
+    }
+
+    private void Toggle(int id, ChangeEventArgs e) { if ((bool)e.Value!) _sel.Add(id); else _sel.Remove(id); }
 
     private async Task Create()
     {
         _err = null;
         if (string.IsNullOrWhiteSpace(_email) || _password.Length < 8) { _err = "Email e password (min 8) obbligatorie."; return; }
         int? co = _role == "Client" && int.TryParse(_companyId, out var c) ? c : null;
-        if (_role == "Client" && co is null) { _err = "Seleziona un'azienda per il Client."; return; }
+        if (_role == "Client" && co is null) { _err = "Seleziona un'azienda."; return; }
+        var sw = _role is "Agent" or "Admin" ? _sel.ToList() : null;
 
-        var resp = await Api.CreateUserAsync(new CreateUserRequest(_email.Trim(), _password, _role, _fullName, co));
+        var resp = await Api.CreateUserAsync(new CreateUserRequest(_email.Trim(), _password, _role, _firstName, _lastName, _phone, co, sw));
         if (!resp.IsSuccessStatusCode) { _err = $"Errore ({(int)resp.StatusCode})."; return; }
-        _email = ""; _fullName = null; _password = ""; _companyId = ""; await Load();
+        _showCreate = false; await Load();
+    }
+
+    private void OpenSoftware(AppUserRow u) { _editing = u; _sel = new HashSet<int>(u.SoftwareIds); _showSoftware = true; }
+
+    private async Task SaveSoftware()
+    {
+        if (_editing is null) return;
+        await Api.SetUserSoftwareAsync(_editing.Id, _sel.ToList());
+        _showSoftware = false; await Load();
     }
 }
+

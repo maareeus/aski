@@ -27,13 +27,20 @@ public class Ticket
     public required string CreatedByUserId { get; set; }
     public AppUser CreatedByUser { get; set; } = null!;
 
-    /// <summary>Agent assegnato alla lavorazione (opzionale).</summary>
-    public string? AssignedAgentUserId { get; set; }
-    public AppUser? AssignedAgentUser { get; set; }
+    /// <summary>Assegnatario: l'operatore che ha preso in carico il ticket (default null).</summary>
+    public string? AssigneeUserId { get; set; }
+    public AppUser? AssigneeUser { get; set; }
+
+    /// <summary>Unit con cui l'assegnatario gestisce il ticket.</summary>
+    public int? AssigneeUnitId { get; set; }
+    public Unit? AssigneeUnit { get; set; }
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? ClosedAtUtc { get; set; }
 
     public List<TicketComment> Comments { get; set; } = new();
+
+    /// <summary>Assegnazioni di visibilità (utente+unit) fatte dai PM.</summary>
+    public List<TicketAssignment> Assignments { get; set; } = new();
 }

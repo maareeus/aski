@@ -19,6 +19,10 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole, string>
     public DbSet<SoftwareVersion> SoftwareVersions => Set<SoftwareVersion>();
     public DbSet<Ticket> Tickets => Set<Ticket>();
     public DbSet<TicketComment> TicketComments => Set<TicketComment>();
+    public DbSet<Contact> Contacts => Set<Contact>();
+    public DbSet<Unit> Units => Set<Unit>();
+    public DbSet<UnitMembership> UnitMemberships => Set<UnitMembership>();
+    public DbSet<TicketAssignment> TicketAssignments => Set<TicketAssignment>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -88,7 +92,7 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole, string>
         {
             e.Property(x => x.Title).HasMaxLength(300).IsRequired();
             e.HasIndex(x => new { x.CompanyId, x.Status });
-            e.HasIndex(x => x.AssignedAgentUserId);
+            e.HasIndex(x => x.AssigneeUserId);
             e.HasOne(x => x.Company)
                 .WithMany()
                 .HasForeignKey(x => x.CompanyId)
@@ -105,9 +109,13 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole, string>
                 .WithMany()
                 .HasForeignKey(x => x.CreatedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(x => x.AssignedAgentUser)
+            e.HasOne(x => x.AssigneeUser)
                 .WithMany()
-                .HasForeignKey(x => x.AssignedAgentUserId)
+                .HasForeignKey(x => x.AssigneeUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.AssigneeUnit)
+                .WithMany()
+                .HasForeignKey(x => x.AssigneeUnitId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
 
@@ -122,6 +130,36 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole, string>
                 .WithMany()
                 .HasForeignKey(x => x.AuthorUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<Contact>(e =>
+        {
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Title).HasMaxLength(120);
+            e.Property(x => x.Email).HasMaxLength(256);
+            e.Property(x => x.Phone).HasMaxLength(40);
+            e.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.CompanyId);
+        });
+
+        builder.Entity<Unit>(e =>
+        {
+            e.Property(x => x.Name).HasMaxLength(160).IsRequired();
+            e.HasMany(x => x.Memberships).WithOne(m => m.Unit).HasForeignKey(m => m.UnitId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<UnitMembership>(e =>
+        {
+            e.HasIndex(x => new { x.UnitId, x.UserId }).IsUnique();
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<TicketAssignment>(e =>
+        {
+            e.HasIndex(x => new { x.TicketId, x.UnitId, x.UserId }).IsUnique();
+            e.HasOne(x => x.Ticket).WithMany(t => t.Assignments).HasForeignKey(x => x.TicketId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Unit).WithMany().HasForeignKey(x => x.UnitId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

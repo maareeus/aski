@@ -2,16 +2,17 @@ using Aski.Tickets.Api.Auth;
 using Aski.Tickets.Api.Data;
 using Aski.Tickets.Api.Domain;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace Aski.Tickets.Api.Controllers;
 
 /// <summary>
-/// Ticket di assistenza con autorizzazione per ruolo:
-///   Admin/Agent (staff) -> vedono e lavorano tutti i ticket;
-///   Client -> solo i ticket della propria azienda, può aprirli e chiuderli.
+/// Ticket di assistenza.
+/// Visibilità staff: ticket assegnati via Unit (TicketAssignment), o dei software in carico,
+/// o di cui si è assegnatari. Admin tutto. Client solo la propria azienda.
+/// Assegnazione: il PM assegna (utente+unit); chi ha visibilità può "prendere in carico"
+/// diventando assegnatario (scegliendo la Unit se ne ha più di una).
 /// </summary>
 [ApiController]
 [Route("api/tickets")]
@@ -19,17 +20,12 @@ namespace Aski.Tickets.Api.Controllers;
 public sealed class TicketsController : ControllerBase
 {
     private readonly AppDbContext _db;
-    private readonly UserManager<AppUser> _users;
-
-    public TicketsController(AppDbContext db, UserManager<AppUser> users)
-    {
-        _db = db;
-        _users = users;
-    }
+    public TicketsController(AppDbContext db) => _db = db;
 
     public record CreateTicketDto(string Title, string? Description, int? SoftwareId, int? SoftwareVersionId, TicketPriority Priority, int? CompanyId);
     public record ChangeStatusDto(TicketStatus Status);
-    public record AssignDto(string AgentUserId);
+    public record AssignDto(string UserId, int UnitId);
+    public record TakeDto(int? UnitId);
     public record AddCommentDto(string Body, bool IsInternal);
 
     // --- lettura ---
@@ -38,32 +34,25 @@ public sealed class TicketsController : ControllerBase
     public async Task<IActionResult> List([FromQuery] TicketStatus? status, CancellationToken ct)
     {
         var q = _db.Tickets.AsNoTracking().AsQueryable();
-        if (User.IsAdmin())
+        if (User.IsAdmin()) { /* tutti */ }
+        else if (User.IsStaff())
         {
-            // tutti
-        }
-        else if (User.IsAgent())
-        {
-            // L'Agent vede i ticket dei software che gli sono assegnati (o assegnati direttamente a lui).
             var uid = User.Id();
             var swIds = await AgentSoftwareIdsAsync(uid, ct);
-            q = q.Where(t => t.AssignedAgentUserId == uid ||
-                             (t.SoftwareId != null && swIds.Contains(t.SoftwareId.Value)));
+            q = q.Where(t => t.AssigneeUserId == uid
+                          || t.Assignments.Any(a => a.UserId == uid)
+                          || (t.SoftwareId != null && swIds.Contains(t.SoftwareId.Value)));
         }
-        else // Client
-        {
-            q = q.Where(t => t.CompanyId == (User.CompanyId() ?? 0));
-        }
-        if (status is not null)
-            q = q.Where(t => t.Status == status);
+        else q = q.Where(t => t.CompanyId == (User.CompanyId() ?? 0));
+
+        if (status is not null) q = q.Where(t => t.Status == status);
 
         var items = await q.OrderByDescending(t => t.UpdatedAtUtc)
             .Select(t => new
             {
-                t.Id, t.Title, t.Status, t.Priority, t.CompanyId, t.SoftwareId,
-                t.AssignedAgentUserId, t.CreatedAtUtc, t.UpdatedAtUtc, t.ClosedAtUtc
-            })
-            .ToListAsync(ct);
+                t.Id, t.Title, t.Status, t.Priority, t.CompanyId, t.SoftwareId, t.SoftwareVersionId,
+                t.AssigneeUserId, t.AssigneeUnitId, t.CreatedAtUtc, t.UpdatedAtUtc, t.ClosedAtUtc
+            }).ToListAsync(ct);
         return Ok(items);
     }
 
@@ -72,15 +61,17 @@ public sealed class TicketsController : ControllerBase
     {
         var t = await _db.Tickets.AsNoTracking()
             .Include(x => x.Comments)
+            .Include(x => x.Assignments)
             .FirstOrDefaultAsync(x => x.Id == id, ct);
         if (t is null) return NotFound();
         if (!await CanAccessAsync(t, ct)) return Forbid();
 
-        var isClient = User.IsClient() && !User.IsStaff();
+        var isClient = !User.IsStaff();
         return Ok(new
         {
             t.Id, t.Title, t.Description, t.Status, t.Priority, t.CompanyId, t.SoftwareId, t.SoftwareVersionId,
-            t.CreatedByUserId, t.AssignedAgentUserId, t.CreatedAtUtc, t.UpdatedAtUtc, t.ClosedAtUtc,
+            t.CreatedByUserId, t.AssigneeUserId, t.AssigneeUnitId, t.CreatedAtUtc, t.UpdatedAtUtc, t.ClosedAtUtc,
+            Assignments = t.Assignments.Select(a => new { a.Id, a.UnitId, a.UserId }),
             Comments = t.Comments
                 .Where(c => !isClient || !c.IsInternal)
                 .OrderBy(c => c.CreatedAtUtc)
@@ -106,15 +97,10 @@ public sealed class TicketsController : ControllerBase
             if (dto.CompanyId is null) return BadRequest(new { error = "CompanyId obbligatorio per Admin." });
             companyId = dto.CompanyId.Value;
         }
-        else
-        {
-            return Forbid(); // gli Agent non aprono ticket per conto dei clienti
-        }
+        else return Forbid();
 
         if (!await _db.Companies.AnyAsync(c => c.Id == companyId, ct))
             return BadRequest(new { error = "Azienda inesistente." });
-        if (dto.SoftwareId is not null && !await _db.Software.AnyAsync(s => s.Id == dto.SoftwareId, ct))
-            return BadRequest(new { error = "Software inesistente." });
 
         var ticket = new Ticket
         {
@@ -132,15 +118,88 @@ public sealed class TicketsController : ControllerBase
         return CreatedAtAction(nameof(Get), new { id = ticket.Id }, new { ticket.Id });
     }
 
-    // --- lavorazione (staff) ---
+    // --- assegnazione (PM) ---
+
+    /// <summary>Il PM assegna un utente tramite una sua Unit (dà visibilità).</summary>
+    [HttpPost("{id:int}/assignments")]
+    [Authorize(Roles = "Admin,PM")]
+    public async Task<IActionResult> AddAssignment(int id, AssignDto dto, CancellationToken ct)
+    {
+        if (!await _db.Tickets.AnyAsync(t => t.Id == id, ct)) return NotFound();
+
+        // PM deve gestire la unit; Admin può sempre.
+        if (!User.IsAdmin() &&
+            !await _db.UnitMemberships.AnyAsync(m => m.UnitId == dto.UnitId && m.UserId == User.Id() && m.IsManager, ct))
+            return Forbid();
+
+        // L'utente assegnato deve essere membro della unit.
+        if (!await _db.UnitMemberships.AnyAsync(m => m.UnitId == dto.UnitId && m.UserId == dto.UserId, ct))
+            return BadRequest(new { error = "L'utente non appartiene alla Unit." });
+
+        if (!await _db.TicketAssignments.AnyAsync(a => a.TicketId == id && a.UnitId == dto.UnitId && a.UserId == dto.UserId, ct))
+        {
+            _db.TicketAssignments.Add(new TicketAssignment { TicketId = id, UnitId = dto.UnitId, UserId = dto.UserId });
+            await TouchAsync(id, ct);
+        }
+        return NoContent();
+    }
+
+    [HttpDelete("{id:int}/assignments/{assignmentId:int}")]
+    [Authorize(Roles = "Admin,PM")]
+    public async Task<IActionResult> RemoveAssignment(int id, int assignmentId, CancellationToken ct)
+    {
+        var a = await _db.TicketAssignments.FirstOrDefaultAsync(x => x.Id == assignmentId && x.TicketId == id, ct);
+        if (a is null) return NotFound();
+        if (!User.IsAdmin() &&
+            !await _db.UnitMemberships.AnyAsync(m => m.UnitId == a.UnitId && m.UserId == User.Id() && m.IsManager, ct))
+            return Forbid();
+        _db.TicketAssignments.Remove(a);
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Prende in carico il ticket: chi ha visibilità diventa assegnatario.
+    /// Se l'utente appartiene a più Unit deve indicare con quale gestirlo.
+    /// </summary>
+    [HttpPost("{id:int}/take")]
+    [Authorize(Roles = "Admin,PM,Agent")]
+    public async Task<IActionResult> Take(int id, TakeDto dto, CancellationToken ct)
+    {
+        var t = await _db.Tickets.Include(x => x.Assignments).FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (t is null) return NotFound();
+        if (!await CanAccessAsync(t, ct)) return Forbid();
+
+        var uid = User.Id();
+        var myUnits = await _db.UnitMemberships.Where(m => m.UserId == uid).Select(m => m.UnitId).ToListAsync(ct);
+
+        int? unitId = dto.UnitId;
+        if (unitId is null)
+        {
+            if (myUnits.Count > 1)
+                return BadRequest(new { needUnit = true, units = myUnits, error = "Specifica la Unit con cui gestire il ticket." });
+            unitId = myUnits.Count == 1 ? myUnits[0] : (int?)null;
+        }
+        else if (!myUnits.Contains(unitId.Value))
+            return BadRequest(new { error = "Non appartieni alla Unit indicata." });
+
+        t.AssigneeUserId = uid;
+        t.AssigneeUnitId = unitId;
+        if (t.Status == TicketStatus.Open) t.Status = TicketStatus.InProgress;
+        t.UpdatedAtUtc = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { t.Id, t.AssigneeUserId, t.AssigneeUnitId, t.Status });
+    }
+
+    // --- lavorazione / chiusura / commenti ---
 
     [HttpPatch("{id:int}/status")]
-    [Authorize(Roles = $"{Roles.Admin},{Roles.Agent}")]
+    [Authorize(Roles = "Admin,PM,Agent")]
     public async Task<IActionResult> ChangeStatus(int id, ChangeStatusDto dto, CancellationToken ct)
     {
-        var t = await _db.Tickets.FirstOrDefaultAsync(x => x.Id == id, ct);
+        var t = await _db.Tickets.Include(x => x.Assignments).FirstOrDefaultAsync(x => x.Id == id, ct);
         if (t is null) return NotFound();
-
+        if (!await CanAccessAsync(t, ct)) return Forbid();
         t.Status = dto.Status;
         if (dto.Status == TicketStatus.Closed) t.ClosedAtUtc = DateTime.UtcNow;
         t.UpdatedAtUtc = DateTime.UtcNow;
@@ -148,35 +207,12 @@ public sealed class TicketsController : ControllerBase
         return Ok(new { t.Id, t.Status });
     }
 
-    [HttpPost("{id:int}/assign")]
-    [Authorize(Roles = $"{Roles.Admin},{Roles.Agent}")]
-    public async Task<IActionResult> Assign(int id, AssignDto dto, CancellationToken ct)
-    {
-        var t = await _db.Tickets.FirstOrDefaultAsync(x => x.Id == id, ct);
-        if (t is null) return NotFound();
-
-        var agent = await _users.FindByIdAsync(dto.AgentUserId);
-        if (agent is null) return BadRequest(new { error = "Utente inesistente." });
-        var roles = await _users.GetRolesAsync(agent);
-        if (!roles.Contains(Roles.Agent) && !roles.Contains(Roles.Admin))
-            return BadRequest(new { error = "L'utente assegnato deve essere Agent o Admin." });
-
-        t.AssignedAgentUserId = agent.Id;
-        if (t.Status == TicketStatus.Open) t.Status = TicketStatus.InProgress;
-        t.UpdatedAtUtc = DateTime.UtcNow;
-        await _db.SaveChangesAsync(ct);
-        return Ok(new { t.Id, t.AssignedAgentUserId, t.Status });
-    }
-
-    // --- chiusura ---
-
     [HttpPost("{id:int}/close")]
     public async Task<IActionResult> Close(int id, CancellationToken ct)
     {
-        var t = await _db.Tickets.FirstOrDefaultAsync(x => x.Id == id, ct);
+        var t = await _db.Tickets.Include(x => x.Assignments).FirstOrDefaultAsync(x => x.Id == id, ct);
         if (t is null) return NotFound();
         if (!await CanAccessAsync(t, ct)) return Forbid();
-
         t.Status = TicketStatus.Closed;
         t.ClosedAtUtc = DateTime.UtcNow;
         t.UpdatedAtUtc = DateTime.UtcNow;
@@ -184,51 +220,52 @@ public sealed class TicketsController : ControllerBase
         return Ok(new { t.Id, t.Status });
     }
 
-    // --- commenti ---
-
     [HttpPost("{id:int}/comments")]
     public async Task<IActionResult> AddComment(int id, AddCommentDto dto, CancellationToken ct)
     {
-        var t = await _db.Tickets.FirstOrDefaultAsync(x => x.Id == id, ct);
+        var t = await _db.Tickets.Include(x => x.Assignments).FirstOrDefaultAsync(x => x.Id == id, ct);
         if (t is null) return NotFound();
         if (!await CanAccessAsync(t, ct)) return Forbid();
         if (string.IsNullOrWhiteSpace(dto.Body)) return BadRequest(new { error = "Testo obbligatorio." });
 
-        var isClient = User.IsClient() && !User.IsStaff();
-        var comment = new TicketComment
+        var isClient = !User.IsStaff();
+        _db.TicketComments.Add(new TicketComment
         {
-            TicketId = t.Id,
-            AuthorUserId = User.Id(),
-            Body = dto.Body,
-            IsInternal = dto.IsInternal && !isClient // i Client non creano note interne
-        };
-        _db.TicketComments.Add(comment);
-
-        // Un commento del client su ticket Risolto lo riapre.
+            TicketId = t.Id, AuthorUserId = User.Id(), Body = dto.Body, IsInternal = dto.IsInternal && !isClient
+        });
         if (isClient && t.Status == TicketStatus.Resolved) t.Status = TicketStatus.Open;
         t.UpdatedAtUtc = DateTime.UtcNow;
-
         await _db.SaveChangesAsync(ct);
-        return CreatedAtAction(nameof(Get), new { id = t.Id }, new { comment.Id });
+        return CreatedAtAction(nameof(Get), new { id = t.Id }, new { });
     }
 
-    /// <summary>
-    /// Admin: tutto. Agent: ticket dei software assegnati o assegnati a lui.
-    /// Client: solo la propria azienda.
-    /// </summary>
+    // --- helper ---
+
     private async Task<bool> CanAccessAsync(Ticket t, CancellationToken ct)
     {
         if (User.IsAdmin()) return true;
-        if (User.IsAgent())
+        if (User.IsStaff())
         {
             var uid = User.Id();
-            if (t.AssignedAgentUserId == uid) return true;
-            var swIds = await AgentSoftwareIdsAsync(uid, ct);
-            return t.SoftwareId is not null && swIds.Contains(t.SoftwareId.Value);
+            if (t.AssigneeUserId == uid) return true;
+            if (t.Assignments.Any(a => a.UserId == uid)) return true;
+            if (t.SoftwareId is not null)
+            {
+                var swIds = await AgentSoftwareIdsAsync(uid, ct);
+                if (swIds.Contains(t.SoftwareId.Value)) return true;
+            }
+            return false;
         }
         return t.CompanyId == (User.CompanyId() ?? 0);
     }
 
     private Task<List<int>> AgentSoftwareIdsAsync(string userId, CancellationToken ct) =>
         _db.Users.Where(u => u.Id == userId).SelectMany(u => u.Softwares.Select(s => s.Id)).ToListAsync(ct);
+
+    private async Task TouchAsync(int ticketId, CancellationToken ct)
+    {
+        var t = await _db.Tickets.FirstAsync(x => x.Id == ticketId, ct);
+        t.UpdatedAtUtc = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+    }
 }

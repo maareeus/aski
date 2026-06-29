@@ -8,16 +8,28 @@ public record AuthResponse(string AccessToken, string RefreshToken, int ExpiresI
 
 public record TicketListItem(
     int Id, string Title, TicketStatus Status, TicketPriority Priority,
-    int CompanyId, int? SoftwareId, string? AssignedAgentUserId,
+    int CompanyId, int? SoftwareId, int? SoftwareVersionId, string? AssigneeUserId, int? AssigneeUnitId,
     DateTime CreatedAtUtc, DateTime UpdatedAtUtc, DateTime? ClosedAtUtc);
 
 public record TicketComment(int Id, string Body, bool IsInternal, string AuthorUserId, DateTime CreatedAtUtc);
+public record TicketAssignmentDto(int Id, int UnitId, string UserId);
 
 public record TicketDetail(
     int Id, string Title, string? Description, TicketStatus Status, TicketPriority Priority,
-    int CompanyId, int? SoftwareId, string CreatedByUserId, string? AssignedAgentUserId,
+    int CompanyId, int? SoftwareId, int? SoftwareVersionId, string CreatedByUserId,
+    string? AssigneeUserId, int? AssigneeUnitId,
     DateTime CreatedAtUtc, DateTime UpdatedAtUtc, DateTime? ClosedAtUtc,
-    List<TicketComment> Comments);
+    List<TicketAssignmentDto> Assignments, List<TicketComment> Comments);
+
+// Unit
+public record UnitRow(int Id, string Name, string? Description, int MembersCount, List<string> Managers);
+public record UnitMemberDto(string UserId, bool IsManager, string Email, string? FirstName, string? LastName);
+public record UnitDetail(int Id, string Name, string? Description, List<UnitMemberDto> Members);
+
+public record MyUnit(int UnitId, string Name, bool IsManager);
+
+// Rubrica
+public record Contact(int Id, string Name, string? Title, string? Email, string? Phone, string? Notes);
 
 public record Company(
     int Id, string Name, string? VatNumber, string? ContactEmail, string? Phone, string? Address,
@@ -40,7 +52,12 @@ public record LoginRequest(string Email, string Password);
 public record CreateTicketRequest(string Title, string? Description, int? SoftwareId, int? SoftwareVersionId, TicketPriority Priority, int? CompanyId);
 public record AddCommentRequest(string Body, bool IsInternal);
 public record ChangeStatusRequest(TicketStatus Status);
-public record AssignRequest(string AgentUserId);
+public record AssignRequest(string UserId, int UnitId);
+public record TakeRequest(int? UnitId);
+public record CreateUnitRequest(string Name, string? Description);
+public record UserIdsRequest(List<string> UserIds);
+public record UserIdRequest(string UserId);
+public record CreateContactRequest(string Name, string? Title, string? Email, string? Phone, string? Notes);
 public record CreateCompanyRequest(string Name, string? VatNumber, string? ContactEmail, string? Phone, string? Address);
 public record CreateSoftwareRequest(string Name, string? Description);
 public record CreateVersionRequest(string Version, string? Notes, DateTime? ReleasedAtUtc);

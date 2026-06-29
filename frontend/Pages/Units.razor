@@ -1,0 +1,167 @@
+@page "/units"
+@attribute [Authorize(Roles = "Admin,PM")]
+@inject ApiClient Api
+@inject AuthenticationStateProvider AuthState
+
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Unit</h1>
+        <p class="text-sm text-slate-500">Gruppi di utenti. L'Admin nomina i PM; i PM gestiscono i membri.</p>
+    </div>
+    @if (_isAdmin)
+    {
+        <button @onclick="OpenCreate" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Nuova unit</button>
+    }
+</div>
+
+<div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    @if (_items.Count == 0)
+    {
+        <p class="px-5 py-8 text-center text-sm text-slate-400">Nessuna unit.</p>
+    }
+    else
+    {
+        <table class="w-full text-sm">
+            <thead class="text-left text-slate-500 border-b border-slate-100">
+                <tr><th class="px-5 py-3 font-medium">Nome</th><th class="px-5 py-3 font-medium">PM</th>
+                    <th class="px-5 py-3 font-medium">Membri</th><th class="px-5 py-3"></th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                @foreach (var u in _items)
+                {
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-5 py-3 font-medium text-slate-900">@u.Name</td>
+                        <td class="px-5 py-3 text-slate-600">@(u.Managers.Count == 0 ? "—" : string.Join(", ", u.Managers))</td>
+                        <td class="px-5 py-3 text-slate-600">@u.MembersCount</td>
+                        <td class="px-5 py-3 text-right"><button @onclick="() => OpenDetail(u.Id)" class="text-xs text-indigo-600 hover:underline">Gestisci</button></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+<Modal Visible="_showCreate" Title="Nuova unit" OnClose="() => _showCreate = false">
+    @if (_err is not null) { <div class="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">@_err</div> }
+    <div class="space-y-3">
+        <Field Label="Nome *"><input @bind="_name" class="@Inp" /></Field>
+        <Field Label="Descrizione"><input @bind="_desc" class="@Inp" /></Field>
+    </div>
+    <div class="mt-5 flex items-center justify-end gap-2">
+        <button @onclick="() => _showCreate = false" class="@BtnGhost">Annulla</button>
+        <button @onclick="Create" class="@BtnPrimary">Crea</button>
+    </div>
+</Modal>
+
+<Modal Visible="_showDetail" Title="@($"Unit · {_detail?.Name}")" MaxWidth="max-w-xl" OnClose="() => _showDetail = false">
+    @if (_detail is not null)
+    {
+        @if (_isAdmin)
+        {
+            <p class="text-sm font-medium text-slate-700 mb-2">PM (manager)</p>
+            <div class="grid grid-cols-2 gap-1 max-h-32 overflow-y-auto rounded-lg border border-slate-200 p-2 mb-2">
+                @foreach (var u in _staff.Where(s => s.Roles.Contains("PM")))
+                {
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked="@_mgr.Contains(u.Id)" @onchange="e => ToggleMgr(u.Id, e)" class="rounded border-slate-300" />
+                        <span class="text-slate-700">@(string.IsNullOrWhiteSpace(u.Display) ? u.Email : u.Display)</span>
+                    </label>
+                }
+            </div>
+            <button @onclick="SaveManagers" class="mb-4 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium hover:bg-slate-50">Salva PM</button>
+        }
+
+        <p class="text-sm font-medium text-slate-700 mb-2">Membri</p>
+        <ul class="divide-y divide-slate-100 rounded-lg border border-slate-200 mb-3">
+            @foreach (var m in _detail.Members)
+            {
+                <li class="px-3 py-2 flex items-center justify-between text-sm">
+                    <span class="text-slate-700">
+                        @(string.IsNullOrWhiteSpace($"{m.FirstName} {m.LastName}".Trim()) ? m.Email : $"{m.FirstName} {m.LastName}")
+                        @if (m.IsManager) { <span class="ml-1 rounded bg-indigo-100 text-indigo-700 px-1.5 py-0.5 text-[11px]">PM</span> }
+                    </span>
+                    @if (!m.IsManager)
+                    {
+                        <button @onclick="() => RemoveMember(m.UserId)" class="text-xs text-rose-600 hover:underline">Rimuovi</button>
+                    }
+                </li>
+            }
+        </ul>
+        <div class="flex items-center gap-2">
+            <select @bind="_addUserId" class="@Inp flex-1">
+                <option value="">— aggiungi membro —</option>
+                @foreach (var u in _staff.Where(s => _detail.Members.All(m => m.UserId != s.Id)))
+                {
+                    <option value="@u.Id">@(string.IsNullOrWhiteSpace(u.Display) ? u.Email : u.Display)</option>
+                }
+            </select>
+            <button @onclick="AddMember" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Aggiungi</button>
+        </div>
+    }
+</Modal>
+
+@code {
+    private const string Inp = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
+    private const string BtnPrimary = "rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700";
+    private const string BtnGhost = "rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50";
+
+    private List<UnitRow> _items = new();
+    private List<AppUserRow> _staff = new();
+    private bool _isAdmin;
+
+    private bool _showCreate, _showDetail;
+    private string _name = ""; private string? _desc; private string? _err;
+    private UnitDetail? _detail;
+    private HashSet<string> _mgr = new();
+    private string _addUserId = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        _isAdmin = auth.User.IsInRole("Admin");
+        try { _staff = await Api.GetStaffUsersAsync(); } catch { }
+        await Load();
+    }
+    private async Task Load() { try { _items = await Api.GetUnitsAsync(); } catch { } }
+
+    private void OpenCreate() { _name = ""; _desc = null; _err = null; _showCreate = true; }
+    private async Task Create()
+    {
+        _err = null;
+        if (string.IsNullOrWhiteSpace(_name)) { _err = "Nome obbligatorio."; return; }
+        var resp = await Api.CreateUnitAsync(new CreateUnitRequest(_name.Trim(), _desc));
+        if (!resp.IsSuccessStatusCode) { _err = $"Errore ({(int)resp.StatusCode})."; return; }
+        _showCreate = false; await Load();
+    }
+
+    private async Task OpenDetail(int id)
+    {
+        _detail = await Api.GetUnitAsync(id);
+        _mgr = new HashSet<string>(_detail?.Members.Where(m => m.IsManager).Select(m => m.UserId) ?? Enumerable.Empty<string>());
+        _addUserId = "";
+        _showDetail = true;
+    }
+
+    private void ToggleMgr(string id, ChangeEventArgs e) { if ((bool)e.Value!) _mgr.Add(id); else _mgr.Remove(id); }
+
+    private async Task SaveManagers()
+    {
+        if (_detail is null) return;
+        await Api.SetUnitManagersAsync(_detail.Id, _mgr.ToList());
+        await OpenDetail(_detail.Id); await Load();
+    }
+
+    private async Task AddMember()
+    {
+        if (_detail is null || string.IsNullOrEmpty(_addUserId)) return;
+        await Api.AddUnitMemberAsync(_detail.Id, _addUserId);
+        await OpenDetail(_detail.Id); await Load();
+    }
+
+    private async Task RemoveMember(string userId)
+    {
+        if (_detail is null) return;
+        await Api.RemoveUnitMemberAsync(_detail.Id, userId);
+        await OpenDetail(_detail.Id); await Load();
+    }
+}

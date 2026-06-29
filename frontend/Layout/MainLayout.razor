@@ -12,6 +12,10 @@
         <nav class="flex-1 px-3 py-4 space-y-0.5 text-sm">
             <NavItem Href="" Icon="📊" Label="Dashboard" Match="NavLinkMatch.All" />
             <NavItem Href="tickets" Icon="🎫" Label="Ticket" />
+            <AuthorizeView Roles="Admin,PM">
+                <p class="px-3 pt-5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Organizzazione</p>
+                <NavItem Href="units" Icon="👥" Label="Unit" />
+            </AuthorizeView>
             <AuthorizeView Roles="Admin">
                 <p class="px-3 pt-5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Amministrazione</p>
                 <NavItem Href="clients" Icon="🏢" Label="Clienti" />

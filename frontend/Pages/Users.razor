@@ -54,7 +54,7 @@
         <Field Label="Password * (min 8)"><input @bind="_password" type="password" class="@Inp" /></Field>
         <Field Label="Ruolo">
             <select @bind="_role" class="@Inp">
-                <option value="Agent">Agent</option><option value="Client">Client</option><option value="Admin">Admin</option>
+                <option value="Agent">Agent</option><option value="PM">PM</option><option value="Client">Client</option><option value="Admin">Admin</option>
             </select>
         </Field>
         @if (_role == "Client")
@@ -67,7 +67,7 @@
             </Field>
         }
     </div>
-    @if (_role is "Agent" or "Admin")
+    @if (_role is "Agent" or "Admin" or "PM")
     {
         <div class="mt-4">
             <p class="text-sm font-medium text-slate-700 mb-2">Software di competenza</p>
@@ -141,7 +141,7 @@
         if (string.IsNullOrWhiteSpace(_email) || _password.Length < 8) { _err = "Email e password (min 8) obbligatorie."; return; }
         int? co = _role == "Client" && int.TryParse(_companyId, out var c) ? c : null;
         if (_role == "Client" && co is null) { _err = "Seleziona un'azienda."; return; }
-        var sw = _role is "Agent" or "Admin" ? _sel.ToList() : null;
+        var sw = _role is "Agent" or "Admin" or "PM" ? _sel.ToList() : null;
 
         var resp = await Api.CreateUserAsync(new CreateUserRequest(_email.Trim(), _password, _role, _firstName, _lastName, _phone, co, sw));
         if (!resp.IsSuccessStatusCode) { _err = $"Errore ({(int)resp.StatusCode})."; return; }
@@ -157,5 +157,6 @@
         _showSoftware = false; await Load();
     }
 }
+
 
 

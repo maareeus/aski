@@ -1,7 +1,6 @@
 @page "/tickets/{Id:int}"
 @attribute [Authorize]
 @inject ApiClient Api
-@inject NavigationManager Nav
 @inject AuthenticationStateProvider AuthState
 
 <a href="tickets" class="text-sm text-slate-500 hover:text-slate-700">← Ticket</a>
@@ -16,19 +15,17 @@ else if (_t is null)
 }
 else
 {
-    <div class="mt-3 flex items-start justify-between gap-4">
-        <div>
-            <h1 class="text-2xl font-bold tracking-tight text-slate-900">@_t.Title</h1>
-            <div class="mt-2 flex items-center gap-2">
-                <span class="text-slate-400 text-sm">#@_t.Id</span>
-                <StatusBadge Status="_t.Status" />
-                <PriorityBadge Priority="_t.Priority" />
-            </div>
+    <div class="mt-3">
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">@_t.Title</h1>
+        <div class="mt-2 flex items-center gap-2">
+            <span class="text-slate-400 text-sm">#@_t.Id</span>
+            <StatusBadge Status="_t.Status" />
+            <PriorityBadge Priority="_t.Priority" />
+            @if (_t.AssigneeUserId is not null) { <span class="rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-0.5 text-xs font-medium">Preso in carico</span> }
         </div>
     </div>
 
     <div class="mt-6 grid lg:grid-cols-3 gap-6">
-        <!-- Conversazione -->
         <div class="lg:col-span-2 space-y-6">
             <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 class="font-semibold text-slate-900 mb-1">Descrizione</h2>
@@ -57,15 +54,9 @@ else
                     </ul>
                 }
                 <div class="px-5 py-4 border-t border-slate-200">
-                    <textarea @bind="_comment" rows="2" placeholder="Scrivi un commento…"
-                              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"></textarea>
+                    <textarea @bind="_comment" rows="2" placeholder="Scrivi un commento…" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"></textarea>
                     <div class="mt-2 flex items-center justify-between">
-                        @if (_isStaff)
-                        {
-                            <label class="flex items-center gap-2 text-xs text-slate-600">
-                                <input type="checkbox" @bind="_internal" class="rounded border-slate-300" /> Nota interna
-                            </label>
-                        }
+                        @if (_isStaff) { <label class="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" @bind="_internal" class="rounded border-slate-300" /> Nota interna</label> }
                         else { <span></span> }
                         <button @onclick="AddComment" class="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700">Invia</button>
                     </div>
@@ -73,32 +64,56 @@ else
             </div>
         </div>
 
-        <!-- Azioni -->
         <div class="space-y-6">
             <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 class="font-semibold text-slate-900 mb-3">Azioni</h2>
-                @if (_actionMsg is not null)
-                {
-                    <div class="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">@_actionMsg</div>
-                }
+                @if (_msg is not null) { <div class="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">@_msg</div> }
+
                 @if (_isStaff)
                 {
-                    <label class="block text-sm font-medium text-slate-700">Stato</label>
+                    @if (_takeChooser)
+                    {
+                        <label class="block text-sm font-medium text-slate-700">Gestisci con la Unit</label>
+                        <select @bind="_takeUnitId" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                            @foreach (var u in _myUnits) { <option value="@u.UnitId">@u.Name</option> }
+                        </select>
+                        <button @onclick="ConfirmTake" class="mt-2 w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Conferma presa in carico</button>
+                    }
+                    else
+                    {
+                        <button @onclick="Take" class="w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Prendi in carico</button>
+                    }
+
+                    <label class="block text-sm font-medium text-slate-700 mt-4">Stato</label>
                     <select @bind="_statusSel" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                        <option value="0">Aperto</option><option value="1">In lavorazione</option>
-                        <option value="2">In attesa</option><option value="3">Risolto</option><option value="4">Chiuso</option>
+                        <option value="0">Aperto</option><option value="1">In lavorazione</option><option value="2">In attesa</option><option value="3">Risolto</option><option value="4">Chiuso</option>
                     </select>
                     <button @onclick="ChangeStatus" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50">Aggiorna stato</button>
-                    <button @onclick="AssignToMe" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50">Assegna a me</button>
                 }
                 <button @onclick="Close" class="mt-2 w-full rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-900">Chiudi ticket</button>
             </div>
 
-            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm text-sm text-slate-600 space-y-1">
-                <p><span class="text-slate-400">Creato:</span> @_t.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
-                <p><span class="text-slate-400">Aggiornato:</span> @_t.UpdatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
-                <p><span class="text-slate-400">Assegnato:</span> @(_t.AssignedAgentUserId is null ? "—" : "sì")</p>
-            </div>
+            @if (_isPm)
+            {
+                <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <h2 class="font-semibold text-slate-900 mb-3">Assegna (PM)</h2>
+                    <label class="block text-sm font-medium text-slate-700">Unit</label>
+                    <select @bind="_asgUnitId" @bind:after="OnAsgUnitChanged" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                        <option value="">— seleziona —</option>
+                        @foreach (var u in _managedUnits) { <option value="@u.Id">@u.Name</option> }
+                    </select>
+                    @if (_asgMembers.Count > 0)
+                    {
+                        <label class="block text-sm font-medium text-slate-700 mt-2">Utente</label>
+                        <select @bind="_asgUserId" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                            <option value="">— seleziona —</option>
+                            @foreach (var m in _asgMembers.Where(m => !m.IsManager)) { <option value="@m.UserId">@(string.IsNullOrWhiteSpace($"{m.FirstName} {m.LastName}".Trim()) ? m.Email : $"{m.FirstName} {m.LastName}")</option> }
+                        </select>
+                        <button @onclick="Assign" class="mt-2 w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Assegna</button>
+                    }
+                    @if (_t.Assignments.Count > 0) { <p class="text-xs text-slate-500 mt-3">Assegnazioni: @_t.Assignments.Count</p> }
+                </div>
+            }
         </div>
     </div>
 }
@@ -106,17 +121,23 @@ else
 @code {
     [Parameter] public int Id { get; set; }
     private TicketDetail? _t;
-    private bool _loading = true;
-    private bool _isStaff;
-    private string _comment = "";
-    private bool _internal;
-    private int _statusSel;
-    private string? _actionMsg;
+    private bool _loading = true, _isStaff, _isPm;
+    private string _comment = ""; private bool _internal; private int _statusSel; private string? _msg;
+
+    private List<MyUnit> _myUnits = new();
+    private bool _takeChooser; private string _takeUnitId = "";
+
+    private List<UnitRow> _managedUnits = new();
+    private List<UnitMemberDto> _asgMembers = new();
+    private string _asgUnitId = ""; private string _asgUserId = "";
 
     protected override async Task OnInitializedAsync()
     {
         var auth = await AuthState.GetAuthenticationStateAsync();
-        _isStaff = auth.User.IsInRole("Admin") || auth.User.IsInRole("Agent");
+        _isStaff = auth.User.IsInRole("Admin") || auth.User.IsInRole("Agent") || auth.User.IsInRole("PM");
+        _isPm = auth.User.IsInRole("PM") || auth.User.IsInRole("Admin");
+        if (_isStaff) { try { _myUnits = await Api.GetMyUnitsAsync(); } catch { } }
+        if (_isPm) { try { _managedUnits = await Api.GetUnitsAsync(); } catch { } }
         await Load();
     }
 
@@ -131,32 +152,59 @@ else
     private async Task AddComment()
     {
         if (string.IsNullOrWhiteSpace(_comment)) return;
-        var resp = await Api.AddCommentAsync(Id, new AddCommentRequest(_comment.Trim(), _internal && _isStaff));
-        if (resp.IsSuccessStatusCode) { _comment = ""; _internal = false; await Load(); }
+        var r = await Api.AddCommentAsync(Id, new AddCommentRequest(_comment.Trim(), _internal && _isStaff));
+        if (r.IsSuccessStatusCode) { _comment = ""; _internal = false; await Load(); }
     }
 
     private async Task ChangeStatus()
     {
-        var resp = await Api.ChangeStatusAsync(Id, (TicketStatus)_statusSel);
-        _actionMsg = resp.IsSuccessStatusCode ? "Stato aggiornato." : "Errore aggiornamento.";
+        var r = await Api.ChangeStatusAsync(Id, (TicketStatus)_statusSel);
+        _msg = r.IsSuccessStatusCode ? "Stato aggiornato." : "Errore.";
         await Load();
     }
 
-    private async Task AssignToMe()
+    private async Task Take()
     {
-        var auth = await AuthState.GetAuthenticationStateAsync();
-        var uid = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-                  ?? auth.User.FindFirst("sub")?.Value;
-        if (uid is null) return;
-        var resp = await Api.AssignAsync(Id, uid);
-        _actionMsg = resp.IsSuccessStatusCode ? "Assegnato a te." : "Errore assegnazione.";
+        if (_myUnits.Count > 1) { _takeUnitId = _myUnits[0].UnitId.ToString(); _takeChooser = true; return; }
+        await DoTake(_myUnits.Count == 1 ? _myUnits[0].UnitId : (int?)null);
+    }
+
+    private async Task ConfirmTake()
+    {
+        await DoTake(int.TryParse(_takeUnitId, out var u) ? u : (int?)null);
+        _takeChooser = false;
+    }
+
+    private async Task DoTake(int? unitId)
+    {
+        var r = await Api.TakeAsync(Id, unitId);
+        _msg = r.IsSuccessStatusCode ? "Preso in carico." : "Errore presa in carico.";
         await Load();
     }
 
     private async Task Close()
     {
-        var resp = await Api.CloseAsync(Id);
-        _actionMsg = resp.IsSuccessStatusCode ? "Ticket chiuso." : "Errore chiusura.";
+        var r = await Api.CloseAsync(Id);
+        _msg = r.IsSuccessStatusCode ? "Ticket chiuso." : "Errore.";
+        await Load();
+    }
+
+    private async Task OnAsgUnitChanged()
+    {
+        _asgMembers = new(); _asgUserId = "";
+        if (int.TryParse(_asgUnitId, out var uid))
+        {
+            var d = await Api.GetUnitAsync(uid);
+            _asgMembers = d?.Members ?? new();
+        }
+    }
+
+    private async Task Assign()
+    {
+        if (!int.TryParse(_asgUnitId, out var unit) || string.IsNullOrEmpty(_asgUserId)) return;
+        var r = await Api.AddAssignmentAsync(Id, _asgUserId, unit);
+        _msg = r.IsSuccessStatusCode ? "Assegnato." : "Errore assegnazione.";
+        _asgUserId = "";
         await Load();
     }
 }

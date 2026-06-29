@@ -27,11 +27,41 @@ public sealed class ApiClient
     public Task<HttpResponseMessage> ChangeStatusAsync(int id, TicketStatus status) =>
         _http.PatchAsJsonAsync($"api/tickets/{id}/status", new ChangeStatusRequest(status));
 
-    public Task<HttpResponseMessage> AssignAsync(int id, string agentUserId) =>
-        _http.PostAsJsonAsync($"api/tickets/{id}/assign", new AssignRequest(agentUserId));
+    public Task<HttpResponseMessage> TakeAsync(int id, int? unitId) =>
+        _http.PostAsJsonAsync($"api/tickets/{id}/take", new TakeRequest(unitId));
+    public Task<HttpResponseMessage> AddAssignmentAsync(int id, string userId, int unitId) =>
+        _http.PostAsJsonAsync($"api/tickets/{id}/assignments", new AssignRequest(userId, unitId));
+    public Task<HttpResponseMessage> RemoveAssignmentAsync(int id, int assignmentId) =>
+        _http.DeleteAsync($"api/tickets/{id}/assignments/{assignmentId}");
 
     public Task<HttpResponseMessage> CloseAsync(int id) =>
         _http.PostAsync($"api/tickets/{id}/close", null);
+
+    // --- Lookup ---
+    public async Task<List<AppUserRow>> GetStaffUsersAsync() =>
+        await _http.GetFromJsonAsync<List<AppUserRow>>("api/lookup/staff") ?? new();
+    public async Task<List<MyUnit>> GetMyUnitsAsync() =>
+        await _http.GetFromJsonAsync<List<MyUnit>>("api/lookup/my-units") ?? new();
+
+    // --- Units ---
+    public async Task<List<UnitRow>> GetUnitsAsync() =>
+        await _http.GetFromJsonAsync<List<UnitRow>>("api/units") ?? new();
+    public Task<UnitDetail?> GetUnitAsync(int id) => _http.GetFromJsonAsync<UnitDetail>($"api/units/{id}");
+    public Task<HttpResponseMessage> CreateUnitAsync(CreateUnitRequest req) => _http.PostAsJsonAsync("api/units", req);
+    public Task<HttpResponseMessage> SetUnitManagersAsync(int id, List<string> userIds) =>
+        _http.PutAsJsonAsync($"api/units/{id}/managers", new UserIdsRequest(userIds));
+    public Task<HttpResponseMessage> AddUnitMemberAsync(int id, string userId) =>
+        _http.PostAsJsonAsync($"api/units/{id}/members", new UserIdRequest(userId));
+    public Task<HttpResponseMessage> RemoveUnitMemberAsync(int id, string userId) =>
+        _http.DeleteAsync($"api/units/{id}/members/{userId}");
+
+    // --- Rubrica ---
+    public async Task<List<Contact>> GetContactsAsync(int companyId) =>
+        await _http.GetFromJsonAsync<List<Contact>>($"api/companies/{companyId}/contacts") ?? new();
+    public Task<HttpResponseMessage> CreateContactAsync(int companyId, CreateContactRequest req) =>
+        _http.PostAsJsonAsync($"api/companies/{companyId}/contacts", req);
+    public Task<HttpResponseMessage> DeleteContactAsync(int companyId, int id) =>
+        _http.DeleteAsync($"api/companies/{companyId}/contacts/{id}");
 
     // --- Companies ---
     public async Task<List<Company>> GetCompaniesAsync() =>

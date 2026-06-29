@@ -65,7 +65,56 @@ else
             }
         </div>
     </div>
+
+    <!-- Rubrica -->
+    <div class="mt-6 rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+            <h2 class="font-semibold text-slate-900">Rubrica (@_contacts.Count)</h2>
+            <button @onclick="OpenAddContact" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700">Nuovo contatto</button>
+        </div>
+        @if (_contacts.Count == 0)
+        {
+            <p class="px-5 py-6 text-center text-sm text-slate-400">Nessun contatto in rubrica.</p>
+        }
+        else
+        {
+            <table class="w-full text-sm">
+                <thead class="text-left text-slate-500 border-b border-slate-100">
+                    <tr><th class="px-5 py-3 font-medium">Nome</th><th class="px-5 py-3 font-medium">Ruolo</th>
+                        <th class="px-5 py-3 font-medium">Email</th><th class="px-5 py-3 font-medium">Telefono</th><th class="px-5 py-3"></th></tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @foreach (var k in _contacts)
+                    {
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-5 py-3 font-medium text-slate-900">@k.Name</td>
+                            <td class="px-5 py-3 text-slate-600">@(k.Title ?? "—")</td>
+                            <td class="px-5 py-3 text-slate-600">@(k.Email ?? "—")</td>
+                            <td class="px-5 py-3 text-slate-600">@(k.Phone ?? "—")</td>
+                            <td class="px-5 py-3 text-right"><button @onclick="() => DeleteContact(k.Id)" class="text-xs text-rose-600 hover:underline">Elimina</button></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
 }
+
+<!-- Modal nuovo contatto rubrica -->
+<Modal Visible="_showContact" Title="Nuovo contatto" OnClose="() => _showContact = false">
+    @if (_kErr is not null) { <div class="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">@_kErr</div> }
+    <div class="space-y-3">
+        <Field Label="Nome *"><input @bind="_kName" class="@Inp" /></Field>
+        <Field Label="Ruolo"><input @bind="_kTitle" class="@Inp" /></Field>
+        <Field Label="Email"><input @bind="_kEmail" class="@Inp" /></Field>
+        <Field Label="Telefono"><input @bind="_kPhone" class="@Inp" /></Field>
+        <Field Label="Note"><textarea @bind="_kNotes" rows="2" class="@Inp"></textarea></Field>
+    </div>
+    <div class="mt-5 flex items-center justify-end gap-2">
+        <button @onclick="() => _showContact = false" class="@BtnGhost">Annulla</button>
+        <button @onclick="AddContact" class="@BtnPrimary">Crea</button>
+    </div>
+</Modal>
 
 <!-- Modal modifica anagrafica -->
 <Modal Visible="_showEdit" Title="Modifica azienda" OnClose="() => _showEdit = false">
@@ -131,6 +180,10 @@ else
     private Company? _c;
     private List<CompanyUser> _users = new();
     private List<Software> _allSoftware = new();
+    private List<Contact> _contacts = new();
+
+    private bool _showContact;
+    private string _kName = ""; private string? _kTitle, _kEmail, _kPhone, _kNotes; private string? _kErr;
 
     private bool _showEdit, _showUser, _showSoftware;
     private string _name = ""; private string? _vat, _email, _phone, _address;
@@ -145,9 +198,22 @@ else
 
     private async Task Load()
     {
-        try { _c = await Api.GetCompanyAsync(Id); _users = await Api.GetCompanyUsersAsync(Id); }
+        try { _c = await Api.GetCompanyAsync(Id); _users = await Api.GetCompanyUsersAsync(Id); _contacts = await Api.GetContactsAsync(Id); }
         catch { _c = null; }
     }
+
+    private void OpenAddContact() { _kName = ""; _kTitle = _kEmail = _kPhone = _kNotes = null; _kErr = null; _showContact = true; }
+
+    private async Task AddContact()
+    {
+        _kErr = null;
+        if (string.IsNullOrWhiteSpace(_kName)) { _kErr = "Nome obbligatorio."; return; }
+        var resp = await Api.CreateContactAsync(Id, new CreateContactRequest(_kName.Trim(), _kTitle, _kEmail, _kPhone, _kNotes));
+        if (!resp.IsSuccessStatusCode) { _kErr = $"Errore ({(int)resp.StatusCode})."; return; }
+        _showContact = false; await Load();
+    }
+
+    private async Task DeleteContact(int id) { await Api.DeleteContactAsync(Id, id); await Load(); }
 
     private void OpenEdit()
     {

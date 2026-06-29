@@ -26,6 +26,9 @@ secrets.json
 ## Log temporanei
 *.log
 
+## Allegati ticket (storage locale)
+backend/uploads/
+
 ## OS
 .DS_Store
 Thumbs.db

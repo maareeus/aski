@@ -32,7 +32,10 @@
                         <td class="px-5 py-3 text-slate-600">@(u.CompanyName ?? "—")</td>
                         <td class="px-5 py-3 text-slate-600">@u.Email</td>
                         <td class="px-5 py-3 text-slate-600">@(u.Phone ?? "—")</td>
-                        <td class="px-5 py-3 text-right"><button @onclick="() => OpenEdit(u)" class="text-xs text-indigo-600 hover:underline">Modifica</button></td>
+                        <td class="px-5 py-3 text-right space-x-3">
+                            <button @onclick="() => OpenEdit(u)" class="text-xs text-indigo-600 hover:underline">Modifica</button>
+                            <button @onclick="() => OpenPassword(u)" class="text-xs text-indigo-600 hover:underline">Password</button>
+                        </td>
                     </tr>
                 }
             </tbody>
@@ -63,6 +66,18 @@
     </div>
 </Modal>
 
+<!-- Imposta password -->
+<Modal Visible="_showPwd" Title="@($"Imposta password · {_editing?.Email}")" OnClose="() => _showPwd = false">
+    @if (_pwErr is not null) { <div class="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">@_pwErr</div> }
+    @if (_pwMsg is not null) { <div class="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">@_pwMsg</div> }
+    <p class="text-sm text-slate-500 mb-3">Definisci una nuova password per il cliente. Verrà sovrascritta quella attuale.</p>
+    <Field Label="Nuova password (min 8)"><input @bind="_newPwd" type="text" class="@Inp font-mono" /></Field>
+    <div class="mt-5 flex items-center justify-end gap-2">
+        <button @onclick="() => _showPwd = false" class="@BtnGhost">Chiudi</button>
+        <button @onclick="SetPassword" class="@BtnPrimary">Imposta password</button>
+    </div>
+</Modal>
+
 <!-- Modifica -->
 <Modal Visible="_showEdit" Title="Modifica cliente" MaxWidth="max-w-xl" OnClose="() => _showEdit = false">
     <div class="grid grid-cols-2 gap-3">
@@ -89,8 +104,9 @@
 
     private List<ClientRow> _items = new();
     private List<Company> _companies = new();
-    private bool _showCreate, _showEdit;
+    private bool _showCreate, _showEdit, _showPwd;
     private string _email = ""; private string? _first, _last, _job, _phone; private string _pwd = ""; private string _companyId = ""; private string? _err;
+    private string _newPwd = ""; private string? _pwErr, _pwMsg;
     private ClientRow? _editing;
 
     protected override async Task OnInitializedAsync()
@@ -113,6 +129,21 @@
         var resp = await Api.CreateUserAsync(new CreateUserRequest(_email.Trim(), _pwd, "Client", _first, _last, _job, _phone, co, null));
         if (!resp.IsSuccessStatusCode) { _err = $"Errore ({(int)resp.StatusCode})."; return; }
         _showCreate = false; await Load();
+    }
+
+    private void OpenPassword(ClientRow u)
+    {
+        _editing = u; _newPwd = ""; _pwErr = null; _pwMsg = null; _showPwd = true;
+    }
+
+    private async Task SetPassword()
+    {
+        _pwErr = null; _pwMsg = null;
+        if (_editing is null) return;
+        if (_newPwd.Length < 8) { _pwErr = "Password minimo 8 caratteri."; return; }
+        var r = await Api.ResetPasswordAsync(_editing.Id, _newPwd);
+        if (!r.IsSuccessStatusCode) { _pwErr = $"Errore ({(int)r.StatusCode})."; return; }
+        _pwMsg = "Password impostata."; _newPwd = "";
     }
 
     private void OpenEdit(ClientRow u)

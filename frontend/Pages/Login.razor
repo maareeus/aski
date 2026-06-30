@@ -2,12 +2,22 @@
 @layout EmptyLayout
 @inject AuthService Auth
 @inject NavigationManager Nav
+@inject BrandService Brand
+
+<AppTitle Suffix="Accedi" />
 
 <div class="min-h-screen flex items-center justify-center p-6 bg-slate-100">
     <div class="w-full max-w-sm">
         <div class="flex items-center justify-center gap-2 mb-6">
-            <div class="h-10 w-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-extrabold text-xl">A</div>
-            <span class="text-2xl font-bold tracking-tight text-slate-900">Aski Tickets</span>
+            @if (Brand.HasLogo)
+            {
+                <img src="@Brand.LogoUrl" alt="logo" class="h-10 w-10 rounded-xl object-contain" />
+            }
+            else
+            {
+                <div class="h-10 w-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-extrabold text-xl">@(string.IsNullOrEmpty(Brand.Name) ? "A" : Brand.Name[..1].ToUpper())</div>
+            }
+            <span class="text-2xl font-bold tracking-tight text-slate-900">@Brand.Name</span>
         </div>
 
         <div class="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
@@ -38,7 +48,7 @@
                 </div>
             </EditForm>
         </div>
-        <p class="mt-6 text-center text-xs text-slate-400">Aski · Pannello assistenza</p>
+        <p class="mt-6 text-center text-xs text-slate-400">@Brand.Name · Pannello assistenza</p>
     </div>
 </div>
 
@@ -47,6 +57,8 @@
     private string _password = "";
     private string? _error;
     private bool _busy;
+
+    protected override async Task OnInitializedAsync() => await Brand.EnsureLoadedAsync();
 
     private async Task DoLogin()
     {

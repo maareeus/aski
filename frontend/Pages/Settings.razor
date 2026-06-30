@@ -1,0 +1,122 @@
+@page "/settings"
+@attribute [Authorize(Roles = "Admin")]
+@using Microsoft.AspNetCore.Components.Forms
+@inject ApiClient Api
+@inject BrandService Brand
+
+<AppTitle Suffix="Impostazioni" />
+
+<div class="mb-6">
+    <h1 class="text-2xl font-bold tracking-tight text-slate-900">Impostazioni</h1>
+    <p class="text-sm text-slate-500">Personalizza nome, logo e favicon del prodotto.</p>
+</div>
+
+@if (_msg is not null) { <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">@_msg</div> }
+@if (_err is not null) { <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">@_err</div> }
+
+<div class="grid lg:grid-cols-2 gap-6 max-w-4xl">
+    <!-- Nome -->
+    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 class="font-semibold text-slate-900 mb-4">Nome prodotto</h2>
+        <p class="text-xs text-slate-500 mb-2">Usato nella sidebar e nel titolo delle pagine (es. "@_name - Ticket").</p>
+        <input @bind="_name" class="@Inp" />
+        <div class="mt-4 flex justify-end">
+            <button @onclick="SaveName" class="@BtnPrimary">Salva nome</button>
+        </div>
+    </div>
+
+    <!-- Logo -->
+    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 class="font-semibold text-slate-900 mb-4">Logo</h2>
+        <div class="flex items-center gap-4">
+            <div class="h-16 w-16 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden">
+                @if (Brand.HasLogo) { <img src="@Brand.LogoUrl" alt="logo" class="h-full w-full object-contain" /> }
+                else { <span class="text-slate-300 text-xs">nessuno</span> }
+            </div>
+            <div class="flex flex-col gap-2">
+                <label class="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50">
+                    @(_uploadingLogo ? "Caricamento…" : "Carica logo")
+                    <InputFile OnChange="UploadLogo" accept="image/*" class="hidden" disabled="@_uploadingLogo" />
+                </label>
+                @if (Brand.HasLogo) { <button @onclick="() => DeleteImage(true)" class="text-xs text-rose-600 hover:underline text-left">Rimuovi logo</button> }
+            </div>
+        </div>
+    </div>
+
+    <!-- Favicon -->
+    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 class="font-semibold text-slate-900 mb-4">Favicon</h2>
+        <div class="flex items-center gap-4">
+            <div class="h-12 w-12 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden">
+                @if (Brand.HasFavicon) { <img src="@Brand.FaviconUrl" alt="favicon" class="h-full w-full object-contain" /> }
+                else { <span class="text-slate-300 text-[10px]">nessuna</span> }
+            </div>
+            <div class="flex flex-col gap-2">
+                <label class="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50">
+                    @(_uploadingFav ? "Caricamento…" : "Carica favicon")
+                    <InputFile OnChange="UploadFavicon" accept="image/*" class="hidden" disabled="@_uploadingFav" />
+                </label>
+                @if (Brand.HasFavicon) { <button @onclick="() => DeleteImage(false)" class="text-xs text-rose-600 hover:underline text-left">Rimuovi favicon</button> }
+            </div>
+        </div>
+        <p class="text-xs text-slate-400 mt-3">Consigliato un PNG quadrato (es. 32×32 o 64×64).</p>
+    </div>
+</div>
+
+@code {
+    private const string Inp = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
+    private const string BtnPrimary = "rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700";
+
+    private string _name = "";
+    private bool _uploadingLogo, _uploadingFav;
+    private string? _msg, _err;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Brand.EnsureLoadedAsync();
+        _name = Brand.Name;
+    }
+
+    private async Task SaveName()
+    {
+        _msg = _err = null;
+        if (string.IsNullOrWhiteSpace(_name)) { _err = "Nome obbligatorio."; return; }
+        var r = await Api.UpdateBrandAsync(_name.Trim());
+        if (!r.IsSuccessStatusCode) { _err = $"Errore ({(int)r.StatusCode})."; return; }
+        await Brand.ReloadAsync();
+        _name = Brand.Name; _msg = "Nome aggiornato.";
+    }
+
+    private Task UploadLogo(InputFileChangeEventArgs e) => Upload(e, logo: true);
+    private Task UploadFavicon(InputFileChangeEventArgs e) => Upload(e, logo: false);
+
+    private async Task Upload(InputFileChangeEventArgs e, bool logo)
+    {
+        _msg = _err = null;
+        var file = e.File;
+        if (file is null) return;
+        if (logo) _uploadingLogo = true; else _uploadingFav = true;
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            var fc = new StreamContent(file.OpenReadStream(5 * 1024 * 1024));
+            fc.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
+                string.IsNullOrWhiteSpace(file.ContentType) ? "image/png" : file.ContentType);
+            content.Add(fc, "file", file.Name);
+            var r = await Api.UploadBrandImageAsync(logo, content);
+            if (!r.IsSuccessStatusCode) _err = $"Errore upload ({(int)r.StatusCode}).";
+            else { await Brand.ReloadAsync(); _msg = logo ? "Logo aggiornato." : "Favicon aggiornata."; }
+        }
+        catch (Exception ex) { _err = $"Errore: {ex.Message}"; }
+        if (logo) _uploadingLogo = false; else _uploadingFav = false;
+    }
+
+    private async Task DeleteImage(bool logo)
+    {
+        _msg = _err = null;
+        var r = await Api.DeleteBrandImageAsync(logo);
+        if (!r.IsSuccessStatusCode) { _err = $"Errore ({(int)r.StatusCode})."; return; }
+        await Brand.ReloadAsync();
+        _msg = logo ? "Logo rimosso." : "Favicon rimossa.";
+    }
+}

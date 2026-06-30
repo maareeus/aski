@@ -2,6 +2,8 @@
 @attribute [Authorize(Roles = "Admin")]
 @inject ApiClient Api
 
+<AppTitle Suffix="@(_sw?.Name ?? "Software")" />
+
 <a href="software" class="text-sm text-slate-500 hover:text-slate-700">← Software</a>
 
 @if (_sw is null)

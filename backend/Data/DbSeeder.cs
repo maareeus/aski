@@ -1,5 +1,6 @@
 using Aski.Tickets.Api.Domain;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace Aski.Tickets.Api.Data;
 
@@ -8,6 +9,13 @@ public static class DbSeeder
 {
     public static async Task SeedAsync(IServiceProvider sp, IConfiguration config)
     {
+        var db = sp.GetRequiredService<AppDbContext>();
+        if (!await db.AppSettings.AnyAsync())
+        {
+            db.AppSettings.Add(new AppSetting { Id = 1, BrandName = "Aski" });
+            await db.SaveChangesAsync();
+        }
+
         var roleMgr = sp.GetRequiredService<RoleManager<IdentityRole>>();
         foreach (var role in Roles.All)
             if (!await roleMgr.RoleExistsAsync(role))

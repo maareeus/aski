@@ -11,8 +11,10 @@ using Microsoft.OpenApi.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 // --- Database (SQLite + EF Core) ---
+// Percorso assoluto sotto la ContentRoot: il file db persiste tra i run
+// indipendentemente dalla working directory da cui si avvia l'app.
 var connectionString = builder.Configuration.GetConnectionString("Default")
-                       ?? "Data Source=aski-tickets.db";
+                       ?? $"Data Source={Path.Combine(builder.Environment.ContentRootPath, "aski-tickets.db")}";
 builder.Services.AddDbContext<AppDbContext>(opt => opt.UseSqlite(connectionString));
 
 // --- Identity (utenti + ruoli) ---

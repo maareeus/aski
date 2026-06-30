@@ -3,6 +3,8 @@
 @inject ApiClient Api
 @inject NavigationManager Nav
 
+<AppTitle Suffix="@(_c?.Name ?? "Azienda")" />
+
 <a href="companies" class="text-sm text-slate-500 hover:text-slate-700">← Aziende</a>
 
 @if (_c is null)

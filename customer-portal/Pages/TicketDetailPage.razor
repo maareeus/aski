@@ -4,6 +4,8 @@
 @inject ApiClient Api
 @inject IJSRuntime JS
 
+<AppTitle Suffix="@(_t?.Number ?? "Ticket")" />
+
 <a href="/" class="text-sm text-slate-500 hover:text-slate-700">← I miei ticket</a>
 
 @if (_loading)

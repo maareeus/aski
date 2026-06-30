@@ -1,0 +1,18 @@
+@implements IDisposable
+@inject BrandService Brand
+
+<PageTitle>@Brand.Title(Suffix)</PageTitle>
+
+@code {
+    [Parameter] public string Suffix { get; set; } = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Brand.Changed += OnChanged;
+        await Brand.EnsureLoadedAsync();
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Brand.Changed -= OnChanged;
+}

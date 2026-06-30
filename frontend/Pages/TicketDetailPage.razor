@@ -6,6 +6,8 @@
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 
+<AppTitle Suffix="@(_t?.Number ?? "Ticket")" />
+
 <a href="tickets" class="text-sm text-slate-500 hover:text-slate-700">← Ticket</a>
 
 @if (_loading)

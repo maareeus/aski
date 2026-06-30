@@ -3,6 +3,8 @@
 @inject ApiClient Api
 @inject NavigationManager Nav
 
+<AppTitle Suffix="@(_u is null ? "Utente" : (string.IsNullOrWhiteSpace(_u.Display) ? _u.Email : _u.Display))" />
+
 <a href="users" class="text-sm text-slate-500 hover:text-slate-700">← Utenti</a>
 
 @if (_u is null)

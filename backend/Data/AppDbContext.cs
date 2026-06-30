@@ -24,6 +24,7 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole, string>
     public DbSet<UnitMembership> UnitMemberships => Set<UnitMembership>();
     public DbSet<TicketAttachment> TicketAttachments => Set<TicketAttachment>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -164,6 +165,13 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole, string>
         {
             e.HasIndex(x => new { x.UnitId, x.UserId }).IsUnique();
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<AppSetting>(e =>
+        {
+            e.Property(x => x.BrandName).HasMaxLength(120).IsRequired();
+            e.Property(x => x.LogoContentType).HasMaxLength(120);
+            e.Property(x => x.FaviconContentType).HasMaxLength(120);
         });
 
         builder.Entity<Notification>(e =>

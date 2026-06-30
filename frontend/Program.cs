@@ -27,5 +27,6 @@ builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().Cre
 
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ApiClient>();
+builder.Services.AddScoped<BrandService>();
 
 await builder.Build().RunAsync();

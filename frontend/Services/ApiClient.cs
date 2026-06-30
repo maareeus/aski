@@ -68,6 +68,15 @@ public sealed class ApiClient
     public Task<byte[]> GetAttachmentBytesAsync(int id, int attId) =>
         _http.GetByteArrayAsync($"api/tickets/{id}/attachments/{attId}");
 
+    // --- Impostazioni brand ---
+    public Task<BrandSettings?> GetBrandAsync() => _http.GetFromJsonAsync<BrandSettings>("api/settings");
+    public Task<HttpResponseMessage> UpdateBrandAsync(string brandName) =>
+        _http.PutAsJsonAsync("api/settings", new { brandName });
+    public Task<HttpResponseMessage> UploadBrandImageAsync(bool logo, MultipartFormDataContent content) =>
+        _http.PostAsync(logo ? "api/settings/logo" : "api/settings/favicon", content);
+    public Task<HttpResponseMessage> DeleteBrandImageAsync(bool logo) =>
+        _http.DeleteAsync(logo ? "api/settings/logo" : "api/settings/favicon");
+
     // --- Lookup ---
     public async Task<List<AppUserRow>> GetStaffUsersAsync() =>
         await _http.GetFromJsonAsync<List<AppUserRow>>("api/lookup/staff") ?? new();

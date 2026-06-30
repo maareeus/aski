@@ -45,6 +45,7 @@ public record CreatedTicket(int Id, string? Number);
 
 public record NotificationDto(int Id, int TicketId, string? Number, string Type, string Message, bool IsRead, DateTime CreatedAtUtc);
 public record UnreadCount(int Count);
+public record BrandSettings(string BrandName, bool HasLogo, bool HasFavicon, long Version);
 
 // --- Software / release notes ---
 public record PortalSoftwareVersion(int Id, string Version, string? ReleaseNotes, DateTime? ReleasedAtUtc, bool IsActive, DateTime CreatedAtUtc);

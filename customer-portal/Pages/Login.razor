@@ -2,27 +2,44 @@
 @layout EmptyLayout
 @inject AuthService Auth
 @inject NavigationManager Nav
+@inject BrandService Brand
+
+<AppTitle Suffix="Accedi" />
 
 <div class="min-h-screen grid lg:grid-cols-2">
     <!-- Lato sinistro: brand -->
     <div class="relative hidden lg:flex flex-col justify-between bg-gradient-to-br from-indigo-600 via-indigo-700 to-slate-900 text-white p-12">
         <div class="flex items-center gap-3">
-            <div class="h-11 w-11 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center font-extrabold text-2xl">A</div>
-            <span class="text-2xl font-bold tracking-tight">Aski</span>
+            @if (Brand.HasLogo)
+            {
+                <img src="@Brand.LogoUrl" alt="logo" class="h-11 w-11 rounded-xl bg-white/15 object-contain" />
+            }
+            else
+            {
+                <div class="h-11 w-11 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center font-extrabold text-2xl">@(string.IsNullOrEmpty(Brand.Name) ? "A" : Brand.Name[..1].ToUpper())</div>
+            }
+            <span class="text-2xl font-bold tracking-tight">@Brand.Name</span>
         </div>
         <div class="max-w-md">
             <h1 class="text-4xl font-bold leading-tight">Portale Clienti</h1>
             <p class="mt-4 text-indigo-100 text-lg">Apri e segui le tue richieste di assistenza, consulta i software in uso e le note di rilascio, contatta i tuoi operatori.</p>
         </div>
-        <p class="text-xs text-indigo-200/70">© Aski · Assistenza software</p>
+        <p class="text-xs text-indigo-200/70">© @Brand.Name · Assistenza software</p>
     </div>
 
     <!-- Lato destro: form -->
     <div class="flex items-center justify-center p-8 bg-slate-50">
         <div class="w-full max-w-sm">
             <div class="lg:hidden flex items-center justify-center gap-2 mb-8">
-                <div class="h-10 w-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-extrabold text-xl">A</div>
-                <span class="text-2xl font-bold tracking-tight text-slate-900">Aski</span>
+                @if (Brand.HasLogo)
+                {
+                    <img src="@Brand.LogoUrl" alt="logo" class="h-10 w-10 rounded-xl object-contain" />
+                }
+                else
+                {
+                    <div class="h-10 w-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-extrabold text-xl">@(string.IsNullOrEmpty(Brand.Name) ? "A" : Brand.Name[..1].ToUpper())</div>
+                }
+                <span class="text-2xl font-bold tracking-tight text-slate-900">@Brand.Name</span>
             </div>
 
             <h2 class="text-2xl font-bold text-slate-900">Accedi</h2>
@@ -51,7 +68,7 @@
                     </button>
                 </div>
             </EditForm>
-            <p class="mt-8 text-center text-xs text-slate-400">Aski · Portale clienti</p>
+            <p class="mt-8 text-center text-xs text-slate-400">@Brand.Name · Portale clienti</p>
         </div>
     </div>
 </div>
@@ -61,6 +78,8 @@
     private string _password = "";
     private string? _error;
     private bool _busy;
+
+    protected override async Task OnInitializedAsync() => await Brand.EnsureLoadedAsync();
 
     private async Task DoLogin()
     {

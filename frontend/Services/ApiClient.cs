@@ -58,6 +58,10 @@ public sealed class ApiClient
         _http.PostAsync($"api/notifications/{id}/read", null);
     public Task<HttpResponseMessage> MarkAllNotificationsReadAsync() =>
         _http.PostAsync("api/notifications/read-all", null);
+    public Task<HttpResponseMessage> DeleteNotificationAsync(int id) =>
+        _http.DeleteAsync($"api/notifications/{id}");
+    public Task<HttpResponseMessage> DeleteAllNotificationsAsync() =>
+        _http.DeleteAsync("api/notifications");
 
     public Task<HttpResponseMessage> UploadAttachmentAsync(int id, MultipartFormDataContent content) =>
         _http.PostAsync($"api/tickets/{id}/attachments", content);

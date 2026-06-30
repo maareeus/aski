@@ -2,50 +2,62 @@
 @inject ApiClient Api
 @inject NavigationManager Nav
 
-<div class="relative">
-    <button @onclick="Toggle" class="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700">
-        <span class="text-lg">🔔</span>
-        @if (_count > 0)
-        {
-            <span class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center px-1">@(_count > 99 ? "99+" : _count.ToString())</span>
-        }
-    </button>
-
-    @if (_open)
+<button @onclick="Open" class="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700" title="Notifiche">
+    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m6.714 0a3 3 0 1 1-6.714 0m6.714 0a24.255 24.255 0 0 1-6.714 0" />
+    </svg>
+    @if (_count > 0)
     {
-        <div class="absolute right-0 mt-2 w-80 rounded-xl border border-slate-200 bg-white shadow-xl z-50">
-            <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-                <span class="font-semibold text-slate-900 text-sm">Notifiche</span>
-                @if (_count > 0) { <button @onclick="MarkAll" class="text-xs text-indigo-600 hover:underline">Segna tutte lette</button> }
+        <span class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center px-1">@(_count > 99 ? "99+" : _count.ToString())</span>
+    }
+</button>
+
+@if (_open)
+{
+    <div class="fixed inset-0 z-50">
+        <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @onclick="Close"></div>
+        <div class="absolute top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+                <h3 class="font-semibold text-slate-900">Notifiche</h3>
+                <div class="flex items-center gap-3">
+                    @if (_items.Count > 0) { <button @onclick="DeleteAll" class="text-xs text-indigo-600 hover:underline">Segna tutte lette</button> }
+                    <button @onclick="Close" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
+                </div>
             </div>
-            <div class="max-h-96 overflow-y-auto">
-                @if (_items.Count == 0)
+            <div class="flex-1 overflow-y-auto">
+                @if (_loading)
                 {
-                    <p class="px-4 py-6 text-center text-sm text-slate-400">Nessuna notifica.</p>
+                    <p class="px-5 py-8 text-center text-sm text-slate-400">Caricamento…</p>
+                }
+                else if (_items.Count == 0)
+                {
+                    <p class="px-5 py-12 text-center text-sm text-slate-400">Nessuna notifica.</p>
                 }
                 else
                 {
                     @foreach (var n in _items)
                     {
-                        <button @onclick="() => Open(n)" class="w-full text-left px-4 py-3 border-b border-slate-50 hover:bg-slate-50 @(n.IsRead ? "" : "bg-indigo-50/40")">
-                            <div class="flex items-start gap-2">
-                                <span class="text-base leading-none mt-0.5">@Icon(n.Type)</span>
-                                <div class="min-w-0">
-                                    <p class="text-sm text-slate-700">@n.Message</p>
-                                    <p class="text-[11px] text-slate-400">@n.CreatedAtUtc.ToLocalTime().ToString("dd/MM HH:mm")</p>
-                                </div>
-                                @if (!n.IsRead) { <span class="ml-auto mt-1 h-2 w-2 rounded-full bg-indigo-600 shrink-0"></span> }
-                            </div>
-                        </button>
+                        <div class="flex items-start gap-3 px-5 py-3 border-b border-slate-50 hover:bg-slate-50">
+                            <span class="text-base leading-none mt-0.5">@Icon(n.Type)</span>
+                            <button @onclick="() => Go(n)" class="min-w-0 flex-1 text-left">
+                                <p class="text-sm text-slate-700">@n.Message</p>
+                                <p class="text-[11px] text-slate-400">@n.CreatedAtUtc.ToLocalTime().ToString("dd/MM HH:mm")</p>
+                            </button>
+                            <button @onclick="() => Remove(n)" title="Segna come letta" class="shrink-0 rounded-md p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                </svg>
+                            </button>
+                        </div>
                     }
                 }
             </div>
         </div>
-    }
-</div>
+    </div>
+}
 
 @code {
-    private bool _open;
+    private bool _open, _loading;
     private int _count;
     private List<NotificationDto> _items = new();
     private System.Threading.Timer? _timer;
@@ -62,24 +74,35 @@
         if (c != _count) { _count = c; StateHasChanged(); }
     }
 
-    private async Task Toggle()
+    private async Task Open()
     {
-        _open = !_open;
-        if (_open) { _items = await Api.GetNotificationsAsync(); StateHasChanged(); }
+        _open = true; _loading = true; StateHasChanged();
+        _items = await Api.GetNotificationsAsync();
+        _loading = false; StateHasChanged();
     }
 
-    private async Task Open(NotificationDto n)
+    private void Close() => _open = false;
+
+    private async Task Go(NotificationDto n)
     {
-        if (!n.IsRead) { await Api.MarkNotificationReadAsync(n.Id); }
+        await Api.DeleteNotificationAsync(n.Id);
+        _items.Remove(n);
         _open = false;
         await Refresh();
         Nav.NavigateTo($"tickets/{n.TicketId}");
     }
 
-    private async Task MarkAll()
+    private async Task Remove(NotificationDto n)
     {
-        await Api.MarkAllNotificationsReadAsync();
-        _items = _items.Select(n => n with { IsRead = true }).ToList();
+        await Api.DeleteNotificationAsync(n.Id);
+        _items.Remove(n);
+        await Refresh();
+    }
+
+    private async Task DeleteAll()
+    {
+        await Api.DeleteAllNotificationsAsync();
+        _items.Clear();
         await Refresh();
     }
 

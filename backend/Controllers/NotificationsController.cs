@@ -59,4 +59,24 @@ public sealed class NotificationsController : ControllerBase
             .ExecuteUpdateAsync(s => s.SetProperty(n => n.IsRead, true), ct);
         return NoContent();
     }
+
+    /// <summary>Segna come letta = rimuove la notifica.</summary>
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id, CancellationToken ct)
+    {
+        var uid = User.Id();
+        var n = await _db.Notifications.FirstOrDefaultAsync(x => x.Id == id && x.UserId == uid, ct);
+        if (n is null) return NotFound();
+        _db.Notifications.Remove(n);
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    [HttpDelete]
+    public async Task<IActionResult> DeleteAll(CancellationToken ct)
+    {
+        var uid = User.Id();
+        await _db.Notifications.Where(n => n.UserId == uid).ExecuteDeleteAsync(ct);
+        return NoContent();
+    }
 }

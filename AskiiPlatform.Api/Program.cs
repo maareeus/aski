@@ -61,6 +61,7 @@ builder.Services.AddDbContext<AppDbContext>(o =>
 // 4. REGISTRAZIONE SERVIZI (DI)
 // Risolve l'errore di avvio "UNKNOWN parameter TokenService"
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddSingleton<Askii.Database.Entities.Options>();
 
 // 5. AUTENTICAZIONE E AUTORIZZAZIONE
 JwtAuthorization.Init(builder);
@@ -82,6 +83,8 @@ app.UseAuthorization();
 // 7. INIZIALIZZAZIONE DB
 // Inizializzazione WAL e ottimizzazioni globali del file DB
 await DbIniializer.Init(app);
+var appOptions = app.Services.GetRequiredService<Askii.Database.Entities.Options>();
+await appOptions.Seed();
 
 // 8. MAPPATURA ENDPOINT E GRUPPI
 var apiVersionSet = app.NewApiVersionSet()
@@ -95,6 +98,7 @@ var versionedGroup = app.MapGroup("/api/v{version:apiVersion}")
 // Mappa i tuoi endpoint (Assicurati che MapAuth contenga i tuoi vari MapPost)
 versionedGroup.MapAuth();
 versionedGroup.MapUsers();
+versionedGroup.MapSettings();
 
 // 9. DOCUMENTAZIONE API E SCALAR UI
 // Espone /openapi/{documentName}.json; WithDocumentPerVersion applica le

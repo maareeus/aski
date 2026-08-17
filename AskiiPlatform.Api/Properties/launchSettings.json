@@ -9,7 +9,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "InitialAdmin__Email": "admin@dev.it",
-        "InitialAdmin__Password": "SOSTITUIRE-password-admin-dev",
+        "InitialAdmin__Password": "Password123%",
         "InitialAdmin__FirstName": "Mario",
         "InitialAdmin__LastName": "Rossi"
       }

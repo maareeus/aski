@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Askii.Common.Extensions;
 using Askii.Common.Helpers;
 using Askii.Database;
@@ -30,7 +31,7 @@ public static class CreateUserEndpoint
 
         user = User.Create(
             email: normalizedEmail,
-            password: req.Password,
+            password: SecretGenerator.TemporaryPassword(),
             name: req.Name,
             lastName: req.LastName,
             role: req.Role
@@ -57,8 +58,7 @@ public record CreateUserRequest(
     string? Name,
     string? LastName,
     string Role,
-    bool IsActive,
-    string Password
+    bool IsActive
 );
 
 public record CreateUserResult(

@@ -1,4 +1,5 @@
 using Askii.Common;
+using Askii.Common.Exceptions;
 using Askii.Database.Entities;
 using Askii.Features.Auth.Login;
 using Askii.Features.Users.ActivateUser;
@@ -39,31 +40,8 @@ public class KnownIssuesTests
         using var ctx = new TestDb();
 
         await Assert.ThrowsAsync<NullReferenceException>(() => CreateUserEndpoint.Impl(
-            new CreateUserRequest(null!, "N", "U", Roles.Client, false, "Password123!"),
+            new CreateUserRequest(null!, "N", "U", Roles.Client, false),
             ctx.Db, CancellationToken.None));
-    }
-
-    [Fact]
-    public async Task BUG4_create_con_password_null_solleva_ArgumentNullException()
-    {
-        using var ctx = new TestDb();
-
-        await Assert.ThrowsAnyAsync<ArgumentException>(() => CreateUserEndpoint.Impl(
-            new CreateUserRequest("nuovo@example.com", "N", "U", Roles.Client, false, null!),
-            ctx.Db, CancellationToken.None));
-    }
-
-    [Fact]
-    public async Task BUG4_create_accetta_una_password_vuota()
-    {
-        using var ctx = new TestDb();
-
-        var result = await CreateUserEndpoint.Impl(
-            new CreateUserRequest("nuovo@example.com", "N", "U", Roles.Client, false, ""),
-            ctx.Db, CancellationToken.None);
-
-        // Nessun requisito minimo sulla password.
-        Assert.IsType<Ok<CreateUserResult>>(result);
     }
 
     // =====================================================================
@@ -77,12 +55,40 @@ public class KnownIssuesTests
         using var ctx = new TestDb();
 
         var result = await CreateUserEndpoint.Impl(
-            new CreateUserRequest("Mario Rossi <mario@example.com>", "N", "U", Roles.Client, false, "Password123!"),
+            new CreateUserRequest("Mario Rossi <mario@example.com>", "N", "U", Roles.Client, false),
             ctx.Db, CancellationToken.None);
 
         Assert.IsType<Ok<CreateUserResult>>(result);
         ctx.Detach();
         Assert.Equal("mario rossi <mario@example.com>", (await ctx.Db.Users.SingleAsync()).Email);
+    }
+
+    // =====================================================================
+    // #11 - CreateUser genera una password temporanea che non restituisce e
+    //       non comunica a nessuno: l'utente creato non può autenticarsi.
+    //       Manca il flusso di attivazione che gliela faccia impostare.
+    // =====================================================================
+
+    [Fact]
+    public async Task BUG11_la_password_generata_non_e_recuperabile_da_nessuna_parte()
+    {
+        using var ctx = new TestDb();
+
+        var result = await CreateUserEndpoint.Impl(
+            new CreateUserRequest("nuovo@example.com", "N", "U", Roles.Client, IsActive: true),
+            ctx.Db, CancellationToken.None);
+
+        var ok = Assert.IsType<Ok<CreateUserResult>>(result);
+
+        // CreateUserResult non ha alcun campo per la password generata, e non
+        // esiste un mailer in ExternalServices: il valore è perso alla creazione.
+        Assert.DoesNotContain("password", ok.Value!.GetType()
+            .GetProperties().Select(p => p.Name.ToLowerInvariant()));
+
+        ctx.Detach();
+        var salvato = await ctx.Db.Users.SingleAsync();
+        Assert.True(salvato.IsActive);
+        Assert.StartsWith("$2", salvato.PasswordHash); // l'hash c'è, il valore in chiaro no
     }
 
     // =====================================================================
@@ -107,23 +113,29 @@ public class KnownIssuesTests
     }
 
     // =====================================================================
-    // #7 - UpdateUser chiama SetEmail senza normalizzare né validare né
-    //      controllare i duplicati: aggira tutti i controlli di CreateUser.
+    // #7 - UpdateUser non fa il controllo preventivo di unicità che fa
+    //      CreateUser, e non usa il proprio UpdateUserResponse.InvalidEmail().
     // =====================================================================
 
     [Fact]
-    public async Task BUG7_update_accetta_un_email_sintatticamente_invalida()
+    public async Task BUG7_update_con_email_invalida_non_usa_il_messaggio_dedicato()
     {
         using var ctx = new TestDb();
         var user = await ctx.SeedUserAsync("mario@example.com");
 
-        var result = await UpdateUserEndpoint.Impl(
+        // SetEmail valida e lancia InvalidEmailException (DomainException),
+        // che risale al GlobalExceptionHandler -> 400 "Violazione regola di
+        // business". UpdateUserResponse.InvalidEmail() resta codice morto e
+        // l'endpoint non restituisce mai il suo messaggio.
+        var ex = await Assert.ThrowsAnyAsync<DomainException>(() => UpdateUserEndpoint.Impl(
             new UpdateUserRequest(user.Id, "non-una-email", null, null, null),
-            ctx.Db, CancellationToken.None);
+            ctx.Db, CancellationToken.None));
 
-        Assert.IsType<Ok<UpdateUserResponse>>(result);
+        Assert.Contains("non è valida", ex.Message);
+        Assert.NotEqual(UpdateUserResponse.InvalidEmail().msg, ex.Message);
+
         ctx.Detach();
-        Assert.Equal("non-una-email", (await ctx.Db.Users.SingleAsync()).Email);
+        Assert.Equal("mario@example.com", (await ctx.Db.Users.SingleAsync()).Email);
     }
 
     [Fact]

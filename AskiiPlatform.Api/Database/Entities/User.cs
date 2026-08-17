@@ -68,6 +68,7 @@ public class User : BaseEntity
 
     public void SetEmail(string email)
     {
+        if(!email.NormalizeEmail().IsValidEmail()) throw new InvalidEmailException(email.NormalizeEmail());
         Email = email.NormalizeEmail();
     }
 

@@ -14,12 +14,23 @@ public class CreateUserEndpointTests
         string? name = "Nuovo",
         string? lastName = "Utente",
         string role = Roles.Client,
-        bool isActive = false,
-        string password = "Password123!")
+        bool isActive = false)
         => CreateUserEndpoint.Impl(
-            new CreateUserRequest(email, name, lastName, role, isActive, password),
+            new CreateUserRequest(email, name, lastName, role, isActive),
             ctx.Db,
             CancellationToken.None);
+
+    /// <summary>
+    /// Create genera una password casuale che non restituisce: per poter testare
+    /// il login si reimposta un valore noto direttamente sull'entità.
+    /// </summary>
+    private static async Task ImpostaPasswordNotaAsync(TestDb ctx, string password)
+    {
+        var salvato = await ctx.Db.Users.SingleAsync();
+        salvato.SetPassword(password);
+        await ctx.Db.SaveChangesAsync();
+        ctx.Detach();
+    }
 
     [Fact]
     public async Task Create_con_dati_validi_ritorna_200_e_persiste_l_utente()
@@ -59,12 +70,27 @@ public class CreateUserEndpointTests
     }
 
     [Fact]
-    public async Task Un_utente_creato_attivo_puo_loggarsi_subito()
+    public async Task Create_genera_una_password_casuale_diversa_per_ogni_utente()
     {
         using var ctx = new TestDb();
 
-        await Create(ctx, "attivo@example.com", isActive: true, password: "Password123!");
+        await Create(ctx, "a@example.com");
+        await Create(ctx, "b@example.com");
         ctx.Detach();
+
+        var utenti = await ctx.Db.Users.ToListAsync();
+        Assert.All(utenti, u => Assert.StartsWith("$2", u.PasswordHash));
+        Assert.NotEqual(utenti[0].PasswordHash, utenti[1].PasswordHash);
+    }
+
+    [Fact]
+    public async Task Un_utente_creato_attivo_puo_loggarsi_una_volta_nota_la_password()
+    {
+        using var ctx = new TestDb();
+
+        await Create(ctx, "attivo@example.com", isActive: true);
+        ctx.Detach();
+        await ImpostaPasswordNotaAsync(ctx, "Password123!");
 
         var result = await Askii.Features.Auth.Login.LoginEndpoint.Impl(
             new Askii.Features.Auth.Login.LoginRequest("attivo@example.com", "Password123!"),
@@ -89,14 +115,9 @@ public class CreateUserEndpointTests
     {
         using var ctx = new TestDb();
 
-        await Create(ctx, "Mario.Rossi@Example.COM", password: "Password123!");
-
-        // Attivazione a mano: Create ignora IsActive (vedi KnownIssuesTests #2).
+        await Create(ctx, "Mario.Rossi@Example.COM", isActive: true);
         ctx.Detach();
-        var salvato = await ctx.Db.Users.SingleAsync();
-        salvato.IsActive = true;
-        await ctx.Db.SaveChangesAsync();
-        ctx.Detach();
+        await ImpostaPasswordNotaAsync(ctx, "Password123!");
 
         var result = await Askii.Features.Auth.Login.LoginEndpoint.Impl(
             new Askii.Features.Auth.Login.LoginRequest("Mario.Rossi@Example.COM", "Password123!"),
@@ -106,16 +127,16 @@ public class CreateUserEndpointTests
     }
 
     [Fact]
-    public async Task Create_salva_la_password_come_hash_verificabile()
+    public async Task Create_non_salva_la_password_in_chiaro()
     {
         using var ctx = new TestDb();
 
-        await Create(ctx, password: "Password123!");
+        await Create(ctx);
 
         ctx.Detach();
         var salvato = await ctx.Db.Users.SingleAsync();
-        Assert.NotEqual("Password123!", salvato.PasswordHash);
-        Assert.True(salvato.VerifyPassword("Password123!"));
+        Assert.StartsWith("$2", salvato.PasswordHash);  // hash BCrypt
+        Assert.Equal(60, salvato.PasswordHash.Length);
     }
 
     [Theory]

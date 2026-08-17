@@ -24,7 +24,10 @@ public static class UpdateUserEndpoint
             return ResultsHelper.BadRequest(UpdateUserResponse.UserNotFound().msg);
         }
 
-        if(req.Email is not null) user.SetEmail(req.Email);
+        if(req.Email is not null)
+        {
+            user.SetEmail(req.Email);
+        }
         if(req.Name is not null) user.Name = req.Name;
         if(req.LastName is not null) user.LastName = req.LastName;
         if(req.Role is not null) user.UpdateRole(req.Role);
@@ -50,4 +53,5 @@ public record UpdateUserResponse(bool result, string msg)
     public static UpdateUserResponse Ko() => new UpdateUserResponse(false, "Errore durante la modifica dell'utente");
     public static UpdateUserResponse Unauthorized() => new UpdateUserResponse(false, "Non hai i permessi per modificare la risorsa");
     public static UpdateUserResponse UserNotFound() => new UpdateUserResponse(false, "Utente non trovato");
+    public static UpdateUserResponse InvalidEmail() => new UpdateUserResponse(false, "La mail inserita non è valida");
 }

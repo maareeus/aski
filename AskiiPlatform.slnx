@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="AskiiPlatform.Api/AskiiPlatform.Api.csproj" />
+  <Project Path="AskiiPlatform.Api.Tests/AskiiPlatform.Api.Tests.csproj" />
+</Solution>

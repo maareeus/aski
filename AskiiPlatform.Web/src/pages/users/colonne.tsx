@@ -39,13 +39,13 @@ export function colonneUtenti(): ColonnaUtente[] {
     {
       accessorKey: 'fullName',
       header: 'Nome',
-      meta: { sort: 'cognome' },
+      meta: { sort: 'lastname' },
       cell: ({ row }) => row.original.fullName || <span className="text-muted-foreground">—</span>,
     },
     {
       accessorKey: 'role',
       header: 'Ruolo',
-      meta: { sort: 'ruolo' },
+      meta: { sort: 'role' },
       cell: ({ row }) => (
         <Badge variant={row.original.role === 'Admin' ? 'default' : 'secondary'}>
           {row.original.role}
@@ -55,7 +55,7 @@ export function colonneUtenti(): ColonnaUtente[] {
     {
       accessorKey: 'isActive',
       header: 'Stato',
-      meta: { sort: 'stato' },
+      meta: { sort: 'status' },
       cell: ({ row }) =>
         row.original.isActive ? (
           <span className="text-foreground inline-flex items-center gap-1.5 text-sm">
@@ -72,7 +72,7 @@ export function colonneUtenti(): ColonnaUtente[] {
     {
       accessorKey: 'lastLoginUtc',
       header: 'Ultimo accesso',
-      meta: { sort: 'ultimoaccesso', classe: 'hidden lg:table-cell' },
+      meta: { sort: 'lastlogin', classe: 'hidden lg:table-cell' },
       cell: ({ row }) => (
         <span className="text-muted-foreground text-sm">{dataOra(row.original.lastLoginUtc)}</span>
       ),

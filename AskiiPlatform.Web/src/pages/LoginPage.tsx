@@ -111,7 +111,7 @@ export function LoginPage() {
 
         <p className="text-muted-foreground text-center text-sm">
           Devi attivare un account appena creato?{' '}
-          <Link to="/attiva" className="text-foreground underline underline-offset-4">
+          <Link to="/activate" className="text-foreground underline underline-offset-4">
             Vai all'attivazione
           </Link>
         </p>

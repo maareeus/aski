@@ -15,7 +15,7 @@ export function UserCreatePage() {
     <>
       <div className="mb-4">
         <Button asChild variant="ghost" size="sm" className="-ml-2">
-          <Link to="/utenti">
+          <Link to="/users">
             <ArrowLeft />
             Elenco utenti
           </Link>
@@ -45,7 +45,7 @@ export function UserCreatePage() {
 
             // Si va al dettaglio dell'utente creato: è lì che si reimposta la
             // password, unico modo per rendere l'account utilizzabile.
-            if (esito) navigate(`/utenti/${esito.id}`, { replace: true })
+            if (esito) navigate(`/users/${esito.id}`, { replace: true })
           }}
         />
       </div>

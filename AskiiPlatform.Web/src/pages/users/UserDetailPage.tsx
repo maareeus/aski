@@ -82,7 +82,7 @@ export function UserDetailPage() {
             {risorsa.errore ?? 'Nessun utente con questo identificativo.'}
           </Esito>
           <Button asChild variant="outline">
-            <Link to="/utenti">
+            <Link to="/users">
               <ArrowLeft />
               Torna all'elenco
             </Link>
@@ -105,7 +105,7 @@ export function UserDetailPage() {
     <>
       <div className="mb-4">
         <Button asChild variant="ghost" size="sm" className="-ml-2">
-          <Link to="/utenti">
+          <Link to="/users">
             <ArrowLeft />
             Elenco utenti
           </Link>
@@ -221,7 +221,7 @@ export function UserDetailPage() {
                     <AlertDialogAction
                       onClick={async () => {
                         const esito = await elimina.esegui({ userId: utente.id })
-                        if (esito?.result) navigate('/utenti', { replace: true })
+                        if (esito?.result) navigate('/users', { replace: true })
                       }}
                     >
                       Elimina definitivamente

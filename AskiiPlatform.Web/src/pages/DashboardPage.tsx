@@ -30,14 +30,14 @@ interface Azione {
 
 const AZIONI: Azione[] = [
   {
-    to: '/utenti/nuovo',
+    to: '/users/new',
     label: 'Nuovo utente',
     descrizione: 'Crea un account e ottieni il suo identificativo',
     icon: UserPlus,
     soloAdmin: true,
   },
   {
-    to: '/utenti',
+    to: '/users',
     label: 'Gestione utenti',
     descrizione: 'Elenco, dettaglio, modifica, attivazione ed eliminazione',
     icon: Users,

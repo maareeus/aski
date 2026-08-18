@@ -19,23 +19,23 @@ public static class ListUsersEndpoint
                 ? q.OrderByDescending(u => u.Email).ThenBy(u => u.Id)
                 : q.OrderBy(u => u.Email).ThenBy(u => u.Id),
 
-            ["cognome"] = (q, desc) => desc
+            ["lastname"] = (q, desc) => desc
                 ? q.OrderByDescending(u => u.LastName).ThenBy(u => u.Id)
                 : q.OrderBy(u => u.LastName).ThenBy(u => u.Id),
 
-            ["ruolo"] = (q, desc) => desc
+            ["role"] = (q, desc) => desc
                 ? q.OrderByDescending(u => u.Role).ThenBy(u => u.Id)
                 : q.OrderBy(u => u.Role).ThenBy(u => u.Id),
 
-            ["stato"] = (q, desc) => desc
+            ["status"] = (q, desc) => desc
                 ? q.OrderByDescending(u => u.IsActive).ThenBy(u => u.Id)
                 : q.OrderBy(u => u.IsActive).ThenBy(u => u.Id),
 
-            ["ultimoaccesso"] = (q, desc) => desc
+            ["lastlogin"] = (q, desc) => desc
                 ? q.OrderByDescending(u => u.LastLoginUtc).ThenBy(u => u.Id)
                 : q.OrderBy(u => u.LastLoginUtc).ThenBy(u => u.Id),
 
-            ["creazione"] = (q, desc) => desc
+            ["created"] = (q, desc) => desc
                 ? q.OrderByDescending(u => u.CreatedAtUtc).ThenBy(u => u.Id)
                 : q.OrderBy(u => u.CreatedAtUtc).ThenBy(u => u.Id),
         });

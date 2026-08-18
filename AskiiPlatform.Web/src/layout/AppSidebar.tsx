@@ -34,12 +34,12 @@ const SEZIONI: { titolo: string; voci: Voce[] }[] = [
   },
   {
     titolo: 'Gestione',
-    voci: [{ to: '/utenti', label: 'Utenti', icon: Users, soloAdmin: true }],
+    voci: [{ to: '/users', label: 'Utenti', icon: Users, soloAdmin: true }],
   },
   {
     titolo: 'Il mio account',
     voci: [
-      { to: '/profilo', label: 'Profilo e 2FA', icon: ShieldCheck },
+      { to: '/profile', label: 'Profilo e 2FA', icon: ShieldCheck },
       { to: '/password', label: 'Cambia password', icon: KeyRound },
     ],
   },

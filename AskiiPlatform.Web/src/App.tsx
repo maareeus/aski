@@ -21,18 +21,18 @@ export default function App() {
 
           {/* L'endpoint di attivazione è anonimo: la pagina resta fuori
               dall'area protetta, per l'utente che attiva il proprio account. */}
-          <Route path="/attiva" element={<ActivateUserPage />} />
+          <Route path="/activate" element={<ActivateUserPage />} />
 
           <Route element={<RequireAuth />}>
             <Route element={<AppLayout />}>
               <Route index element={<DashboardPage />} />
-              <Route path="profilo" element={<ProfilePage />} />
+              <Route path="profile" element={<ProfilePage />} />
               <Route path="password" element={<ChangePasswordPage />} />
 
-              <Route path="utenti" element={<RequireAdmin />}>
+              <Route path="users" element={<RequireAdmin />}>
                 <Route index element={<UsersListPage />} />
-                <Route path="nuovo" element={<UserCreatePage />} />
-                {/* Il segmento statico "nuovo" vince comunque sul dinamico:
+                <Route path="new" element={<UserCreatePage />} />
+                {/* Il segmento statico "new" vince comunque sul dinamico:
                     react-router ordina per specificità, non per dichiarazione. */}
                 <Route path=":id" element={<UserDetailPage />} />
               </Route>

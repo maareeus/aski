@@ -92,7 +92,7 @@ export function UsersListPage() {
         descrizione="Ricerca, filtri, ordinamento e paginazione sono eseguiti dall'API."
       >
         <Button asChild>
-          <Link to="/utenti/nuovo">
+          <Link to="/users/new">
             <UserPlus />
             Nuovo utente
           </Link>
@@ -248,7 +248,7 @@ export function UsersListPage() {
                     tabella.getRowModel().rows.map((riga) => (
                       <TableRow
                         key={riga.id}
-                        onClick={() => navigate(`/utenti/${riga.original.id}`)}
+                        onClick={() => navigate(`/users/${riga.original.id}`)}
                         className="cursor-pointer"
                       >
                         {riga.getVisibleCells().map((cella) => {

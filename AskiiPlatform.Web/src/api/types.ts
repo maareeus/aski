@@ -47,7 +47,7 @@ export interface PagedResult<T> {
 // --- /user/admin/list ---
 
 /** Chiavi di ordinamento accettate dalla SortMap dell'endpoint. */
-export const USER_SORT = ['email', 'cognome', 'ruolo', 'stato', 'ultimoaccesso', 'creazione'] as const
+export const USER_SORT = ['email', 'lastname', 'role', 'status', 'lastlogin', 'created'] as const
 export type UserSort = (typeof USER_SORT)[number]
 
 export interface UserListQuery {

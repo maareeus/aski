@@ -109,7 +109,7 @@ public class ListUsersEndpointTests
         var raccolte = new List<string>();
         for (var p = 1; p <= 4; p++)
         {
-            raccolte.AddRange(Estrai(await Lista(ctx, sort: "ruolo", pageSize: 3, page: p)).Items.Select(u => u.Email));
+            raccolte.AddRange(Estrai(await Lista(ctx, sort: "role", pageSize: 3, page: p)).Items.Select(u => u.Email));
         }
 
         Assert.Equal(12, raccolte.Distinct().Count());

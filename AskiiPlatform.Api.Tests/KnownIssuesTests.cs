@@ -127,8 +127,8 @@ public class KnownIssuesTests
         // che risale al GlobalExceptionHandler -> 400 "Violazione regola di
         // business". UpdateUserResponse.InvalidEmail() resta codice morto e
         // l'endpoint non restituisce mai il suo messaggio.
-        var ex = await Assert.ThrowsAnyAsync<DomainException>(() => UpdateUserEndpoint.Impl(
-            new UpdateUserRequest(user.Id, "non-una-email", null, null, null),
+        var ex = await Assert.ThrowsAnyAsync<DomainException>(() => UpdateUserEndpoint.AdminImpl(
+            new UpdateUserRequest(user.Id, "non-una-email", null, null, null, null),
             ctx.Db, CancellationToken.None));
 
         Assert.Contains("non è valida", ex.Message);
@@ -148,8 +148,8 @@ public class KnownIssuesTests
         // L'indice univoco protegge i dati, ma UpdateUser non fa il controllo
         // preventivo che CreateUser fa: l'errore arriva dal db come
         // DbUpdateException, quindi 500 anziché un 409 con messaggio utile.
-        await Assert.ThrowsAsync<DbUpdateException>(() => UpdateUserEndpoint.Impl(
-            new UpdateUserRequest(a.Id, "b@example.com", null, null, null),
+        await Assert.ThrowsAsync<DbUpdateException>(() => UpdateUserEndpoint.AdminImpl(
+            new UpdateUserRequest(a.Id, "b@example.com", null, null, null, null),
             ctx.Db, CancellationToken.None));
     }
 

@@ -11,7 +11,7 @@ public static class UserEndpoint
 {
     public static void MapUsers(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/user/create", CreateUserEndpoint.Impl)
+        app.MapPost("/user/admin/create", CreateUserEndpoint.Impl)
             .RequireAuthorization(JwtAuthorization.PolicyLevel.AdminPolicy)
             .MapToApiVersion(1);
 
@@ -19,7 +19,7 @@ public static class UserEndpoint
             .AllowAnonymous()
             .MapToApiVersion(1);
 
-        app.MapPost("/user/delete", DeleteUserEndpoint.Impl)
+        app.MapPost("/user/admin/delete", DeleteUserEndpoint.Impl)
             .RequireAuthorization(JwtAuthorization.PolicyLevel.AdminPolicy)
             .MapToApiVersion(1);
 
@@ -27,8 +27,12 @@ public static class UserEndpoint
             .RequireAuthorization(JwtAuthorization.PolicyLevel.UserPolicy)
             .MapToApiVersion(1);
 
-        app.MapPost("/user/update", UpdateUserEndpoint.Impl)
+        app.MapPost("/user/admin/update", UpdateUserEndpoint.AdminImpl)
             .RequireAuthorization(JwtAuthorization.PolicyLevel.AdminPolicy)
+            .MapToApiVersion(1);
+
+            app.MapPost("/user/update", UpdateUserEndpoint.UserImpl)
+            .RequireAuthorization(JwtAuthorization.PolicyLevel.UserPolicy)
             .MapToApiVersion(1);
     }
 }

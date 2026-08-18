@@ -1,0 +1,35 @@
+/* Solo aggiustamenti di layout: i colori, i font e i componenti restano
+   quelli di Bootstrap Italia, per non divergere dal design system. */
+
+.sidebar-wrapper {
+  background-color: var(--bs-white);
+}
+
+/* La sidebar affianca il contenuto e resta visibile allo scorrimento */
+@media (min-width: 992px) {
+  .sidebar-wrapper {
+    position: sticky;
+    top: 1rem;
+  }
+}
+
+/* Le definition list del profilo: etichetta piccola sopra al valore */
+dl dt {
+  font-size: 0.777rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--bs-secondary);
+  margin-bottom: 0.125rem;
+}
+
+dl dd {
+  margin-bottom: 1rem;
+}
+
+code.user-select-all {
+  word-break: break-all;
+}
+
+main:focus {
+  outline: none;
+}

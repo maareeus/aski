@@ -2,6 +2,7 @@ using Askii.Common;
 using Askii.Common.Exceptions;
 using Askii.Common.Extensions;
 using Askii.Database.Entities.Common;
+using Askii.Features.Auth;
 
 namespace Askii.Database.Entities;
 
@@ -15,6 +16,12 @@ public class User : BaseEntity
     public bool IsSuperAdmin {get; private set;} = false;
     public bool IsActive {get;set;} = false;
     public DateTime? LastLoginUtc {get; private set;}
+
+    /// <summary>
+    /// Lista di metodi di 2FA disponibili, se almeno uno è presente la login ok
+    /// risponde con la lista di 2FA e non con il token
+    /// </summary>
+    public List<TFA_Available> TFA_Availables {get;set;}= new();
 
     public string FullName { get => $"{Name} {LastName}";}
 

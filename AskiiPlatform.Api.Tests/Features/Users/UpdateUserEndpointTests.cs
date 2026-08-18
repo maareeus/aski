@@ -1,5 +1,6 @@
 using Askii.Common;
 using Askii.Common.Exceptions;
+using Askii.Features.Auth;
 using Askii.Features.Users.UpdateUser;
 using Askii.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -10,9 +11,9 @@ public class UpdateUserEndpointTests
 {
     private static Task<IResult> Update(
         TestDb ctx, Guid id, string? email = null, string? name = null,
-        string? lastName = null, string? role = null)
-        => UpdateUserEndpoint.Impl(
-            new UpdateUserRequest(id, email, name, lastName, role),
+        string? lastName = null, string? role = null, List<TFA_Available>? tfa = null)
+        => UpdateUserEndpoint.AdminImpl(
+            new UpdateUserRequest(id, email, name, lastName, role, tfa),
             ctx.Db, CancellationToken.None);
 
     [Fact]

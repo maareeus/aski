@@ -55,5 +55,8 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(u => u.CreatedAtUtc)
             .IsRequired();
+
+        builder.Property(u => u.TFA_Availables)
+            .HasColumnType("TEXT");
     }
 }

@@ -21,6 +21,41 @@ npm run dev
 
 L'app risponde su `http://localhost:5173`.
 
+### Se Vite muore all'avvio con ENOSPC
+
+Su Linux il watch dei file usa inotify, che ha un tetto di **istanze per utente**
+(`fs.inotify.max_user_instances`, di default 128) facilmente saturato dai
+language server degli editor: superato il tetto, Vite termina all'avvio con
+`ENOSPC: System limit for number of file watchers reached`. Nota che il limite
+in causa è quello delle *istanze*, non `max_user_watches`.
+
+Il progetto usa il **polling**, che non passa da inotify e parte in ogni caso,
+quindi `npm run dev` funziona senza interventi.
+
+Per tornare al watch nativo, più leggero in CPU, va alzato il limite di sistema:
+
+```bash
+sudo sysctl -w fs.inotify.max_user_instances=512
+```
+
+Per renderlo permanente:
+
+```bash
+echo 'fs.inotify.max_user_instances=512' | sudo tee /etc/sysctl.d/99-inotify.conf
+```
+
+Poi si disattiva il polling:
+
+```bash
+VITE_POLLING=0 npm run dev
+```
+
+Per vedere quanto sei vicino al limite:
+
+```bash
+echo "limite: $(cat /proc/sys/fs/inotify/max_user_instances)"; for p in /proc/[0-9]*; do ls -l $p/fd 2>/dev/null | grep -c inotify; done | paste -sd+ | bc
+```
+
 ### Perché serve il proxy
 
 L'API **non ha CORS configurato**. Vite inoltra `/api` verso il backend

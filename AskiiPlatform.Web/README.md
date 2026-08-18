@@ -103,7 +103,6 @@ sarebbe più sicuro ma richiede una modifica lato backend.
 
 | Serve | Perché |
 |---|---|
-| `GET /user/admin/list` | popolare l'elenco utenti, oggi una pagina che dichiara il vincolo |
 | `GET /user/admin/{id}` | precompilare modifica ed eliminazione invece di far digitare il GUID |
 | `GET /me` | rileggere il profilo aggiornato invece di fidarsi della risposta di login |
 | lettura dei metodi 2FA | precompilare le caselle nel profilo: ora partono sempre vuote |

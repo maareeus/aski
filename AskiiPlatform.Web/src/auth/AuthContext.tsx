@@ -1,20 +1,14 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { authApi } from '@/api/endpoints'
 import { configureClient } from '@/api/client'
-import type { LoginResult, Role } from '@/api/types'
+import type { LoginResult } from '@/api/types'
 import { Roles } from '@/api/types'
-import { expiresAt, isExpired } from './jwt'
+import { expiresAt } from './jwt'
+import { leggiSessione, rimuoviSessione, salvaSessione } from './sessione'
+import type { Session } from './sessione'
 
-const STORAGE_KEY = 'askii.session'
-
-export interface Session {
-  token: string
-  userId: string
-  email: string
-  fullName: string
-  role: Role
-}
+export type { Session } from './sessione'
 
 export type LogoutReason = 'utente' | 'scaduta'
 
@@ -31,41 +25,18 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null)
 
-function leggiSessione(): Session | null {
-  const raw = localStorage.getItem(STORAGE_KEY)
-  if (!raw) return null
-  try {
-    const s = JSON.parse(raw) as Session
-    if (!s.token || isExpired(s.token)) {
-      localStorage.removeItem(STORAGE_KEY)
-      return null
-    }
-    return s
-  } catch {
-    localStorage.removeItem(STORAGE_KEY)
-    return null
-  }
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(leggiSessione)
   const [motivoUscita, setMotivoUscita] = useState<LogoutReason | null>(null)
 
-  // Il client legge il token da qui: con una ref evita di riconfigurarsi a ogni render.
-  const sessionRef = useRef(session)
-  sessionRef.current = session
-
   const logout = useCallback((motivo: LogoutReason = 'utente') => {
-    localStorage.removeItem(STORAGE_KEY)
+    rimuoviSessione()
     setSession(null)
     setMotivoUscita(motivo === 'utente' ? null : motivo)
   }, [])
 
   useEffect(() => {
-    configureClient({
-      readToken: () => sessionRef.current?.token ?? null,
-      onUnauthorized: () => logout('scaduta'),
-    })
+    configureClient({ onUnauthorized: () => logout('scaduta') })
   }, [logout])
 
   // Il token dura 8h e non è rinnovabile: alla scadenza si esce da soli,
@@ -93,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       fullName: res.fullName,
       role: res.role,
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(nuova))
+    salvaSessione(nuova)
     setMotivoUscita(null)
     setSession(nuova)
   }, [])

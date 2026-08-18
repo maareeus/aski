@@ -1,3 +1,4 @@
+import { tokenCorrente } from '@/auth/sessione'
 import type { ProblemDetails } from './types'
 
 const BASE = '/api/v1'
@@ -17,21 +18,17 @@ export class ApiError extends Error {
   }
 }
 
-type TokenReader = () => string | null
 type UnauthorizedHandler = () => void
 
-let readToken: TokenReader = () => null
+/**
+ * Il token NON passa da qui: viene letto da `tokenCorrente()` a ogni richiesta,
+ * così è disponibile anche prima che gli effect di AuthProvider siano girati.
+ * Resta configurabile solo la reazione al 401, che per definizione può avvenire
+ * soltanto dopo che una richiesta è partita.
+ */
 let onUnauthorized: UnauthorizedHandler = () => {}
 
-/**
- * Collega il client allo stato di autenticazione. Lo fa AuthProvider all'avvio,
- * così i moduli api/ non dipendono da React.
- */
-export function configureClient(opts: {
-  readToken: TokenReader
-  onUnauthorized: UnauthorizedHandler
-}) {
-  readToken = opts.readToken
+export function configureClient(opts: { onUnauthorized: UnauthorizedHandler }) {
   onUnauthorized = opts.onUnauthorized
 }
 
@@ -48,16 +45,15 @@ async function messaggioDiErrore(res: Response): Promise<string> {
   }
 }
 
-export async function post<TResponse>(path: string, body: unknown): Promise<TResponse> {
-  const token = readToken()
+async function invia<TResponse>(path: string, init: RequestInit): Promise<TResponse> {
+  const token = tokenCorrente()
 
   const res = await fetch(`${BASE}${path}`, {
-    method: 'POST',
+    ...init,
     headers: {
-      'Content-Type': 'application/json',
+      ...init.headers,
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify(body),
   })
 
   if (res.status === 401) {
@@ -74,4 +70,31 @@ export async function post<TResponse>(path: string, body: unknown): Promise<TRes
 
   if (res.status === 204) return undefined as TResponse
   return (await res.json()) as TResponse
+}
+
+export function post<TResponse>(path: string, body: unknown): Promise<TResponse> {
+  return invia<TResponse>(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
+
+export type QueryParams = Record<string, string | number | boolean | null | undefined>
+
+/**
+ * I parametri null, undefined e stringa vuota vengono omessi, non inviati vuoti:
+ * `?isActive=` fallisce il binding di `bool?` lato API con un 400, mentre
+ * "filtro non applicato" si esprime togliendo il parametro.
+ */
+export function get<TResponse>(path: string, params?: QueryParams): Promise<TResponse> {
+  const qs = new URLSearchParams()
+
+  for (const [chiave, valore] of Object.entries(params ?? {})) {
+    if (valore === null || valore === undefined || valore === '') continue
+    qs.set(chiave, String(valore))
+  }
+
+  const query = qs.toString()
+  return invia<TResponse>(query ? `${path}?${query}` : path, { method: 'GET' })
 }

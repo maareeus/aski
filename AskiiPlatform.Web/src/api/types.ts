@@ -33,6 +33,46 @@ export const TFA_LABELS: Record<TfaAvailable, string> = {
   [TfaAvailable.AuthenticatorApp]: 'App di authenticator',
 }
 
+/** Busta di risposta degli elenchi paginati (Common/Paging/PagedResult.cs). */
+export interface PagedResult<T> {
+  items: T[]
+  page: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+  hasPrevious: boolean
+  hasNext: boolean
+}
+
+// --- /user/admin/list ---
+
+/** Chiavi di ordinamento accettate dalla SortMap dell'endpoint. */
+export const USER_SORT = ['email', 'cognome', 'ruolo', 'stato', 'ultimoaccesso', 'creazione'] as const
+export type UserSort = (typeof USER_SORT)[number]
+
+export interface UserListQuery {
+  search?: string
+  role?: Role | ''
+  isActive?: boolean | ''
+  page?: number
+  pageSize?: number
+  sort?: UserSort
+  dir?: 'asc' | 'desc'
+}
+
+export interface UserListItem {
+  id: string
+  email: string
+  name: string
+  lastName: string
+  fullName: string
+  role: Role
+  isActive: boolean
+  isSuperAdmin: boolean
+  lastLoginUtc: string | null
+  createdAtUtc: string
+}
+
 // --- /auth/login ---
 
 export interface LoginRequest {

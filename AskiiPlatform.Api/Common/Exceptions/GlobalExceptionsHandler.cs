@@ -34,6 +34,17 @@ public class GlobalExceptionHandler(
                 Type = "https://datatracker.ietf.org/doc/html/rfc7231#section-6.5.1"
             },
 
+            // Richiesta malformata (es. query string che non si converte nel tipo
+            // atteso) -> 400. Senza questo ramo finirebbe nel 500 generico, e un
+            // errore del client verrebbe segnalato come guasto del server.
+            BadHttpRequestException badRequest => new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Richiesta non valida",
+                Detail = badRequest.Message,
+                Type = "https://datatracker.ietf.org/doc/html/rfc7231#section-6.5.1"
+            },
+
             // Qualsiasi altro errore non previsto (es. DB giù, NullReference) -> 500 Internal Server Error
             _ => new ProblemDetails
             {

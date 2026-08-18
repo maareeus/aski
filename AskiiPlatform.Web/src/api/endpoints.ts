@@ -1,6 +1,9 @@
-import { post } from './client'
+import { get, post } from './client'
 import type {
   ActivateUserRequest,
+  PagedResult,
+  UserListItem,
+  UserListQuery,
   ChangePasswordRequest,
   CreateUserRequest,
   CreateUserResult,
@@ -21,6 +24,10 @@ export const authApi = {
 }
 
 export const usersApi = {
+  /** Admin. Filtri, ordinamento e paginazione sono tutti lato server. */
+  list: (query: UserListQuery) =>
+    get<PagedResult<UserListItem>>('/user/admin/list', { ...query }),
+
   /** Admin. La password viene generata dal backend e non è restituita. */
   create: (body: CreateUserRequest) => post<CreateUserResult>('/user/admin/create', body),
 

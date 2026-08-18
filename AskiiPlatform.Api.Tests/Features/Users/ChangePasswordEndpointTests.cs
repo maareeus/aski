@@ -14,6 +14,7 @@ public class ChangePasswordEndpointTests
             new ChangePasswordRequest(targetId, password, rePassword, oldPassword),
             ctx.Db,
             TestFactory.Principal(callerId ?? targetId, callerRole),
+            TestFactory.Permessi(),
             CancellationToken.None);
 
     [Fact]

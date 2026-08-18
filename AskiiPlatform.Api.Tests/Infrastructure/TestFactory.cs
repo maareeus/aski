@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Askii.Common.Authorization;
 using Askii.Features.Auth;
 using Microsoft.Extensions.Configuration;
 
@@ -28,6 +29,12 @@ public static class TestFactory
         string? issuer = JwtIssuer,
         string? audience = JwtAudience)
         => new(Configuration(key, issuer, audience));
+
+    /// <summary>
+    /// Registro con la mappa predefinita: i test verificano l'assegnazione reale
+    /// dei permessi, non una inventata per l'occasione.
+    /// </summary>
+    public static IPermissionRegistry Permessi() => new PermissionRegistry();
 
     /// <summary>
     /// Utente autenticato come lo vede un endpoint: i claim usano i tipi che

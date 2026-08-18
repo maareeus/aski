@@ -2,6 +2,8 @@ using Askii.Common.Helpers;
 using Askii.Database;
 using Askii.ExternalServices;
 using Microsoft.EntityFrameworkCore;
+using Askii.Common.Validation;
+using FluentValidation;
 
 namespace Askii.Features.Users.ActivateUser;
 
@@ -110,3 +112,22 @@ public record ResendActivationRequest(Guid UserId);
 
 /// <summary>`code` è presente perché l'endpoint è riservato agli Admin.</summary>
 public record ResendActivationResponse(bool result, string msg, string code, bool emailSent);
+
+// --- validazione ---
+
+public class ActivateUserRequestValidator : AbstractValidator<ActivateUserRequest>
+{
+    public ActivateUserRequestValidator()
+    {
+        RuleFor(x => x.Code).NotEmpty().WithMessage("Il codice di attivazione è obbligatorio.");
+        RuleFor(x => x.Password).Password();
+        RuleFor(x => x.RePassword)
+            .Equal(x => x.Password).WithMessage("Le due password non corrispondono.");
+    }
+}
+
+public class ResendActivationRequestValidator : AbstractValidator<ResendActivationRequest>
+{
+    public ResendActivationRequestValidator()
+        => RuleFor(x => x.UserId).NotEmpty().WithMessage("L'identificativo dell'utente è obbligatorio.");
+}

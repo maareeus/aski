@@ -1,4 +1,4 @@
-using Askii.Authorization;
+using Askii.Common.Authorization;
 using Askii.Common.Validation;
 using Askii.Features.Settings.GetSettings;
 using Askii.Features.Settings.UpdateSettings;
@@ -10,12 +10,12 @@ public static class SettingsEndpoint
     public static void MapSettings(this IEndpointRouteBuilder app)
     {
         app.MapGet("/settings", GetSettingsEndpoint.Impl)
-            .RequireAuthorization(JwtAuthorization.PolicyLevel.AdminPolicy)
+            .RequirePermission(Permissions.Settings.Read)
             .MapToApiVersion(1);
 
         app.MapPost("/settings/update", UpdateSettingsEndpoint.Impl)
             .Validating<RouteHandlerBuilder, UpdateSettingsRequest>()
-            .RequireAuthorization(JwtAuthorization.PolicyLevel.AdminPolicy)
+            .RequirePermission(Permissions.Settings.Update)
             .MapToApiVersion(1);
     }
 }

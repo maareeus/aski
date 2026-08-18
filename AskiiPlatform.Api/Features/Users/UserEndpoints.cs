@@ -1,4 +1,4 @@
-using Askii.Authorization;
+using Askii.Common.Authorization;
 using Askii.Common.Validation;
 using Askii.Features.Users.ActivateUser;
 using Askii.Features.Users.ChangePassword;
@@ -21,24 +21,24 @@ public static class UserEndpoint
         // diventa una URL condivisibile e ricaricabile.
         // Profilo del chiamante, letto dal db e non dal token conservato in locale.
         app.MapGet("/user/me", MeEndpoint.Impl)
-            .RequireAuthorization(JwtAuthorization.PolicyLevel.UserPolicy)
+            .RequireAuthenticated()
             .MapToApiVersion(1);
 
         app.MapGet("/user/admin/stats", UserStatsEndpoint.Impl)
-            .RequireAuthorization(JwtAuthorization.PolicyLevel.AdminPolicy)
+            .RequirePermission(Permissions.Users.Read)
             .MapToApiVersion(1);
 
         app.MapGet("/user/admin/list", ListUsersEndpoint.Impl)
-            .RequireAuthorization(JwtAuthorization.PolicyLevel.AdminPolicy)
+            .RequirePermission(Permissions.Users.Read)
             .MapToApiVersion(1);
 
         app.MapGet("/user/admin/{id:guid}", GetUserEndpoint.Impl)
-            .RequireAuthorization(JwtAuthorization.PolicyLevel.AdminPolicy)
+            .RequirePermission(Permissions.Users.Read)
             .MapToApiVersion(1);
 
         app.MapPost("/user/admin/create", CreateUserEndpoint.Impl)
             .Validating<RouteHandlerBuilder, CreateUserRequest>()
-            .RequireAuthorization(JwtAuthorization.PolicyLevel.AdminPolicy)
+            .RequirePermission(Permissions.Users.Create)
             .MapToApiVersion(1);
 
         app.MapPost("/user/activate", ActivateUserEndpoint.Impl)
@@ -48,60 +48,60 @@ public static class UserEndpoint
 
         app.MapPost("/user/admin/activation/resend", ResendActivationEndpoint.Impl)
             .Validating<RouteHandlerBuilder, ResendActivationRequest>()
-            .RequireAuthorization(JwtAuthorization.PolicyLevel.AdminPolicy)
+            .RequirePermission(Permissions.Users.Activate)
             .MapToApiVersion(1);
 
         app.MapPost("/user/admin/delete", DeleteUserEndpoint.Impl)
             .Validating<RouteHandlerBuilder, DeleteUserRequest>()
-            .RequireAuthorization(JwtAuthorization.PolicyLevel.AdminPolicy)
+            .RequirePermission(Permissions.Users.Delete)
             .MapToApiVersion(1);
 
         app.MapPost("/user/changepassword", ChangePasswordEndpoint.Impl)
             .Validating<RouteHandlerBuilder, ChangePasswordRequest>()
-            .RequireAuthorization(JwtAuthorization.PolicyLevel.UserPolicy)
+            .RequireAuthenticated()
             .MapToApiVersion(1);
 
         app.MapPost("/user/admin/update", UpdateUserEndpoint.AdminImpl)
             .Validating<RouteHandlerBuilder, UpdateUserRequest>()
-            .RequireAuthorization(JwtAuthorization.PolicyLevel.AdminPolicy)
+            .RequirePermission(Permissions.Users.Update)
             .MapToApiVersion(1);
 
         app.MapPost("/user/update", UpdateUserEndpoint.UserImpl)
             .Validating<RouteHandlerBuilder, UpdateUserRequest>()
-            .RequireAuthorization(JwtAuthorization.PolicyLevel.UserPolicy)
+            .RequireAuthenticated()
             .MapToApiVersion(1);
 
         // --- configurazione della 2FA sul proprio account ---
 
         app.MapGet("/user/tfa", TfaSettingsEndpoints.Stato)
-            .RequireAuthorization(JwtAuthorization.PolicyLevel.UserPolicy)
+            .RequireAuthenticated()
             .MapToApiVersion(1);
 
         app.MapPost("/user/tfa/authenticator/start", TfaSettingsEndpoints.AvviaAuthenticator)
-            .RequireAuthorization(JwtAuthorization.PolicyLevel.UserPolicy)
+            .RequireAuthenticated()
             .MapToApiVersion(1);
 
         app.MapPost("/user/tfa/authenticator/confirm", TfaSettingsEndpoints.ConfermaAuthenticator)
             .Validating<RouteHandlerBuilder, TfaCodeRequest>()
-            .RequireAuthorization(JwtAuthorization.PolicyLevel.UserPolicy)
+            .RequireAuthenticated()
             .MapToApiVersion(1);
 
         app.MapPost("/user/tfa/authenticator/disable", TfaSettingsEndpoints.DisattivaAuthenticator)
-            .RequireAuthorization(JwtAuthorization.PolicyLevel.UserPolicy)
+            .RequireAuthenticated()
             .MapToApiVersion(1);
 
         app.MapPost("/user/tfa/email/enable", TfaSettingsEndpoints.AttivaEmail)
-            .RequireAuthorization(JwtAuthorization.PolicyLevel.UserPolicy)
+            .RequireAuthenticated()
             .MapToApiVersion(1);
 
         app.MapPost("/user/tfa/email/disable", TfaSettingsEndpoints.DisattivaEmail)
-            .RequireAuthorization(JwtAuthorization.PolicyLevel.UserPolicy)
+            .RequireAuthenticated()
             .MapToApiVersion(1);
 
         // Recupero: azzera la 2FA di un utente che ha perso il secondo fattore.
         app.MapPost("/user/admin/tfa/reset", TfaSettingsEndpoints.ResetAdmin)
             .Validating<RouteHandlerBuilder, TfaResetRequest>()
-            .RequireAuthorization(JwtAuthorization.PolicyLevel.AdminPolicy)
+            .RequirePermission(Permissions.Users.ResetTfa)
             .MapToApiVersion(1);
     }
 }

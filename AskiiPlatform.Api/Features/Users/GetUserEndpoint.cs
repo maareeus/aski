@@ -1,6 +1,6 @@
+using Askii.Common;
 using Askii.Common.Helpers;
 using Askii.Database;
-using Askii.Features.Auth;
 using Microsoft.EntityFrameworkCore;
 
 namespace Askii.Features.Users.GetUser;

@@ -1,8 +1,11 @@
+using Askii.Common;
 using Askii.Common.Extensions;
 using Askii.Common.Helpers;
 using Askii.Database;
 using Askii.Database.Entities;
 using Microsoft.EntityFrameworkCore;
+using Askii.Common.Validation;
+using FluentValidation;
 
 namespace Askii.Features.Auth.Login;
 
@@ -58,4 +61,18 @@ public record LoginResult(
 
     public static LoginResult TfaRichiesta(string challengeToken, List<TFA_Available> metodi) => new(
         AuthStatus.TFA_REQUIRED, null, null, null, null, null, challengeToken, metodi);
+}
+
+// --- validazione ---
+
+public class LoginRequestValidator : AbstractValidator<LoginRequest>
+{
+    public LoginRequestValidator()
+    {
+        // Sul login non si applicano i requisiti di lunghezza: una password
+        // vecchia potrebbe non rispettarli, e rifiutarla qui impedirebbe di
+        // accedere per poi cambiarla.
+        RuleFor(x => x.Email).NotEmpty().WithMessage("L'email è obbligatoria.");
+        RuleFor(x => x.Password).NotEmpty().WithMessage("La password è obbligatoria.");
+    }
 }

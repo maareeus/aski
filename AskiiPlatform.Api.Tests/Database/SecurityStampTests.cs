@@ -114,7 +114,7 @@ public class SecurityStampTests
         var jwt = new JwtSecurityTokenHandler()
             .ReadJwtToken(TestFactory.TokenService().GenerateToken(user));
 
-        var claim = jwt.Claims.SingleOrDefault(c => c.Type == TokenService.ClaimStamp);
+        var claim = jwt.Claims.SingleOrDefault(c => c.Type == AskiiClaims.Stamp);
         Assert.NotNull(claim);
         Assert.Equal(user.SecurityStamp, claim.Value);
     }
@@ -127,12 +127,12 @@ public class SecurityStampTests
         var handler = new JwtSecurityTokenHandler();
 
         var primo = handler.ReadJwtToken(service.GenerateToken(user))
-            .Claims.Single(c => c.Type == TokenService.ClaimStamp).Value;
+            .Claims.Single(c => c.Type == AskiiClaims.Stamp).Value;
 
         user.SetPassword("NuovaPassword456!");
 
         var secondo = handler.ReadJwtToken(service.GenerateToken(user))
-            .Claims.Single(c => c.Type == TokenService.ClaimStamp).Value;
+            .Claims.Single(c => c.Type == AskiiClaims.Stamp).Value;
 
         Assert.NotEqual(primo, secondo);
     }
@@ -146,6 +146,6 @@ public class SecurityStampTests
             .ReadJwtToken(TestFactory.TokenService().GenerateTfaChallenge(user));
 
         // La sfida non apre endpoint, quindi non partecipa al confronto.
-        Assert.DoesNotContain(jwt.Claims, c => c.Type == TokenService.ClaimStamp);
+        Assert.DoesNotContain(jwt.Claims, c => c.Type == AskiiClaims.Stamp);
     }
 }

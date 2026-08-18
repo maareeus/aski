@@ -1,9 +1,9 @@
+using Askii.Common;
 using System.Security.Claims;
 using Askii.Common.Extensions;
 using Askii.Common.Helpers;
 using Askii.Database;
 using Askii.Database.Entities;
-using Askii.Features.Auth;
 using Microsoft.EntityFrameworkCore;
 
 namespace Askii.Features.Users.Me;

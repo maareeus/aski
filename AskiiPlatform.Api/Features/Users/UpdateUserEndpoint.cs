@@ -5,6 +5,8 @@ using Askii.Common.Helpers;
 using Askii.Database;
 using Askii.Features.Auth;
 using Microsoft.EntityFrameworkCore;
+using Askii.Common.Validation;
+using FluentValidation;
 
 namespace Askii.Features.Users.UpdateUser;
 
@@ -125,4 +127,21 @@ public record UpdateUserResponse(bool result, string msg)
     public static UpdateUserResponse UserNotFound() => new UpdateUserResponse(false, "Utente non trovato");
     public static UpdateUserResponse InvalidEmail() => new UpdateUserResponse(false, "La mail inserita non è valida");
     public static UpdateUserResponse EmailGiaUsata(string email) => new UpdateUserResponse(false, $"L'email {email} è già assegnata a un altro utente");
+}
+
+// --- validazione ---
+
+public class UpdateUserRequestValidator : AbstractValidator<UpdateUserRequest>
+{
+    public UpdateUserRequestValidator()
+    {
+        RuleFor(x => x.Id).NotEmpty().WithMessage("L'identificativo dell'utente è obbligatorio.");
+
+        // I campi opzionali si validano solo se valorizzati: null significa
+        // "non modificare".
+        RuleFor(x => x.Email!).Email().When(x => x.Email is not null);
+        RuleFor(x => x.Role!).Ruolo().When(x => x.Role is not null);
+        RuleFor(x => x.Name).MaximumLength(100);
+        RuleFor(x => x.LastName).MaximumLength(100);
+    }
 }

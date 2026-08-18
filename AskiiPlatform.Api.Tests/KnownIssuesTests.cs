@@ -70,6 +70,7 @@ public class KnownIssuesTests
             new ChangePasswordRequest(user.Id, "Nuova456!", "Nuova456!", null),
             ctx.Db,
             TestFactory.Principal(userId: null, role: Roles.Client),
+            TestFactory.Permessi(),
             CancellationToken.None));
     }
 
@@ -83,6 +84,7 @@ public class KnownIssuesTests
             new ChangePasswordRequest(user.Id, "Nuova456!", "Nuova456!", null),
             ctx.Db,
             TestFactory.Principal(userId: null, role: null),
+            TestFactory.Permessi(),
             CancellationToken.None));
     }
 

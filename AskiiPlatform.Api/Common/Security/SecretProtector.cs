@@ -1,23 +1,6 @@
 using Microsoft.AspNetCore.DataProtection;
 
-using Askii.Database.Entities;
-
 namespace Askii.Common.Security;
-
-/// <summary>
-/// Opzioni il cui valore è un segreto: vengono cifrate a riposo e mai
-/// restituite in lettura. L'elenco è qui perché lo condividono la scrittura,
-/// la lettura e l'invio email.
-/// </summary>
-public static class OpzioniSegrete
-{
-    private static readonly HashSet<string> Nomi = new(StringComparer.OrdinalIgnoreCase)
-    {
-        Option.Email.SMTP_PASS,
-    };
-
-    public static bool Contiene(string nome) => Nomi.Contains(nome);
-}
 
 /// <summary>
 /// Cifra i valori di configurazione sensibili prima di scriverli a database, così

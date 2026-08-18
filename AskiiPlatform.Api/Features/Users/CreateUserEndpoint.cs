@@ -5,6 +5,8 @@ using Askii.Database;
 using Askii.Database.Entities;
 using Askii.ExternalServices;
 using Microsoft.EntityFrameworkCore;
+using Askii.Common.Validation;
+using FluentValidation;
 
 namespace Askii.Features.Users.CreateUser;
 
@@ -109,3 +111,16 @@ public record CreateUserResult(
     string? ActivationCode,
     bool ActivationEmailSent
 );
+
+// --- validazione ---
+
+public class CreateUserRequestValidator : AbstractValidator<CreateUserRequest>
+{
+    public CreateUserRequestValidator()
+    {
+        RuleFor(x => x.Email).Email();
+        RuleFor(x => x.Role).Ruolo();
+        RuleFor(x => x.Name).MaximumLength(100);
+        RuleFor(x => x.LastName).MaximumLength(100);
+    }
+}

@@ -3,6 +3,8 @@ using Askii.Common.Extensions;
 using Askii.Common.Helpers;
 using Askii.Database;
 using Microsoft.EntityFrameworkCore;
+using Askii.Common.Validation;
+using FluentValidation;
 
 namespace Askii.Features.Users.DeleteUser;
 
@@ -45,4 +47,12 @@ public record DeleteUserResponse(bool result, string msg)
     public static DeleteUserResponse Ok() => new DeleteUserResponse(true, "Utente eliminato");
     public static DeleteUserResponse Ko() => new DeleteUserResponse(false, "Errore durante l'eliminazione dell'utente");
     public static DeleteUserResponse CannotDeleteSuperAdmin() => new DeleteUserResponse(false, "L'utente super amministratore non può essere eliminato");
+}
+
+// --- validazione ---
+
+public class DeleteUserRequestValidator : AbstractValidator<DeleteUserRequest>
+{
+    public DeleteUserRequestValidator()
+        => RuleFor(x => x.userId).NotEmpty().WithMessage("L'identificativo dell'utente è obbligatorio.");
 }

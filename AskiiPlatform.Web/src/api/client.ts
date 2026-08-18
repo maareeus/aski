@@ -39,9 +39,11 @@ async function messaggioDiErrore(res: Response): Promise<string> {
     const body = (await res.json()) as ProblemDetails
     return body.detail || body.title || `Errore ${res.status}`
   } catch {
-    return res.status === 401
-      ? 'Sessione non valida o scaduta'
-      : `Errore ${res.status} ${res.statusText}`.trim()
+    // Le risposte di autorizzazione arrivano senza corpo: il messaggio va
+    // costruito qui, altrimenti l'utente leggerebbe "Errore 403 Forbidden".
+    if (res.status === 401) return 'Sessione non valida o scaduta'
+    if (res.status === 403) return 'Non hai i permessi per eseguire questa operazione'
+    return `Errore ${res.status} ${res.statusText}`.trim()
   }
 }
 

@@ -1,3 +1,4 @@
+using Askii.Common;
 using Askii.Database.Entities;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -18,9 +19,6 @@ public class TokenService(IConfiguration configuration)
     /// richiedono solo l'autenticazione.
     /// </summary>
     private const string SuffissoAudienceSfida = ":tfa";
-
-    /// <summary>Nome del claim che porta il SecurityStamp dell'utente.</summary>
-    public const string ClaimStamp = "stamp";
 
     private const int DurataTokenOre = 8;
     private const int DurataSfidaMinuti = 5;
@@ -46,7 +44,7 @@ public class TokenService(IConfiguration configuration)
             new(ClaimTypes.Role, user.Role),
             // Impronta dello stato di autorizzazione al momento dell'emissione:
             // se cambia lato utente, questo token viene rifiutato.
-            new(ClaimStamp, user.SecurityStamp)
+            new(AskiiClaims.Stamp, user.SecurityStamp)
         };
 
         var token = new JwtSecurityToken(

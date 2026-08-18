@@ -1,8 +1,11 @@
+using Askii.Common;
 using Askii.Common.Helpers;
 using Askii.Database;
 using Askii.ExternalServices;
 using Askii.Features.Auth.Login;
 using Microsoft.EntityFrameworkCore;
+using Askii.Common.Validation;
+using FluentValidation;
 
 namespace Askii.Features.Auth.Tfa;
 
@@ -110,3 +113,21 @@ public record TfaSendOtpRequest(string ChallengeToken);
 public record TfaSendOtpResponse(bool result, string msg);
 
 public record TfaVerifyRequest(string ChallengeToken, TFA_Available Method, string Code);
+
+// --- validazione ---
+
+public class TfaSendOtpRequestValidator : AbstractValidator<TfaSendOtpRequest>
+{
+    public TfaSendOtpRequestValidator()
+        => RuleFor(x => x.ChallengeToken).NotEmpty().WithMessage("Sessione di verifica assente.");
+}
+
+public class TfaVerifyRequestValidator : AbstractValidator<TfaVerifyRequest>
+{
+    public TfaVerifyRequestValidator()
+    {
+        RuleFor(x => x.ChallengeToken).NotEmpty().WithMessage("Sessione di verifica assente.");
+        RuleFor(x => x.Code).CodiceSeiCifre();
+        RuleFor(x => x.Method).IsInEnum().WithMessage("Metodo di verifica non riconosciuto.");
+    }
+}

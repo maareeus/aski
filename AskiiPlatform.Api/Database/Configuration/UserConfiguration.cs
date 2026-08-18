@@ -1,3 +1,4 @@
+using Askii.Common;
 using Askii.Database.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

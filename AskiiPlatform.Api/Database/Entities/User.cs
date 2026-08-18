@@ -4,7 +4,6 @@ using Askii.Common.Extensions;
 using Askii.Database.Entities.Common;
 using Askii.Common.Helpers;
 using Askii.Common.Security;
-using Askii.Features.Auth;
 
 namespace Askii.Database.Entities;
 

@@ -1,3 +1,4 @@
+using Askii.Common;
 using System.Security.Claims;
 using Askii.Common.Extensions;
 using Askii.Common.Helpers;
@@ -6,6 +7,8 @@ using Askii.Database;
 using Askii.Database.Entities;
 using Askii.Features.Auth;
 using Microsoft.EntityFrameworkCore;
+using Askii.Common.Validation;
+using FluentValidation;
 
 namespace Askii.Features.Users.TfaSettings;
 
@@ -146,3 +149,16 @@ public record TfaCodeRequest(string Code);
 public record TfaResetRequest(Guid UserId);
 
 public record TfaOperationResponse(bool result, string msg);
+
+// --- validazione ---
+
+public class TfaCodeRequestValidator : AbstractValidator<TfaCodeRequest>
+{
+    public TfaCodeRequestValidator() => RuleFor(x => x.Code).CodiceSeiCifre();
+}
+
+public class TfaResetRequestValidator : AbstractValidator<TfaResetRequest>
+{
+    public TfaResetRequestValidator()
+        => RuleFor(x => x.UserId).NotEmpty().WithMessage("L'identificativo dell'utente è obbligatorio.");
+}

@@ -42,17 +42,3 @@ public enum AuthStatus
     /// </summary>
     TFA_REQUIRED
 }
-/// <summary>
-/// Metodi di 2FA disponibili per l'utente corrente
-/// </summary>
-public enum TFA_Available
-{
-    /// <summary>
-    /// Invio di codice OTP via mail valido 5min
-    /// </summary>
-    EMAIL_OTP,
-    /// <summary>
-    /// Uso di una app di authenticator registrata
-    /// </summary>
-    AUTHENTICATOR_APP
-}

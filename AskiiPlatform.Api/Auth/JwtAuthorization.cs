@@ -1,9 +1,9 @@
 using System.Security.Claims;
 using System.Text;
 using Askii.Common;
+using Askii.Common.Authorization;
 using Askii.Common.Extensions;
 using Askii.Database;
-using Askii.Features.Auth;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -13,12 +13,6 @@ namespace Askii.Authorization;
 
 public static class JwtAuthorization
 {
-    public static class PolicyLevel
-    {
-        public static readonly string AdminPolicy = "AdminPolicy";
-        public static readonly string OperatorPolicy = "OperatorPolicy";
-        public static readonly string UserPolicy = "UserPolicy";
-    }
     public static void Init(
         this WebApplicationBuilder builder)
     {
@@ -53,7 +47,7 @@ public static class JwtAuthorization
                     var principal = contesto.Principal;
                     if (principal is null) { contesto.Fail("Token senza identità"); return; }
 
-                    var stamp = principal.FindFirst(TokenService.ClaimStamp)?.Value;
+                    var stamp = principal.FindFirst(AskiiClaims.Stamp)?.Value;
                     if (string.IsNullOrEmpty(stamp)) { contesto.Fail("Token privo di impronta"); return; }
 
                     Guid userId;
@@ -74,13 +68,11 @@ public static class JwtAuthorization
                 }
              };
         });
-        builder.Services.AddAuthorization(JwtAuthorizationOptions);
-    }
+        builder.Services.AddAuthorization();
 
-    private static void JwtAuthorizationOptions(AuthorizationOptions o)
-    {
-        o.AddPolicy(JwtAuthorization.PolicyLevel.AdminPolicy, p => p.RequireRole(Roles.Admin));
-        o.AddPolicy(JwtAuthorization.PolicyLevel.OperatorPolicy, p => p.RequireRole(Roles.Admin, Roles.Operator));
-        o.AddPolicy(JwtAuthorization.PolicyLevel.UserPolicy, p => p.RequireAuthenticatedUser());
+        // L'autorizzazione è per permesso, non per ruolo: gli endpoint dichiarano
+        // l'azione che consentono e il registro decide se il ruolo la concede.
+        builder.Services.AddSingleton<IPermissionRegistry>(_ => new PermissionRegistry());
+        builder.Services.AddSingleton<IAuthorizationHandler, PermissionHandler>();
     }
 }

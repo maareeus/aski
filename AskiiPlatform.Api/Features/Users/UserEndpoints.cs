@@ -3,6 +3,7 @@ using Askii.Features.Users.ActivateUser;
 using Askii.Features.Users.ChangePassword;
 using Askii.Features.Users.CreateUser;
 using Askii.Features.Users.DeleteUser;
+using Askii.Features.Users.GetUser;
 using Askii.Features.Users.ListUsers;
 using Askii.Features.Users.UpdateUser;
 
@@ -15,6 +16,10 @@ public static class UserEndpoint
         // In GET, non POST: l'elenco è cacheabile e lo stato dei filtri
         // diventa una URL condivisibile e ricaricabile.
         app.MapGet("/user/admin/list", ListUsersEndpoint.Impl)
+            .RequireAuthorization(JwtAuthorization.PolicyLevel.AdminPolicy)
+            .MapToApiVersion(1);
+
+        app.MapGet("/user/admin/{id:guid}", GetUserEndpoint.Impl)
             .RequireAuthorization(JwtAuthorization.PolicyLevel.AdminPolicy)
             .MapToApiVersion(1);
 

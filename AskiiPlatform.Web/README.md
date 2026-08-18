@@ -103,8 +103,9 @@ sarebbe più sicuro ma richiede una modifica lato backend.
 
 | Serve | Perché |
 |---|---|
-| `GET /user/admin/{id}` | precompilare modifica ed eliminazione invece di far digitare il GUID |
 | `GET /me` | rileggere il profilo aggiornato invece di fidarsi della risposta di login |
+| endpoint di statistiche | contatori nel riepilogo: la lista è paginata, sommarla lato client richiederebbe tutte le pagine |
+| flusso di reset password | oggi l'admin imposta la password e la comunica, quindi la conosce; servirebbe un token monouso inviato all'utente |
 | lettura dei metodi 2FA | precompilare le caselle nel profilo: ora partono sempre vuote |
 | password nella risposta di create, o invio email | un utente creato non può autenticarsi: la password generata è persa |
 | `JsonStringEnumConverter` | gli enum viaggiano come numeri, quindi `TFA_Availables: [0]` invece di `["EMAIL_OTP"]` |

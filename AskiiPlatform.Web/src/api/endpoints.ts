@@ -4,6 +4,7 @@ import type {
   PagedResult,
   UserListItem,
   UserListQuery,
+  UserDetail,
   ChangePasswordRequest,
   CreateUserRequest,
   CreateUserResult,
@@ -27,6 +28,9 @@ export const usersApi = {
   /** Admin. Filtri, ordinamento e paginazione sono tutti lato server. */
   list: (query: UserListQuery) =>
     get<PagedResult<UserListItem>>('/user/admin/list', { ...query }),
+
+  /** Admin. 404 se l'identificativo non esiste. */
+  get: (id: string) => get<UserDetail>(`/user/admin/${id}`),
 
   /** Admin. La password viene generata dal backend e non è restituita. */
   create: (body: CreateUserRequest) => post<CreateUserResult>('/user/admin/create', body),

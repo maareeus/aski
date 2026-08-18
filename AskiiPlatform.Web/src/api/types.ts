@@ -73,6 +73,23 @@ export interface UserListItem {
   createdAtUtc: string
 }
 
+// --- /user/admin/{id} ---
+
+export interface UserDetail {
+  id: string
+  email: string
+  name: string
+  lastName: string
+  fullName: string
+  role: Role
+  isActive: boolean
+  isSuperAdmin: boolean
+  lastLoginUtc: string | null
+  createdAtUtc: string
+  updatedAtUtc: string | null
+  tfA_Availables: TfaAvailable[]
+}
+
 // --- /auth/login ---
 
 export interface LoginRequest {

@@ -1,13 +1,12 @@
 import { Link } from 'react-router-dom'
 import {
   ArrowRight,
-  CircleCheck,
   Clock,
   Fingerprint,
   KeyRound,
-  Pencil,
   UserPlus,
   UserRound,
+  Users,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -38,18 +37,11 @@ const AZIONI: Azione[] = [
     soloAdmin: true,
   },
   {
-    to: '/utenti/modifica',
-    label: 'Modifica utente',
-    descrizione: 'Anagrafica, ruolo, email e metodi 2FA',
-    icon: Pencil,
+    to: '/utenti',
+    label: 'Gestione utenti',
+    descrizione: 'Elenco, dettaglio, modifica, attivazione ed eliminazione',
+    icon: Users,
     soloAdmin: true,
-  },
-  {
-    to: '/utenti/attiva',
-    label: 'Attiva utente',
-    descrizione: 'Abilita l’accesso a un account non attivo',
-    icon: CircleCheck,
-    soloAdmin: false,
   },
   {
     to: '/password',
@@ -141,11 +133,12 @@ export function DashboardPage() {
         ))}
       </div>
 
-      <Esito tono="attenzione" titolo="Dati aggregati non disponibili">
-        Questa pagina mostra solo informazioni che arrivano dalla risposta di login, perché l'API non
-        espone ancora endpoint di lettura: non esiste un <code className="font-mono">GET /user</code>{' '}
-        per elencare gli utenti né un <code className="font-mono">GET /user/{'{id}'}</code> per
-        leggerne uno. Finché non ci sono, qualunque conteggio sarebbe inventato.
+      <Esito tono="attenzione" titolo="Nessun dato aggregato">
+        Le informazioni qui sopra arrivano dalla risposta di login conservata in locale. Per mostrare
+        contatori reali — utenti totali, attivi, per ruolo — serve un endpoint di statistiche: la
+        lista è paginata, quindi ricavarli lato client richiederebbe di scaricare tutte le pagine.
+        Manca anche un <code className="font-mono">GET /me</code> per rileggere il proprio profilo
+        aggiornato.
       </Esito>
     </>
   )

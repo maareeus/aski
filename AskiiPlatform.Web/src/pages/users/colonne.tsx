@@ -1,15 +1,6 @@
-import { Check, Copy, MoreHorizontal, ShieldCheck, X } from 'lucide-react'
+import { Check, ChevronRight, ShieldCheck, X } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import type { UserListItem, UserSort } from '@/api/types'
 
 function dataOra(iso: string | null) {
@@ -19,7 +10,7 @@ function dataOra(iso: string | null) {
 
 /**
  * `meta.sort` porta la chiave accettata dalla SortMap del backend: le colonne
- * senza quella chiave non sono ordinabili, e l'intestazione non mostra il
+ * senza quella chiave non sono ordinabili e l'intestazione non mostra il
  * controllo. Così l'elenco degli ordinamenti possibili è dichiarato una volta
  * sola e le due parti non possono divergere in silenzio.
  */
@@ -27,10 +18,7 @@ export type ColonnaUtente = ColumnDef<UserListItem> & {
   meta?: { sort?: UserSort; classe?: string }
 }
 
-export function colonneUtenti(opzioni: {
-  onCopiaId: (id: string) => void
-  idCopiato: string | null
-}): ColonnaUtente[] {
+export function colonneUtenti(): ColonnaUtente[] {
   return [
     {
       accessorKey: 'email',
@@ -90,32 +78,12 @@ export function colonneUtenti(opzioni: {
       ),
     },
     {
-      id: 'azioni',
+      // La riga è cliccabile e porta al dettaglio, dove stanno tutte le azioni
+      // sul singolo utente: qui basta il segno che si può aprire.
+      id: 'apri',
       header: '',
-      meta: { classe: 'w-10' },
-      cell: ({ row }) => {
-        const copiato = opzioni.idCopiato === row.original.id
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-8">
-                <MoreHorizontal />
-                <span className="sr-only">Azioni per {row.original.email}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel className="font-normal">
-                <span className="text-muted-foreground text-xs">{row.original.email}</span>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => opzioni.onCopiaId(row.original.id)}>
-                {copiato ? <Check /> : <Copy />}
-                {copiato ? 'Identificativo copiato' : 'Copia identificativo'}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )
-      },
+      meta: { classe: 'w-8' },
+      cell: () => <ChevronRight className="text-muted-foreground size-4" aria-hidden />,
     },
   ]
 }

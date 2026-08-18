@@ -1,14 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import {
-  CircleCheck,
-  KeyRound,
-  LayoutDashboard,
-  Pencil,
-  ShieldCheck,
-  Trash2,
-  UserPlus,
-  Users,
-} from 'lucide-react'
+import { KeyRound, LayoutDashboard, ShieldCheck, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
   Sidebar,
@@ -30,20 +21,20 @@ interface Voce {
   soloAdmin?: boolean
 }
 
+/**
+ * La navigazione elenca solo i punti d'ingresso. Le operazioni su un singolo
+ * utente — creazione, modifica, attivazione, eliminazione, reset password — si
+ * raggiungono dall'elenco e dal dettaglio, dove l'utente su cui agiscono è già
+ * identificato.
+ */
 const SEZIONI: { titolo: string; voci: Voce[] }[] = [
   {
     titolo: 'Generale',
     voci: [{ to: '/', label: 'Riepilogo', icon: LayoutDashboard }],
   },
   {
-    titolo: 'Utenti',
-    voci: [
-      { to: '/utenti', label: 'Elenco utenti', icon: Users, soloAdmin: true },
-      { to: '/utenti/nuovo', label: 'Nuovo utente', icon: UserPlus, soloAdmin: true },
-      { to: '/utenti/modifica', label: 'Modifica utente', icon: Pencil, soloAdmin: true },
-      { to: '/utenti/attiva', label: 'Attiva utente', icon: CircleCheck },
-      { to: '/utenti/elimina', label: 'Elimina utente', icon: Trash2, soloAdmin: true },
-    ],
+    titolo: 'Gestione',
+    voci: [{ to: '/utenti', label: 'Utenti', icon: Users, soloAdmin: true }],
   },
   {
     titolo: 'Il mio account',

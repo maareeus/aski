@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { ArrowDown, ArrowUp, ChevronsUpDown, RotateCcw, Search, UserPlus } from 'lucide-react'
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
@@ -35,6 +35,7 @@ import { useUserListQuery } from './users/useUserListQuery'
 const TUTTI = '__tutti__'
 
 export function UsersListPage() {
+  const navigate = useNavigate()
   const { query, aggiorna, ordinaPer, azzera, filtriAttivi, PAGE_SIZE_AMMESSE } =
     useUserListQuery()
 
@@ -65,14 +66,7 @@ export function UsersListPage() {
     query.dir,
   ])
 
-  const [idCopiato, setIdCopiato] = useState<string | null>(null)
-  const copiaId = useCallback(async (id: string) => {
-    await navigator.clipboard.writeText(id)
-    setIdCopiato(id)
-    window.setTimeout(() => setIdCopiato((prec) => (prec === id ? null : prec)), 2000)
-  }, [])
-
-  const colonne = colonneUtenti({ onCopiaId: copiaId, idCopiato })
+  const colonne = colonneUtenti()
   const dati = risorsa.dati
 
   const tabella = useReactTable({
@@ -252,7 +246,11 @@ export function UsersListPage() {
 
                   {!risorsa.inCorso &&
                     tabella.getRowModel().rows.map((riga) => (
-                      <TableRow key={riga.id}>
+                      <TableRow
+                        key={riga.id}
+                        onClick={() => navigate(`/utenti/${riga.original.id}`)}
+                        className="cursor-pointer"
+                      >
                         {riga.getVisibleCells().map((cella) => {
                           const meta = cella.column.columnDef.meta as
                             | { classe?: string }

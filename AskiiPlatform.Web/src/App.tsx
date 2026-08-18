@@ -8,10 +8,9 @@ import { DashboardPage } from '@/pages/DashboardPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { ProfilePage } from '@/pages/ProfilePage'
-import { UserCreatePage } from '@/pages/UserCreatePage'
-import { UserDeletePage } from '@/pages/UserDeletePage'
-import { UserUpdatePage } from '@/pages/UserUpdatePage'
 import { UsersListPage } from '@/pages/UsersListPage'
+import { UserCreatePage } from '@/pages/users/UserCreatePage'
+import { UserDetailPage } from '@/pages/users/UserDetailPage'
 
 export default function App() {
   return (
@@ -20,7 +19,8 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
 
-          {/* L'endpoint di attivazione è anonimo: la pagina resta fuori dall'area protetta */}
+          {/* L'endpoint di attivazione è anonimo: la pagina resta fuori
+              dall'area protetta, per l'utente che attiva il proprio account. */}
           <Route path="/attiva" element={<ActivateUserPage />} />
 
           <Route element={<RequireAuth />}>
@@ -28,13 +28,13 @@ export default function App() {
               <Route index element={<DashboardPage />} />
               <Route path="profilo" element={<ProfilePage />} />
               <Route path="password" element={<ChangePasswordPage />} />
-              <Route path="utenti/attiva" element={<ActivateUserPage />} />
 
               <Route path="utenti" element={<RequireAdmin />}>
                 <Route index element={<UsersListPage />} />
                 <Route path="nuovo" element={<UserCreatePage />} />
-                <Route path="modifica" element={<UserUpdatePage />} />
-                <Route path="elimina" element={<UserDeletePage />} />
+                {/* Il segmento statico "nuovo" vince comunque sul dinamico:
+                    react-router ordina per specificità, non per dichiarazione. */}
+                <Route path=":id" element={<UserDetailPage />} />
               </Route>
 
               <Route path="*" element={<NotFoundPage />} />

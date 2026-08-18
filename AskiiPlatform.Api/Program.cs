@@ -62,6 +62,7 @@ builder.Services.AddDbContext<AppDbContext>(o =>
 // 4. REGISTRAZIONE SERVIZI (DI)
 // Risolve l'errore di avvio "UNKNOWN parameter TokenService"
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<Askii.ExternalServices.IEmailSender, Askii.ExternalServices.SmtpEmailSender>();
 builder.Services.AddSingleton<Askii.Database.Entities.Options>();
 
 // 5. AUTENTICAZIONE E AUTORIZZAZIONE

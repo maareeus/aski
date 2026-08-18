@@ -32,7 +32,19 @@ public static class UpdateUserEndpoint
         if(req.Name is not null) user.Name = req.Name;
         if(req.LastName is not null) user.LastName = req.LastName;
         if(req.Role is not null) user.UpdateRole(req.Role);
-        if(req.TFA_Availables is not null) user.TFA_Availables = req.TFA_Availables;
+
+        // Un admin può azzerare la 2FA (lista vuota) come percorso di recupero,
+        // ma non attivare metodi al posto dell'utente: l'app di authenticator
+        // richiede un segreto che solo l'utente può confermare.
+        if(req.TFA_Availables is not null)
+        {
+            if(req.TFA_Availables.Count > 0)
+            {
+                return ResultsHelper.BadRequest(
+                    "I metodi 2FA non si attivano da qui. Per azzerarli usa /user/admin/tfa/reset.");
+            }
+            user.DisableAllTfa();
+        }
 
         db.Users.Update(user);
         await db.SaveChangesAsync(ct);
@@ -60,7 +72,14 @@ public static class UpdateUserEndpoint
             return ResultsHelper.BadRequest(UpdateUserResponse.UserNotFound().msg);
         }
 
-        if(req.TFA_Availables is not null) user.TFA_Availables = req.TFA_Availables;
+        // I metodi 2FA NON si impostano da qui: usare /user/tfa/*. Assegnare la
+        // lista direttamente permetterebbe di attivare l'app di authenticator
+        // senza un segreto confermato, rendendo l'account inaccessibile.
+        if(req.TFA_Availables is not null)
+        {
+            return ResultsHelper.BadRequest(
+                "I metodi di autenticazione a due fattori si configurano dagli endpoint /user/tfa.");
+        }
 
         db.Users.Update(user);
         await db.SaveChangesAsync(ct);

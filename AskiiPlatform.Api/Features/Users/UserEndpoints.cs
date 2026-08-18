@@ -5,6 +5,7 @@ using Askii.Features.Users.CreateUser;
 using Askii.Features.Users.DeleteUser;
 using Askii.Features.Users.GetUser;
 using Askii.Features.Users.ListUsers;
+using Askii.Features.Users.TfaSettings;
 using Askii.Features.Users.UpdateUser;
 
 namespace Askii.Features.Users;
@@ -43,8 +44,39 @@ public static class UserEndpoint
             .RequireAuthorization(JwtAuthorization.PolicyLevel.AdminPolicy)
             .MapToApiVersion(1);
 
-            app.MapPost("/user/update", UpdateUserEndpoint.UserImpl)
+        app.MapPost("/user/update", UpdateUserEndpoint.UserImpl)
             .RequireAuthorization(JwtAuthorization.PolicyLevel.UserPolicy)
+            .MapToApiVersion(1);
+
+        // --- configurazione della 2FA sul proprio account ---
+
+        app.MapGet("/user/tfa", TfaSettingsEndpoints.Stato)
+            .RequireAuthorization(JwtAuthorization.PolicyLevel.UserPolicy)
+            .MapToApiVersion(1);
+
+        app.MapPost("/user/tfa/authenticator/start", TfaSettingsEndpoints.AvviaAuthenticator)
+            .RequireAuthorization(JwtAuthorization.PolicyLevel.UserPolicy)
+            .MapToApiVersion(1);
+
+        app.MapPost("/user/tfa/authenticator/confirm", TfaSettingsEndpoints.ConfermaAuthenticator)
+            .RequireAuthorization(JwtAuthorization.PolicyLevel.UserPolicy)
+            .MapToApiVersion(1);
+
+        app.MapPost("/user/tfa/authenticator/disable", TfaSettingsEndpoints.DisattivaAuthenticator)
+            .RequireAuthorization(JwtAuthorization.PolicyLevel.UserPolicy)
+            .MapToApiVersion(1);
+
+        app.MapPost("/user/tfa/email/enable", TfaSettingsEndpoints.AttivaEmail)
+            .RequireAuthorization(JwtAuthorization.PolicyLevel.UserPolicy)
+            .MapToApiVersion(1);
+
+        app.MapPost("/user/tfa/email/disable", TfaSettingsEndpoints.DisattivaEmail)
+            .RequireAuthorization(JwtAuthorization.PolicyLevel.UserPolicy)
+            .MapToApiVersion(1);
+
+        // Recupero: azzera la 2FA di un utente che ha perso il secondo fattore.
+        app.MapPost("/user/admin/tfa/reset", TfaSettingsEndpoints.ResetAdmin)
+            .RequireAuthorization(JwtAuthorization.PolicyLevel.AdminPolicy)
             .MapToApiVersion(1);
     }
 }

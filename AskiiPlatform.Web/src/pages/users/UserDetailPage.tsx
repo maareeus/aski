@@ -7,6 +7,7 @@ import {
   Copy,
   Loader2,
   ShieldCheck,
+  ShieldOff,
   Trash2,
 } from 'lucide-react'
 import {
@@ -25,7 +26,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
-import { usersApi } from '@/api/endpoints'
+import { tfaApi, usersApi } from '@/api/endpoints'
 import { useAuth } from '@/auth/AuthContext'
 import { Esito } from '@/ui/Esito'
 import { PageHeader } from '@/ui/PageHeader'
@@ -51,6 +52,7 @@ export function UserDetailPage() {
   const salva = useAzione(usersApi.adminUpdate)
   const attiva = useAzione(usersApi.activate)
   const elimina = useAzione(usersApi.remove)
+  const resetTfa = useAzione(tfaApi.resetAdmin)
 
   const [idCopiato, setIdCopiato] = useState(false)
   const copiaId = useCallback(async () => {
@@ -188,6 +190,23 @@ export function UserDetailPage() {
               )}
 
               <ResetPasswordDialog userId={utente.id} email={utente.email} />
+
+              {/* Recupero: l'utente che ha perso il secondo fattore non può
+                  rientrare da solo. */}
+              {resetTfa.errore && <Esito tono="errore">{resetTfa.errore}</Esito>}
+              {resetTfa.esito?.result && <Esito tono="successo">{resetTfa.esito.msg}</Esito>}
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                disabled={resetTfa.inCorso}
+                onClick={async () => {
+                  const esito = await resetTfa.esegui(utente.id)
+                  if (esito?.result) risorsa.ricarica()
+                }}
+              >
+                {resetTfa.inCorso ? <Loader2 className="animate-spin" /> : <ShieldOff />}
+                Azzera 2FA
+              </Button>
 
               <Button variant="outline" className="w-full justify-start" onClick={copiaId}>
                 {idCopiato ? <Check /> : <Copy />}

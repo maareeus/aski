@@ -6,8 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/auth/AuthContext'
+import type { TfaAvailable } from '@/api/types'
 import { Esito } from '@/ui/Esito'
 import { useAzione } from '@/ui/useAzione'
+import { TfaStep } from './login/TfaStep'
 
 export function LoginPage() {
   const { isAuthenticated, login, motivoUscita } = useAuth()
@@ -16,7 +18,17 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [mostraPassword, setMostraPassword] = useState(false)
 
-  const azione = useAzione(login)
+  // Quando il primo passaggio richiede il secondo fattore, la sfida vive qui:
+  // non va in localStorage, dura cinque minuti e non è un token d'accesso.
+  const [sfida, setSfida] = useState<{ token: string; metodi: TfaAvailable[] } | null>(null)
+
+  const azione = useAzione(async (email: string, password: string) => {
+    const esito = await login(email, password)
+    if (esito.stato === 'tfaRichiesta') {
+      setSfida({ token: esito.challengeToken, metodi: esito.metodi })
+    }
+    return esito
+  })
 
   if (isAuthenticated) {
     const from = (location.state as { from?: string } | null)?.from
@@ -36,6 +48,17 @@ export function LoginPage() {
           </div>
         </div>
 
+        {sfida ? (
+          <TfaStep
+            challengeToken={sfida.token}
+            metodi={sfida.metodi}
+            onAnnulla={() => {
+              setSfida(null)
+              setPassword('')
+              azione.reset()
+            }}
+          />
+        ) : (
         <Card>
           <CardHeader>
             <CardTitle>Accedi</CardTitle>
@@ -108,6 +131,7 @@ export function LoginPage() {
             </form>
           </CardContent>
         </Card>
+        )}
 
         <p className="text-muted-foreground text-center text-sm">
           Devi attivare un account appena creato?{' '}

@@ -7,6 +7,10 @@ import type {
   UserDetail,
   SettingsResult,
   UpdateSettingsRequest,
+  AuthenticatorSetupResponse,
+  TfaSendOtpRequest,
+  TfaStatusResponse,
+  TfaVerifyRequest,
   ChangePasswordRequest,
   CreateUserRequest,
   CreateUserResult,
@@ -23,7 +27,33 @@ import type {
  */
 
 export const authApi = {
+  /** Con 2FA attiva risponde TfaRequired e un challengeToken, senza token d'accesso. */
   login: (body: LoginRequest) => post<LoginResult>('/auth/login', body),
+
+  /** Invia il codice via email. Richiede il challengeToken, non un bearer. */
+  sendOtp: (body: TfaSendOtpRequest) => post<OperationResponse>('/auth/tfa/send-otp', body),
+
+  /** Completa il login: restituisce il token d'accesso. */
+  verifyTfa: (body: TfaVerifyRequest) => post<LoginResult>('/auth/tfa/verify', body),
+}
+
+export const tfaApi = {
+  stato: () => get<TfaStatusResponse>('/user/tfa'),
+
+  avviaAuthenticator: () =>
+    post<AuthenticatorSetupResponse>('/user/tfa/authenticator/start', {}),
+
+  confermaAuthenticator: (code: string) =>
+    post<OperationResponse>('/user/tfa/authenticator/confirm', { code }),
+
+  disattivaAuthenticator: () => post<OperationResponse>('/user/tfa/authenticator/disable', {}),
+
+  attivaEmail: () => post<OperationResponse>('/user/tfa/email/enable', {}),
+
+  disattivaEmail: () => post<OperationResponse>('/user/tfa/email/disable', {}),
+
+  /** Admin: azzera la 2FA di un utente che ha perso il secondo fattore. */
+  resetAdmin: (userId: string) => post<OperationResponse>('/user/admin/tfa/reset', { userId }),
 }
 
 export const settingsApi = {

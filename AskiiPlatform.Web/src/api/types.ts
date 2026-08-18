@@ -124,12 +124,53 @@ export interface LoginRequest {
   password: string
 }
 
+/** Rispecchia AuthStatus di Features/Auth/AuthEndpoints.cs (enum numerico). */
+export const AuthStatus = {
+  Unauthorized: 0,
+  Ok: 1,
+  TfaRequired: 2,
+} as const
+
+export type AuthStatus = (typeof AuthStatus)[keyof typeof AuthStatus]
+
 export interface LoginResult {
-  token: string
-  userId: string
-  email: string
-  fullName: string
-  role: Role
+  status: AuthStatus
+  token: string | null
+  userId: string | null
+  email: string | null
+  fullName: string | null
+  role: Role | null
+  /** Valorizzato solo con status = TfaRequired. */
+  challengeToken: string | null
+  tfaMethods: TfaAvailable[] | null
+}
+
+// --- secondo passaggio del login ---
+
+export interface TfaSendOtpRequest {
+  challengeToken: string
+}
+
+export interface TfaVerifyRequest {
+  challengeToken: string
+  method: TfaAvailable
+  code: string
+}
+
+// --- configurazione 2FA sul proprio account ---
+
+export interface TfaStatusResponse {
+  enabled: boolean
+  methods: TfaAvailable[]
+  /** Segreto generato ma associazione non ancora confermata. */
+  authenticatorPending: boolean
+}
+
+export interface AuthenticatorSetupResponse {
+  secret: string
+  otpauthUri: string
+  digits: number
+  periodSeconds: number
 }
 
 // --- /user/admin/create ---

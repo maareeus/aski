@@ -106,6 +106,7 @@ sarebbe più sicuro ma richiede una modifica lato backend.
 | `GET /me` | rileggere il profilo aggiornato invece di fidarsi della risposta di login |
 | endpoint di statistiche | contatori nel riepilogo: la lista è paginata, sommarla lato client richiederebbe tutte le pagine |
 | flusso di reset password | oggi l'admin imposta la password e la comunica, quindi la conosce; servirebbe un token monouso inviato all'utente |
-| lettura dei metodi 2FA | precompilare le caselle nel profilo: ora partono sempre vuote |
+| codici di ripristino 2FA | se l'utente perde il secondo fattore serve un admin: dei codici monouso lo renderebbero autonomo |
+| revoca dei token | cambio password e disattivazione non invalidano i JWT già emessi |
 | password nella risposta di create, o invio email | un utente creato non può autenticarsi: la password generata è persa |
 | `JsonStringEnumConverter` | gli enum viaggiano come numeri, quindi `TFA_Availables: [0]` invece di `["EMAIL_OTP"]` |

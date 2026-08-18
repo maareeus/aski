@@ -56,6 +56,18 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.CreatedAtUtc)
             .IsRequired();
 
+        // Segreto TOTP in Base32: 32 caratteri per 160 bit, con margine.
+        builder.Property(u => u.TotpSecret)
+            .HasMaxLength(64);
+
+        // Hash BCrypt del codice OTP: 60 caratteri.
+        builder.Property(u => u.EmailOtpHash)
+            .HasMaxLength(100);
+
+        builder.Property(u => u.EmailOtpAttempts)
+            .IsRequired()
+            .HasDefaultValue(0);
+
         builder.Property(u => u.TFA_Availables)
             .HasColumnType("TEXT");
     }

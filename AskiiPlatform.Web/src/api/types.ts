@@ -190,6 +190,9 @@ export interface CreateUserResult {
   isActive: boolean
   result: boolean
   id: string
+  /** Presente solo creando un utente non attivo. */
+  activationCode: string | null
+  activationEmailSent: boolean
 }
 
 // --- /user/admin/update e /user/update ---
@@ -210,8 +213,23 @@ export interface OperationResponse {
   msg: string
 }
 
+/** L'attivazione richiede il codice monouso e la password scelta dall'utente. */
 export interface ActivateUserRequest {
+  code: string
+  password: string
+  rePassword: string
+}
+
+export interface ResendActivationRequest {
   userId: string
+}
+
+export interface ResendActivationResponse {
+  result: boolean
+  msg: string
+  /** In chiaro: l'endpoint è riservato agli Admin. */
+  code: string
+  emailSent: boolean
 }
 
 export interface DeleteUserRequest {

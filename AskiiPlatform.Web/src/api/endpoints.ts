@@ -11,6 +11,8 @@ import type {
   TfaSendOtpRequest,
   TfaStatusResponse,
   TfaVerifyRequest,
+  ResendActivationRequest,
+  ResendActivationResponse,
   ChangePasswordRequest,
   CreateUserRequest,
   CreateUserResult,
@@ -75,8 +77,12 @@ export const usersApi = {
   /** Admin. La password viene generata dal backend e non è restituita. */
   create: (body: CreateUserRequest) => post<CreateUserResult>('/user/admin/create', body),
 
-  /** Anonimo: richiede solo lo userId. */
+  /** Anonimo: codice monouso più la password scelta dall'utente. */
   activate: (body: ActivateUserRequest) => post<OperationResponse>('/user/activate', body),
+
+  /** Admin: rigenera il codice, lo invia per email e lo restituisce. */
+  resendActivation: (body: ResendActivationRequest) =>
+    post<ResendActivationResponse>('/user/admin/activation/resend', body),
 
   /** Admin: anagrafica, ruolo, email, metodi 2FA. */
   adminUpdate: (body: UpdateUserRequest) => post<OperationResponse>('/user/admin/update', body),

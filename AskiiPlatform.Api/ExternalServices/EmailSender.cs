@@ -1,3 +1,4 @@
+using Askii.Common.Security;
 using Askii.Database.Entities;
 using MailKit.Net.Smtp;
 using MailKit.Security;
@@ -28,11 +29,13 @@ public interface IEmailSender
 public class SmtpEmailSender(
     Options options,
     IConfiguration configuration,
+    ISecretProtector protector,
     ILogger<SmtpEmailSender> logger) : IEmailSender
 {
     private string? Host => Vuoto(options.GetValue<string>(Option.Email.SMTP_HOST));
     private string? Utente => Vuoto(options.GetValue<string>(Option.Email.SMTP_USER));
-    private string? Password => Vuoto(options.GetValue<string>(Option.Email.SMTP_PASS));
+    private string? Password =>
+        Vuoto(protector.Unprotect(options.GetValue<string>(Option.Email.SMTP_PASS) ?? string.Empty));
 
     private int Porta
     {

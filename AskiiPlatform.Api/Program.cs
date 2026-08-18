@@ -1,4 +1,5 @@
 using Askii.Authorization;
+using FluentValidation;
 using Askii.Common.Exceptions;
 using Askii.Database;
 using Askii.Features.Auth;
@@ -61,6 +62,14 @@ builder.Services.AddDbContext<AppDbContext>(o =>
 
 // 4. REGISTRAZIONE SERVIZI (DI)
 // Risolve l'errore di avvio "UNKNOWN parameter TokenService"
+// Validatori FluentValidation: uno per DTO di richiesta, applicati dal
+// ValidationFilter sugli endpoint che lo dichiarano.
+builder.Services.AddValidatorsFromAssemblyContaining<Program>(includeInternalTypes: true);
+
+builder.Services.AddDataProtection();
+builder.Services.AddSingleton<Askii.Common.Security.ISecretProtector,
+    Askii.Common.Security.DataProtectionSecretProtector>();
+
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<Askii.ExternalServices.IEmailSender, Askii.ExternalServices.SmtpEmailSender>();
 builder.Services.AddSingleton<Askii.Database.Entities.Options>();

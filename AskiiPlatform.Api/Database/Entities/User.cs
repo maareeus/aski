@@ -25,6 +25,19 @@ public class User : BaseEntity
     /// </summary>
     public List<TFA_Available> TFA_Availables {get;set;}= new();
 
+    /// <summary>
+    /// Cambia quando cambia qualcosa che rende non più validi i token già
+    /// emessi: password e ruolo. Viene messo nel JWT e confrontato a ogni
+    /// richiesta, così un token vecchio smette di funzionare senza aspettarne
+    /// la scadenza naturale.
+    /// </summary>
+    public string SecurityStamp {get; private set;} = Guid.NewGuid().ToString("N");
+
+    /// <summary>Hash del codice di attivazione. Non si salva in chiaro.</summary>
+    public string? ActivationCodeHash {get; private set;}
+
+    public DateTime? ActivationCodeExpiresUtc {get; private set;}
+
     // --- supporto ai metodi di 2FA ---
 
     /// <summary>
@@ -99,6 +112,16 @@ public class User : BaseEntity
     public void SetPassword(string psw)
     {
         PasswordHash = BCrypt.Net.BCrypt.HashPassword(psw);
+        RevokeSessions();
+    }
+
+    /// <summary>
+    /// Rende inutilizzabili i token già emessi per questo utente. Chiamato dai
+    /// cambi che alterano credenziali o autorizzazioni.
+    /// </summary>
+    public void RevokeSessions()
+    {
+        SecurityStamp = Guid.NewGuid().ToString("N");
     }
 
     public void SetEmail(string email)
@@ -126,9 +149,57 @@ public class User : BaseEntity
         }
 
         Role = role;
+        // Il ruolo è dentro il token: senza revoca, un declassamento resterebbe
+        // senza effetto fino alla scadenza.
+        RevokeSessions();
     }
 
     public bool VerifyPassword(string plainPassword) => BCrypt.Net.BCrypt.Verify(plainPassword, PasswordHash);
+
+    // --- attivazione con codice ---
+
+    /// <summary>
+    /// Emette un codice di attivazione e ne conserva solo l'hash. Restituisce il
+    /// valore in chiaro una volta sola, per l'invio.
+    /// </summary>
+    public string IssueActivationCode(int validitaGiorni = 7, DateTime? adesso = null)
+    {
+        var codice = SecretGenerator.ActivationCode();
+
+        ActivationCodeHash = BCrypt.Net.BCrypt.HashPassword(codice);
+        ActivationCodeExpiresUtc = (adesso ?? DateTime.UtcNow).AddDays(validitaGiorni);
+
+        return codice;
+    }
+
+    /// <summary>
+    /// Attiva l'account verificando il codice e impostando la password scelta
+    /// dall'utente. Il codice è monouso.
+    ///
+    /// È l'utente a scegliere la password, non l'amministratore: la temporanea
+    /// generata alla creazione non è nota a nessuno e serve solo a impedire
+    /// l'accesso prima dell'attivazione.
+    /// </summary>
+    public bool TryActivate(string? codice, string password, DateTime? adesso = null)
+    {
+        if (ActivationCodeHash is null || ActivationCodeExpiresUtc is null) return false;
+        if (string.IsNullOrWhiteSpace(codice)) return false;
+        if ((adesso ?? DateTime.UtcNow) > ActivationCodeExpiresUtc.Value) return false;
+        if (!BCrypt.Net.BCrypt.Verify(codice.Trim(), ActivationCodeHash)) return false;
+
+        SetPassword(password);
+        IsActive = true;
+        ClearActivationCode();
+        return true;
+    }
+
+    public void ClearActivationCode()
+    {
+        ActivationCodeHash = null;
+        ActivationCodeExpiresUtc = null;
+    }
+
+    public bool HasPendingActivation => ActivationCodeHash is not null;
 
     // --- 2FA: app di authenticator ---
 

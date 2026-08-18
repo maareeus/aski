@@ -3,9 +3,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
   Check,
-  CircleCheck,
   Copy,
   Loader2,
+  Send,
   ShieldCheck,
   ShieldOff,
   Trash2,
@@ -50,7 +50,7 @@ export function UserDetailPage() {
   const utente = risorsa.dati
 
   const salva = useAzione(usersApi.adminUpdate)
-  const attiva = useAzione(usersApi.activate)
+  const reinvia = useAzione(usersApi.resendActivation)
   const elimina = useAzione(usersApi.remove)
   const resetTfa = useAzione(tfaApi.resetAdmin)
 
@@ -173,18 +173,28 @@ export function UserDetailPage() {
             <CardContent className="space-y-2">
               {!utente.isActive && (
                 <>
-                  {attiva.errore && <Esito tono="errore">{attiva.errore}</Esito>}
+                  {reinvia.errore && <Esito tono="errore">{reinvia.errore}</Esito>}
+                  {reinvia.esito && (
+                    <Esito
+                      tono={reinvia.esito.emailSent ? 'successo' : 'attenzione'}
+                      titolo="Codice di attivazione"
+                    >
+                      <div className="space-y-2">
+                        <p>{reinvia.esito.msg}</p>
+                        <code className="bg-background/60 block rounded px-2 py-1.5 font-mono text-xs break-all select-all">
+                          {reinvia.esito.code}
+                        </code>
+                      </div>
+                    </Esito>
+                  )}
                   <Button
                     variant="outline"
                     className="w-full justify-start"
-                    disabled={attiva.inCorso}
-                    onClick={async () => {
-                      const esito = await attiva.esegui({ userId: utente.id })
-                      if (esito?.result) risorsa.ricarica()
-                    }}
+                    disabled={reinvia.inCorso}
+                    onClick={() => void reinvia.esegui({ userId: utente.id })}
                   >
-                    {attiva.inCorso ? <Loader2 className="animate-spin" /> : <CircleCheck />}
-                    Attiva utente
+                    {reinvia.inCorso ? <Loader2 className="animate-spin" /> : <Send />}
+                    Reinvia codice di attivazione
                   </Button>
                 </>
               )}

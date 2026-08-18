@@ -1,4 +1,5 @@
 using Askii.Authorization;
+using Askii.Common.Validation;
 using Askii.Features.Settings.GetSettings;
 using Askii.Features.Settings.UpdateSettings;
 
@@ -13,6 +14,7 @@ public static class SettingsEndpoint
             .MapToApiVersion(1);
 
         app.MapPost("/settings/update", UpdateSettingsEndpoint.Impl)
+            .Validating<RouteHandlerBuilder, UpdateSettingsRequest>()
             .RequireAuthorization(JwtAuthorization.PolicyLevel.AdminPolicy)
             .MapToApiVersion(1);
     }

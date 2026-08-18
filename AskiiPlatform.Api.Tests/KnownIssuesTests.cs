@@ -2,10 +2,10 @@ using Askii.Common;
 using Askii.Common.Exceptions;
 using Askii.Database.Entities;
 using Askii.Features.Auth.Login;
-using Askii.Features.Users.ActivateUser;
 using Askii.Features.Users.ChangePassword;
 using Askii.Features.Users.CreateUser;
 using Askii.Features.Users.UpdateUser;
+using Askii.Tests.Features.Auth;
 using Askii.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
@@ -41,7 +41,7 @@ public class KnownIssuesTests
 
         await Assert.ThrowsAsync<NullReferenceException>(() => CreateUserEndpoint.Impl(
             new CreateUserRequest(null!, "N", "U", Roles.Client, false),
-            ctx.Db, CancellationToken.None));
+            ctx.Db, new EmailSenderFinto(), CancellationToken.None));
     }
 
     // =====================================================================
@@ -56,7 +56,7 @@ public class KnownIssuesTests
 
         var result = await CreateUserEndpoint.Impl(
             new CreateUserRequest("Mario Rossi <mario@example.com>", "N", "U", Roles.Client, false),
-            ctx.Db, CancellationToken.None);
+            ctx.Db, new EmailSenderFinto(), CancellationToken.None);
 
         Assert.IsType<Ok<CreateUserResult>>(result);
         ctx.Detach();
@@ -76,7 +76,7 @@ public class KnownIssuesTests
 
         var result = await CreateUserEndpoint.Impl(
             new CreateUserRequest("nuovo@example.com", "N", "U", Roles.Client, IsActive: true),
-            ctx.Db, CancellationToken.None);
+            ctx.Db, new EmailSenderFinto(), CancellationToken.None);
 
         var ok = Assert.IsType<Ok<CreateUserResult>>(result);
 
@@ -89,27 +89,6 @@ public class KnownIssuesTests
         var salvato = await ctx.Db.Users.SingleAsync();
         Assert.True(salvato.IsActive);
         Assert.StartsWith("$2", salvato.PasswordHash); // l'hash c'è, il valore in chiaro no
-    }
-
-    // =====================================================================
-    // #6 - /user/activate è anonimo e richiede solo lo userId: nessun token
-    //      di conferma. Chi conosce l'id attiva l'account.
-    // =====================================================================
-
-    [Fact]
-    public async Task BUG6_activate_non_richiede_alcun_segreto_oltre_all_id()
-    {
-        using var ctx = new TestDb();
-        var user = await ctx.SeedUserAsync(isActive: false);
-
-        // Nessun ClaimsPrincipal, nessun token di attivazione: basta il Guid,
-        // che l'endpoint di create restituisce in chiaro nella response.
-        var result = await ActivateUserEndpoint.Impl(
-            new ActivateUserRequest(user.Id), ctx.Db, CancellationToken.None);
-
-        Assert.IsType<Ok<ActivateUserResponse>>(result);
-        ctx.Detach();
-        Assert.True((await ctx.Db.Users.SingleAsync()).IsActive);
     }
 
     // =====================================================================

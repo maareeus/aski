@@ -30,6 +30,24 @@ export function UserCreatePage() {
       <div className="max-w-3xl space-y-4">
         {azione.errore && <Esito tono="errore">{azione.errore}</Esito>}
 
+        {azione.esito?.activationCode && (
+          <Esito
+            tono={azione.esito.activationEmailSent ? 'successo' : 'attenzione'}
+            titolo="Codice di attivazione"
+          >
+            <div className="space-y-2">
+              <p>
+                {azione.esito.activationEmailSent
+                  ? `Inviato a ${azione.esito.email}. L'utente scegliera la propria password durante l'attivazione.`
+                  : "L'invio per email non e riuscito: comunica il codice manualmente."}
+              </p>
+              <code className="bg-background/60 block rounded px-2 py-1.5 font-mono text-xs break-all select-all">
+                {azione.esito.activationCode}
+              </code>
+            </div>
+          </Esito>
+        )}
+
         <UserForm
           modalita="creazione"
           valoriIniziali={VALORI_VUOTI}
@@ -43,9 +61,10 @@ export function UserCreatePage() {
               isActive: valori.isActive,
             })
 
-            // Si va al dettaglio dell'utente creato: è lì che si reimposta la
-            // password, unico modo per rendere l'account utilizzabile.
-            if (esito) navigate(`/users/${esito.id}`, { replace: true })
+            // Con un utente non attivo si resta qui, perché il codice di
+            // attivazione va letto o copiato: al dettaglio non verrebbe più
+            // mostrato. Se è già attivo non c'è nulla da leggere.
+            if (esito && esito.isActive) navigate(`/users/${esito.id}`, { replace: true })
           }}
         />
       </div>

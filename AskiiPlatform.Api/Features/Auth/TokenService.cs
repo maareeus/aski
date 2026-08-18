@@ -19,6 +19,9 @@ public class TokenService(IConfiguration configuration)
     /// </summary>
     private const string SuffissoAudienceSfida = ":tfa";
 
+    /// <summary>Nome del claim che porta il SecurityStamp dell'utente.</summary>
+    public const string ClaimStamp = "stamp";
+
     private const int DurataTokenOre = 8;
     private const int DurataSfidaMinuti = 5;
 
@@ -40,7 +43,10 @@ public class TokenService(IConfiguration configuration)
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new(JwtRegisteredClaimNames.Email, user.Email),
             new(ClaimTypes.Name, user.FullName),
-            new(ClaimTypes.Role, user.Role)
+            new(ClaimTypes.Role, user.Role),
+            // Impronta dello stato di autorizzazione al momento dell'emissione:
+            // se cambia lato utente, questo token viene rifiutato.
+            new(ClaimStamp, user.SecurityStamp)
         };
 
         var token = new JwtSecurityToken(

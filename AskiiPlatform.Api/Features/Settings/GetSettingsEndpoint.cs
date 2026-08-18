@@ -1,3 +1,4 @@
+using Askii.Common.Security;
 using Askii.Database;
 using Askii.Database.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -6,16 +7,6 @@ namespace Askii.Features.Settings.GetSettings;
 
 public static class GetSettingsEndpoint
 {
-    /// <summary>
-    /// Opzioni il cui valore non viene mai restituito. Il client sa soltanto se
-    /// una password è configurata, e può sovrascriverla: leggerla non serve a
-    /// nessuna schermata e un GET la esporrebbe a log, cache e cronologia.
-    /// </summary>
-    private static readonly HashSet<string> Segrete = new(StringComparer.OrdinalIgnoreCase)
-    {
-        Option.Email.SMTP_PASS,
-    };
-
     public static async Task<IResult> Impl(AppDbContext db, CancellationToken ct)
     {
         // Lettura diretta dal database e non dalla cache del singleton Options:
@@ -30,7 +21,7 @@ public static class GetSettingsEndpoint
         var items = opzioni
             .Select(o =>
             {
-                var segreta = Segrete.Contains(o.Name);
+                var segreta = OpzioniSegrete.Contiene(o.Name);
                 return new SettingItem(
                     Name: o.Name,
                     Value: segreta ? null : o.Value,

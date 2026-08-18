@@ -3,6 +3,7 @@ using Askii.Common.Extensions;
 using Askii.Common.Helpers;
 using Askii.Database;
 using Askii.Database.Entities;
+using Askii.ExternalServices;
 using Microsoft.EntityFrameworkCore;
 
 namespace Askii.Features.Users.CreateUser;
@@ -12,6 +13,7 @@ public static class CreateUserEndpoint
     public static async Task<IResult> Impl(
         CreateUserRequest req,
         AppDbContext db,
+        IEmailSender emailSender,
         CancellationToken ct
     )
     {
@@ -39,8 +41,36 @@ public static class CreateUserEndpoint
 
         user.IsActive = req.IsActive;
 
+        // La password generata non è nota a nessuno: serve solo a impedire
+        // l'accesso prima dell'attivazione, durante la quale sarà l'utente a
+        // scegliere la propria. Un utente creato già attivo non ha bisogno del
+        // codice, e la password gliela imposta l'admin dal dettaglio.
+        string? codiceAttivazione = null;
+        if (!user.IsActive)
+        {
+            codiceAttivazione = user.IssueActivationCode();
+        }
+
         db.Users.Add(user);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(ct);
+
+        var emailInviata = false;
+        if (codiceAttivazione is not null)
+        {
+            var esito = await emailSender.InviaAsync(
+                user.Email,
+                "Attiva il tuo account Askii Platform",
+                $"""
+                 Per attivare l'account e scegliere la tua password usa questo codice:
+
+                 {codiceAttivazione}
+
+                 È valido 7 giorni e può essere usato una sola volta.
+                 """,
+                ct);
+
+            emailInviata = esito.Inviata;
+        }
 
         return Results.Ok(new CreateUserResult(
             user.Email,
@@ -48,7 +78,9 @@ public static class CreateUserEndpoint
             user.Role,
             user.IsActive,
             true,
-            user.Id
+            user.Id,
+            codiceAttivazione,
+            emailInviata
         ));
     }
 }
@@ -67,5 +99,13 @@ public record CreateUserResult(
     string? Role,
     bool IsActive,
     bool Result,
-    Guid Id
+    Guid Id,
+    /// <summary>
+    /// Codice di attivazione in chiaro, presente solo alla creazione di un
+    /// utente non attivo. L'endpoint è riservato agli Admin, che possono già
+    /// reimpostare la password di chiunque: restituirlo permette di completare
+    /// il flusso anche senza SMTP configurato.
+    /// </summary>
+    string? ActivationCode,
+    bool ActivationEmailSent
 );

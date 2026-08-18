@@ -56,6 +56,13 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.CreatedAtUtc)
             .IsRequired();
 
+        builder.Property(u => u.SecurityStamp)
+            .IsRequired()
+            .HasMaxLength(64);
+
+        builder.Property(u => u.ActivationCodeHash)
+            .HasMaxLength(100);
+
         // Segreto TOTP in Base32: 32 caratteri per 160 bit, con margine.
         builder.Property(u => u.TotpSecret)
             .HasMaxLength(64);

@@ -1,6 +1,7 @@
 using Askii.Common;
 using Askii.Common.Exceptions;
 using Askii.Features.Users.CreateUser;
+using Askii.Tests.Features.Auth;
 using Askii.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,6 +19,7 @@ public class CreateUserEndpointTests
         => CreateUserEndpoint.Impl(
             new CreateUserRequest(email, name, lastName, role, isActive),
             ctx.Db,
+            new EmailSenderFinto(),
             CancellationToken.None);
 
     /// <summary>

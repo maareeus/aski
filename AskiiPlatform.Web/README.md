@@ -1,8 +1,15 @@
 # AskiiPlatform.Web
 
-Pannello di amministrazione di Askii Platform. React + Vite + TypeScript, con il
-design system ufficiale di Designers Italia (`bootstrap-italia` +
-`design-react-kit`).
+Pannello di amministrazione di Askii Platform. React + Vite + TypeScript con
+**shadcn/ui** (Radix UI + Tailwind CSS v4).
+
+I componenti di shadcn non sono una dipendenza npm: il CLI li copia in
+`src/components/ui/`, quindi sono codice del progetto e si modificano
+direttamente. Per aggiungerne altri:
+
+```bash
+npx shadcn@latest add <componente>
+```
 
 ## Avvio
 
@@ -74,9 +81,10 @@ In produzione serve l'hosting same-origin oppure `AddCors`/`UseCors` lato API.
 src/
 ├── api/          client HTTP, tipi allineati ai record C#, un metodo per endpoint
 ├── auth/         sessione, lettura scadenza del JWT, guardie di rotta
-├── layout/       header, sidebar, area contenuti
+├── components/ui/ componenti shadcn (codice nostro, non dipendenze)
+├── layout/       header, sidebar collassabile, area contenuti
 ├── pages/        una pagina per operazione
-└── ui/           header di pagina, hook per le chiamate, opzioni dei select
+└── ui/           header di pagina, riquadri di esito, hook per le chiamate
 ```
 
 ## Autenticazione

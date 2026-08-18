@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { ApiError } from '../api/client'
+import { ApiError } from '@/api/client'
 
 interface Stato<T> {
   inCorso: boolean

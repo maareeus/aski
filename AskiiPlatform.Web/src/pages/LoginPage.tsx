@@ -1,8 +1,13 @@
 import { useState } from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
-import { Alert, Button, Card, CardBody, Col, Container, Icon, Input, Row, Spinner } from 'design-react-kit'
-import { useAuth } from '../auth/AuthContext'
-import { useAzione } from '../ui/useAzione'
+import { Link, Navigate, useLocation } from 'react-router-dom'
+import { Eye, EyeOff, Loader2, LogIn } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { useAuth } from '@/auth/AuthContext'
+import { Esito } from '@/ui/Esito'
+import { useAzione } from '@/ui/useAzione'
 
 export function LoginPage() {
   const { isAuthenticated, login, motivoUscita } = useAuth()
@@ -19,96 +24,98 @@ export function LoginPage() {
   }
 
   return (
-    <Container className="my-5">
-      <Row className="justify-content-center">
-        <Col xs="12" md="8" lg="5">
-          <div className="text-center mb-4">
-            <h1 className="h3">Askii Platform</h1>
-            <p className="text-muted">Accedi al pannello di amministrazione</p>
+    <div className="bg-muted/40 flex min-h-svh items-center justify-center p-4">
+      <div className="w-full max-w-sm space-y-6">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <div className="bg-primary text-primary-foreground flex size-11 items-center justify-center rounded-xl text-lg font-semibold">
+            A
           </div>
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight">Askii Platform</h1>
+            <p className="text-muted-foreground text-sm">Pannello di amministrazione</p>
+          </div>
+        </div>
 
-          <Card shadow="sm">
-            <CardBody>
-              {motivoUscita === 'scaduta' && (
-                <Alert color="warning">
-                  La sessione è scaduta. Il token ha una validità di 8 ore e non viene rinnovato:
-                  effettua di nuovo l'accesso.
-                </Alert>
-              )}
+        <Card>
+          <CardHeader>
+            <CardTitle>Accedi</CardTitle>
+            <CardDescription>Inserisci le credenziali del tuo account.</CardDescription>
+          </CardHeader>
 
-              {azione.errore && (
-                <Alert color="danger" role="alert">
-                  {azione.errore}
-                </Alert>
-              )}
+          <CardContent className="space-y-4">
+            {motivoUscita === 'scaduta' && (
+              <Esito tono="attenzione" titolo="Sessione scaduta">
+                Il token dura 8 ore e non viene rinnovato: effettua di nuovo l'accesso.
+              </Esito>
+            )}
 
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  void azione.esegui(email, password)
-                }}
-                noValidate
-              >
+            {azione.errore && <Esito tono="errore">{azione.errore}</Esito>}
+
+            <form
+              className="space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault()
+                void azione.esegui(email, password)
+              }}
+              noValidate
+            >
+              <div className="space-y-2">
+                <Label htmlFor="login-email">Email</Label>
                 <Input
-                  type="email"
-                  label="Email"
                   id="login-email"
+                  type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="username"
+                  placeholder="nome@esempio.it"
                   required
                   disabled={azione.inCorso}
                 />
+              </div>
 
-                <Input
-                  type={mostraPassword ? 'text' : 'password'}
-                  label="Password"
-                  id="login-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
-                  required
-                  disabled={azione.inCorso}
-                />
-
-                <div className="form-check mb-4">
+              <div className="space-y-2">
+                <Label htmlFor="login-password">Password</Label>
+                <div className="relative">
                   <Input
-                    type="checkbox"
-                    id="mostra-password"
-                    checked={mostraPassword}
-                    onChange={(e) => setMostraPassword(e.target.checked)}
-                    label="Mostra password"
+                    id="login-password"
+                    type={mostraPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                    className="pr-10"
+                    required
+                    disabled={azione.inCorso}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setMostraPassword((v) => !v)}
+                    className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md"
+                    aria-label={mostraPassword ? 'Nascondi password' : 'Mostra password'}
+                  >
+                    {mostraPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
                 </div>
+              </div>
 
-                <Button
-                  color="primary"
-                  type="submit"
-                  className="w-100"
-                  disabled={azione.inCorso || !email || !password}
-                >
-                  {azione.inCorso ? (
-                    <>
-                      <Spinner active small className="me-2" />
-                      Accesso in corso…
-                    </>
-                  ) : (
-                    <>
-                      <Icon icon="it-unlocked" color="white" size="sm" aria-hidden className="me-1" />
-                      Accedi
-                    </>
-                  )}
-                </Button>
-              </form>
-            </CardBody>
-          </Card>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={azione.inCorso || !email || !password}
+              >
+                {azione.inCorso ? <Loader2 className="animate-spin" /> : <LogIn />}
+                {azione.inCorso ? 'Accesso in corso…' : 'Accedi'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
-          <p className="text-muted small text-center mt-3">
-            Devi attivare un account appena creato?{' '}
-            <a href="/utenti/attiva">Vai all'attivazione</a>
-          </p>
-        </Col>
-      </Row>
-    </Container>
+        <p className="text-muted-foreground text-center text-sm">
+          Devi attivare un account appena creato?{' '}
+          <Link to="/attiva" className="text-foreground underline underline-offset-4">
+            Vai all'attivazione
+          </Link>
+        </p>
+      </div>
+    </div>
   )
 }

@@ -1,23 +1,23 @@
 import { useState } from 'react'
+import { Loader2, UserPlus } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
-  Alert,
-  Button,
-  Card,
-  CardBody,
-  Col,
-  Icon,
-  Input,
-  Row,
   Select,
-  Spinner,
-  Toggle,
-} from 'design-react-kit'
-import { usersApi } from '../api/endpoints'
-import { Roles } from '../api/types'
-import type { Role } from '../api/types'
-import { opzioniRuolo } from '../ui/opzioni'
-import { PageHeader } from '../ui/PageHeader'
-import { useAzione } from '../ui/useAzione'
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { usersApi } from '@/api/endpoints'
+import { ROLE_LIST, Roles } from '@/api/types'
+import type { Role } from '@/api/types'
+import { Esito } from '@/ui/Esito'
+import { PageHeader } from '@/ui/PageHeader'
+import { useAzione } from '@/ui/useAzione'
 
 export function UserCreatePage() {
   const [email, setEmail] = useState('')
@@ -43,130 +43,142 @@ export function UserCreatePage() {
         descrizione="La password non si imposta qui: è il backend a generarne una casuale."
       />
 
-      <Row>
-        <Col xs="12" lg="8">
-          <Card shadow="sm">
-            <CardBody>
-              {azione.errore && (
-                <Alert color="danger" role="alert">
-                  {azione.errore}
-                </Alert>
-              )}
+      <div className="max-w-2xl space-y-4">
+        {azione.errore && <Esito tono="errore">{azione.errore}</Esito>}
 
-              {azione.esito && (
-                <Alert color="success" role="status">
-                  <h2 className="alert-heading h6">Utente creato</h2>
-                  <p className="mb-2">
-                    <strong>{azione.esito.email}</strong> — ruolo {azione.esito.role},{' '}
-                    {azione.esito.isActive ? 'attivo' : 'da attivare'}.
-                  </p>
-                  <p className="mb-2">
-                    Identificativo, da conservare per le operazioni successive:
-                    <br />
-                    <code className="user-select-all">{azione.esito.id}</code>
-                  </p>
-                  <hr />
-                  <p className="mb-0 small">
-                    La password generata non viene restituita dall'API e non esiste ancora un invio
-                    email: per rendere l'account utilizzabile serve impostargliela da{' '}
-                    <a href="/password">Cambia password</a> indicando l'identificativo qui sopra.
-                  </p>
-                </Alert>
-              )}
+        {azione.esito && (
+          <Esito tono="successo" titolo="Utente creato">
+            <div className="space-y-2">
+              <p>
+                <span className="font-medium">{azione.esito.email}</span> — ruolo{' '}
+                {azione.esito.role}, {azione.esito.isActive ? 'attivo' : 'da attivare'}.
+              </p>
+              <div>
+                <p className="mb-1">Identificativo, da conservare per le operazioni successive:</p>
+                <code className="bg-background/60 block rounded px-2 py-1.5 font-mono text-xs break-all select-all">
+                  {azione.esito.id}
+                </code>
+              </div>
+              <p className="text-sm">
+                La password generata non viene restituita dall'API e non esiste ancora un invio
+                email: per rendere l'account utilizzabile va impostata da <em>Cambia password</em>{' '}
+                indicando questo identificativo.
+              </p>
+            </div>
+          </Esito>
+        )}
 
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault()
-                  const esito = await azione.esegui({
-                    email: email.trim(),
-                    name: name.trim() || null,
-                    lastName: lastName.trim() || null,
-                    role,
-                    isActive,
-                  })
-                  if (esito) svuota()
-                }}
-                noValidate
-              >
+        <Card>
+          <CardHeader>
+            <CardTitle>Dati dell'account</CardTitle>
+            <CardDescription>
+              L'email viene normalizzata in minuscolo e deve essere univoca.
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            <form
+              className="space-y-6"
+              onSubmit={async (e) => {
+                e.preventDefault()
+                const esito = await azione.esegui({
+                  email: email.trim(),
+                  name: name.trim() || null,
+                  lastName: lastName.trim() || null,
+                  role,
+                  isActive,
+                })
+                if (esito) svuota()
+              }}
+              noValidate
+            >
+              <div className="space-y-2">
+                <Label htmlFor="crea-email">Email</Label>
                 <Input
-                  type="email"
-                  label="Email"
                   id="crea-email"
+                  type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  placeholder="nome@esempio.it"
                   required
                   disabled={azione.inCorso}
-                  infoText="Viene normalizzata in minuscolo e deve essere univoca."
                 />
+              </div>
 
-                <Row>
-                  <Col xs="12" md="6">
-                    <Input
-                      label="Nome"
-                      id="crea-nome"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      disabled={azione.inCorso}
-                    />
-                  </Col>
-                  <Col xs="12" md="6">
-                    <Input
-                      label="Cognome"
-                      id="crea-cognome"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      disabled={azione.inCorso}
-                    />
-                  </Col>
-                </Row>
-
-                {/* Select del kit: onChange riceve direttamente il valore, non l'evento */}
-                <Select
-                  id="crea-ruolo"
-                  label="Ruolo"
-                  value={role}
-                  onChange={(valore) => setRole(valore as Role)}
-                  disabled={azione.inCorso}
-                >
-                  {opzioniRuolo()}
-                </Select>
-
-                <div className="my-4">
-                  <Toggle
-                    label="Crea l'utente già attivo"
-                    id="crea-attivo"
-                    checked={isActive}
-                    onChange={(e) => setIsActive(e.target.checked)}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="crea-nome">Nome</Label>
+                  <Input
+                    id="crea-nome"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     disabled={azione.inCorso}
                   />
-                  <p className="text-muted small mt-1 mb-0">
-                    Se lasciato spento, l'utente va attivato separatamente.
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="crea-cognome">Cognome</Label>
+                  <Input
+                    id="crea-cognome"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    disabled={azione.inCorso}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="crea-ruolo">Ruolo</Label>
+                <Select
+                  value={role}
+                  onValueChange={(v) => setRole(v as Role)}
+                  disabled={azione.inCorso}
+                >
+                  <SelectTrigger id="crea-ruolo" className="w-full sm:w-64">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROLE_LIST.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-start justify-between gap-4 rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <Label htmlFor="crea-attivo">Crea l'utente già attivo</Label>
+                  <p className="text-muted-foreground text-sm">
+                    Se disattivato, l'utente va attivato separatamente.
                   </p>
                 </div>
+                <Switch
+                  id="crea-attivo"
+                  checked={isActive}
+                  onCheckedChange={setIsActive}
+                  disabled={azione.inCorso}
+                />
+              </div>
 
-                <div className="d-flex gap-2">
-                  <Button color="primary" type="submit" disabled={azione.inCorso || !email}>
-                    {azione.inCorso ? (
-                      <>
-                        <Spinner active small className="me-2" />
-                        Creazione…
-                      </>
-                    ) : (
-                      <>
-                        <Icon icon="it-plus-circle" color="white" size="sm" aria-hidden className="me-1" />
-                        Crea utente
-                      </>
-                    )}
-                  </Button>
-                  <Button color="primary" outline type="button" onClick={svuota} disabled={azione.inCorso}>
-                    Svuota
-                  </Button>
-                </div>
-              </form>
-            </CardBody>
-          </Card>
-        </Col>
-      </Row>
+              <div className="flex gap-2">
+                <Button type="submit" disabled={azione.inCorso || !email}>
+                  {azione.inCorso ? <Loader2 className="animate-spin" /> : <UserPlus />}
+                  {azione.inCorso ? 'Creazione…' : 'Crea utente'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={svuota}
+                  disabled={azione.inCorso}
+                >
+                  Svuota
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </>
   )
 }

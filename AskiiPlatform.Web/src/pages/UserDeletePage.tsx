@@ -1,9 +1,15 @@
 import { useState } from 'react'
-import { Alert, Button, Card, CardBody, Col, Icon, Input, Row, Spinner } from 'design-react-kit'
-import { usersApi } from '../api/endpoints'
-import { useAuth } from '../auth/AuthContext'
-import { PageHeader } from '../ui/PageHeader'
-import { useAzione } from '../ui/useAzione'
+import { Loader2, Trash2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { usersApi } from '@/api/endpoints'
+import { useAuth } from '@/auth/AuthContext'
+import { Esito } from '@/ui/Esito'
+import { PageHeader } from '@/ui/PageHeader'
+import { useAzione } from '@/ui/useAzione'
 
 export function UserDeletePage() {
   const { session } = useAuth()
@@ -20,87 +26,78 @@ export function UserDeletePage() {
         descrizione="La cancellazione è definitiva: non esiste soft-delete né ripristino."
       />
 
-      <Row>
-        <Col xs="12" lg="8">
-          <Card shadow="sm">
-            <CardBody>
-              {azione.errore && (
-                <Alert color="danger" role="alert">
-                  {azione.errore}
-                </Alert>
-              )}
-              {azione.esito?.result && (
-                <Alert color="success" role="status">
-                  {azione.esito.msg}
-                </Alert>
-              )}
+      <div className="max-w-2xl space-y-4">
+        {azione.errore && <Esito tono="errore">{azione.errore}</Esito>}
+        {azione.esito?.result && <Esito tono="successo">{azione.esito.msg}</Esito>}
 
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  void azione.esegui({ userId: userId.trim() })
-                  setConfermato(false)
-                }}
-                noValidate
-              >
+        <Card className="border-destructive/30">
+          <CardHeader>
+            <CardTitle className="text-destructive">Eliminazione definitiva</CardTitle>
+            <CardDescription>
+              Il super amministratore non è eliminabile, e non puoi eliminare te stesso.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form
+              className="space-y-6"
+              onSubmit={(e) => {
+                e.preventDefault()
+                void azione.esegui({ userId: userId.trim() })
+                setConfermato(false)
+              }}
+              noValidate
+            >
+              <div className="space-y-2">
+                <Label htmlFor="del-id">Identificativo utente</Label>
                 <Input
-                  label="Identificativo utente"
                   id="del-id"
                   value={userId}
                   onChange={(e) => {
                     setUserId(e.target.value)
                     setConfermato(false)
                   }}
+                  placeholder="00000000-0000-0000-0000-000000000000"
+                  className="font-mono text-sm"
                   required
                   disabled={azione.inCorso}
-                  placeholder="00000000-0000-0000-0000-000000000000"
                 />
+              </div>
 
-                {seStesso && (
-                  <Alert color="warning">
-                    Questo è il tuo identificativo. L'API rifiuta l'autocancellazione.
-                  </Alert>
-                )}
+              {seStesso && (
+                <Esito tono="attenzione">
+                  Questo è il tuo identificativo. L'API rifiuta l'autocancellazione.
+                </Esito>
+              )}
 
-                <div className="form-check mb-4">
-                  <Input
-                    type="checkbox"
-                    id="del-conferma"
-                    checked={confermato}
-                    onChange={(e) => setConfermato(e.target.checked)}
-                    disabled={azione.inCorso || !userId}
-                    label="Confermo di voler eliminare definitivamente questo utente"
-                  />
-                </div>
+              <div className="flex items-start gap-2.5">
+                <Checkbox
+                  id="del-conferma"
+                  checked={confermato}
+                  onCheckedChange={(c) => setConfermato(c === true)}
+                  disabled={azione.inCorso || !userId}
+                />
+                <Label htmlFor="del-conferma" className="font-normal leading-snug">
+                  Confermo di voler eliminare definitivamente questo utente
+                </Label>
+              </div>
 
-                <Button
-                  color="danger"
-                  type="submit"
-                  disabled={azione.inCorso || !userId || !confermato}
-                >
-                  {azione.inCorso ? (
-                    <>
-                      <Spinner active small className="me-2" />
-                      Eliminazione…
-                    </>
-                  ) : (
-                    <>
-                      <Icon icon="it-delete" color="white" size="sm" aria-hidden className="me-1" />
-                      Elimina definitivamente
-                    </>
-                  )}
-                </Button>
-              </form>
+              <Button
+                type="submit"
+                variant="destructive"
+                disabled={azione.inCorso || !userId || !confermato}
+              >
+                {azione.inCorso ? <Loader2 className="animate-spin" /> : <Trash2 />}
+                {azione.inCorso ? 'Eliminazione…' : 'Elimina definitivamente'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
-              <p className="text-muted small mt-4 mb-0">
-                Il super amministratore non è eliminabile. Se l'identificativo non esiste, l'API
-                risponde con lo stesso messaggio del tentativo di autocancellazione: i due casi non
-                sono distinguibili.
-              </p>
-            </CardBody>
-          </Card>
-        </Col>
-      </Row>
+        <p className="text-muted-foreground text-sm">
+          Se l'identificativo non esiste, l'API risponde con lo stesso messaggio del tentativo di
+          autocancellazione: i due casi non sono distinguibili.
+        </p>
+      </div>
     </>
   )
 }

@@ -1,9 +1,15 @@
 import { useState } from 'react'
-import { Alert, Button, Card, CardBody, Col, Icon, Input, Row, Spinner, Toggle } from 'design-react-kit'
-import { usersApi } from '../api/endpoints'
-import { useAuth } from '../auth/AuthContext'
-import { PageHeader } from '../ui/PageHeader'
-import { useAzione } from '../ui/useAzione'
+import { KeyRound, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { usersApi } from '@/api/endpoints'
+import { useAuth } from '@/auth/AuthContext'
+import { Esito } from '@/ui/Esito'
+import { PageHeader } from '@/ui/PageHeader'
+import { useAzione } from '@/ui/useAzione'
 
 export function ChangePasswordPage() {
   const { session, isAdmin } = useAuth()
@@ -39,130 +45,135 @@ export function ChangePasswordPage() {
         }
       />
 
-      <Row>
-        <Col xs="12" lg="8">
-          <Card shadow="sm">
-            <CardBody>
-              {azione.errore && (
-                <Alert color="danger" role="alert">
-                  {azione.errore}
-                </Alert>
-              )}
-              {azione.esito?.result && (
-                <Alert color="success" role="status">
-                  {azione.esito.msg}
-                </Alert>
-              )}
+      <div className="max-w-2xl space-y-4">
+        {azione.errore && <Esito tono="errore">{azione.errore}</Esito>}
+        {azione.esito?.result && <Esito tono="successo">{azione.esito.msg}</Esito>}
 
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault()
-                  const esito = await azione.esegui({
-                    id,
-                    password,
-                    rePassword,
-                    oldPassword: serveVecchiaPassword ? oldPassword : null,
-                  })
-                  if (esito?.result) {
-                    setOldPassword('')
-                    setPassword('')
-                    setRePassword('')
-                  }
-                }}
-                noValidate
-              >
-                {isAdmin && (
-                  <div className="mb-4">
-                    <Toggle
-                      label="Cambia la password di un altro utente"
-                      id="pwd-altro"
-                      checked={suAltroUtente}
-                      onChange={(e) => setSuAltroUtente(e.target.checked)}
-                      disabled={azione.inCorso}
-                    />
+        <Card>
+          <CardHeader>
+            <CardTitle>Nuova password</CardTitle>
+            <CardDescription>
+              {suAltroUtente
+                ? 'Operazione su un altro account, identificato per id.'
+                : `Operazione sul tuo account: ${session?.email ?? ''}`}
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            <form
+              className="space-y-6"
+              onSubmit={async (e) => {
+                e.preventDefault()
+                const esito = await azione.esegui({
+                  id,
+                  password,
+                  rePassword,
+                  oldPassword: serveVecchiaPassword ? oldPassword : null,
+                })
+                if (esito?.result) {
+                  setOldPassword('')
+                  setPassword('')
+                  setRePassword('')
+                }
+              }}
+              noValidate
+            >
+              {isAdmin && (
+                <div className="flex items-start justify-between gap-4 rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="pwd-altro">Cambia la password di un altro utente</Label>
+                    <p className="text-muted-foreground text-sm">
+                      Serve anche per rendere utilizzabile un utente appena creato, la cui password
+                      generata non è recuperabile.
+                    </p>
                   </div>
-                )}
+                  <Switch
+                    id="pwd-altro"
+                    checked={suAltroUtente}
+                    onCheckedChange={setSuAltroUtente}
+                    disabled={azione.inCorso}
+                  />
+                </div>
+              )}
 
-                {suAltroUtente ? (
+              {suAltroUtente && (
+                <div className="space-y-2">
+                  <Label htmlFor="pwd-id">Identificativo utente</Label>
                   <Input
-                    label="Identificativo utente"
                     id="pwd-id"
                     value={targetId}
                     onChange={(e) => setTargetId(e.target.value)}
+                    placeholder="00000000-0000-0000-0000-000000000000"
+                    className="font-mono text-sm"
                     required
                     disabled={azione.inCorso}
-                    placeholder="00000000-0000-0000-0000-000000000000"
-                    infoText="Serve anche per rendere utilizzabile un utente appena creato, la cui password generata non è recuperabile."
                   />
-                ) : (
-                  <p className="text-muted">
-                    Operazione sul tuo account: <code>{session?.email}</code>
-                  </p>
-                )}
+                </div>
+              )}
 
-                {serveVecchiaPassword && (
+              {serveVecchiaPassword && (
+                <div className="space-y-2">
+                  <Label htmlFor="pwd-vecchia">Password attuale</Label>
                   <Input
-                    type="password"
-                    label="Password attuale"
                     id="pwd-vecchia"
+                    type="password"
                     value={oldPassword}
                     onChange={(e) => setOldPassword(e.target.value)}
                     autoComplete="current-password"
                     required
                     disabled={azione.inCorso}
                   />
-                )}
+                </div>
+              )}
 
+              <div className="space-y-2">
+                <Label htmlFor="pwd-nuova">Nuova password</Label>
                 <Input
-                  type="password"
-                  label="Nuova password"
                   id="pwd-nuova"
+                  type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="new-password"
                   required
                   disabled={azione.inCorso}
-                  infoText="L'API non impone requisiti di robustezza: la lunghezza è la difesa più efficace."
                 />
+                <p className="text-muted-foreground text-sm">
+                  L'API non impone requisiti di robustezza: la lunghezza è la difesa più efficace.
+                </p>
+              </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="pwd-ripeti">Ripeti la nuova password</Label>
                 <Input
-                  type="password"
-                  label="Ripeti la nuova password"
                   id="pwd-ripeti"
+                  type="password"
                   value={rePassword}
                   onChange={(e) => setRePassword(e.target.value)}
                   autoComplete="new-password"
+                  aria-invalid={nonCoincidono}
                   required
                   disabled={azione.inCorso}
-                  valid={nonCoincidono ? false : undefined}
-                  validationText={nonCoincidono ? 'Le due password non corrispondono.' : undefined}
                 />
+                {nonCoincidono && (
+                  <p className="text-destructive text-sm">Le due password non corrispondono.</p>
+                )}
+              </div>
 
-                <Button color="primary" type="submit" disabled={!puoInviare}>
-                  {azione.inCorso ? (
-                    <>
-                      <Spinner active small className="me-2" />
-                      Salvataggio…
-                    </>
-                  ) : (
-                    <>
-                      <Icon icon="it-key" color="white" size="sm" aria-hidden className="me-1" />
-                      Aggiorna password
-                    </>
-                  )}
-                </Button>
-              </form>
+              <Button type="submit" disabled={!puoInviare}>
+                {azione.inCorso ? <Loader2 className="animate-spin" /> : <KeyRound />}
+                {azione.inCorso ? 'Salvataggio…' : 'Aggiorna password'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
-              {!suAltroUtente && (
-                <Alert color="info" className="mt-4 mb-0">
-                  Il cambio password non invalida i token già emessi: eventuali sessioni aperte
-                  altrove restano valide fino alla loro scadenza naturale.
-                </Alert>
-              )}
-            </CardBody>
-          </Card>
-        </Col>
-      </Row>
+        {!suAltroUtente && (
+          <Esito tono="info">
+            Il cambio password non invalida i token già emessi: eventuali sessioni aperte altrove
+            restano valide fino alla loro scadenza naturale.
+          </Esito>
+        )}
+      </div>
     </>
   )
 }

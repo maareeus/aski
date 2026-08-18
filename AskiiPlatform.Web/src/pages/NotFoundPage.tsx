@@ -1,18 +1,17 @@
 import { Link } from 'react-router-dom'
-import { Callout, CalloutText, CalloutTitle } from 'design-react-kit'
-import { PageHeader } from '../ui/PageHeader'
+import { Button } from '@/components/ui/button'
+import { PageHeader } from '@/ui/PageHeader'
 
 export function NotFoundPage() {
   return (
     <>
-      <PageHeader titolo="Pagina non trovata" />
-      <Callout color="warning">
-        <CalloutTitle>404</CalloutTitle>
-        <CalloutText>
-          L'indirizzo richiesto non corrisponde a nessuna sezione.{' '}
-          <Link to="/">Torna al riepilogo</Link>.
-        </CalloutText>
-      </Callout>
+      <PageHeader
+        titolo="Pagina non trovata"
+        descrizione="L'indirizzo richiesto non corrisponde a nessuna sezione."
+      />
+      <Button asChild variant="outline">
+        <Link to="/">Torna al riepilogo</Link>
+      </Button>
     </>
   )
 }

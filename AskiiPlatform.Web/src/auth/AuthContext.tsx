@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { authApi } from '../api/endpoints'
-import { configureClient } from '../api/client'
-import type { LoginResult, Role } from '../api/types'
-import { Roles } from '../api/types'
+import { authApi } from '@/api/endpoints'
+import { configureClient } from '@/api/client'
+import type { LoginResult, Role } from '@/api/types'
+import { Roles } from '@/api/types'
 import { expiresAt, isExpired } from './jwt'
 
 const STORAGE_KEY = 'askii.session'

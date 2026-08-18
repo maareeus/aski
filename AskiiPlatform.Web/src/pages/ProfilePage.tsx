@@ -1,12 +1,29 @@
 import { useState } from 'react'
-import { Alert, Badge, Button, Card, CardBody, Col, Icon, Input, Row, Spinner } from 'design-react-kit'
-import { usersApi } from '../api/endpoints'
-import { TFA_LABELS, TfaAvailable } from '../api/types'
-import { useAuth } from '../auth/AuthContext'
-import { PageHeader } from '../ui/PageHeader'
-import { useAzione } from '../ui/useAzione'
+import { Loader2, ShieldCheck } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+import { usersApi } from '@/api/endpoints'
+import { TFA_LABELS, TfaAvailable } from '@/api/types'
+import { useAuth } from '@/auth/AuthContext'
+import { Esito } from '@/ui/Esito'
+import { PageHeader } from '@/ui/PageHeader'
+import { useAzione } from '@/ui/useAzione'
 
 const OPZIONI_TFA = [TfaAvailable.EmailOtp, TfaAvailable.AuthenticatorApp]
+
+function Voce({ etichetta, children }: { etichetta: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <dt className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+        {etichetta}
+      </dt>
+      <dd className="text-sm">{children}</dd>
+    </div>
+  )
+}
 
 export function ProfilePage() {
   const { session, isAdmin, scadenza } = useAuth()
@@ -19,114 +36,94 @@ export function ProfilePage() {
 
   return (
     <>
-      <PageHeader titolo="Profilo" descrizione="Dati della sessione e metodi di autenticazione a due fattori." />
+      <PageHeader
+        titolo="Profilo"
+        descrizione="Dati della sessione e metodi di autenticazione a due fattori."
+      />
 
-      <Row>
-        <Col xs="12" lg="5" className="mb-4">
-          <Card shadow="sm" fullHeight>
-            <CardBody>
-              <h2 className="h6 text-muted text-uppercase">Dati account</h2>
-              <dl className="mb-0">
-                <dt>Nome</dt>
-                <dd>{session?.fullName?.trim() || '—'}</dd>
-                <dt>Email</dt>
-                <dd>{session?.email}</dd>
-                <dt>Ruolo</dt>
-                <dd>
-                  <Badge color={isAdmin ? 'primary' : 'secondary'} pill>
-                    {session?.role}
-                  </Badge>
-                </dd>
-                <dt>Identificativo</dt>
-                <dd>
-                  <code className="user-select-all">{session?.userId}</code>
-                </dd>
-                <dt>Sessione valida fino al</dt>
-                <dd className="mb-0">
-                  {scadenza?.toLocaleString('it-IT', { dateStyle: 'medium', timeStyle: 'short' }) ?? '—'}
-                </dd>
-              </dl>
+      <div className="grid gap-4 lg:grid-cols-5">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Dati account</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <dl className="space-y-4">
+              <Voce etichetta="Nome">{session?.fullName?.trim() || '—'}</Voce>
+              <Voce etichetta="Email">{session?.email}</Voce>
+              <Voce etichetta="Ruolo">
+                <Badge variant={isAdmin ? 'default' : 'secondary'}>{session?.role}</Badge>
+              </Voce>
+              <Voce etichetta="Identificativo">
+                <code className="bg-muted block rounded px-2 py-1.5 font-mono text-xs break-all select-all">
+                  {session?.userId}
+                </code>
+              </Voce>
+              <Voce etichetta="Sessione valida fino al">
+                {scadenza?.toLocaleString('it-IT', {
+                  dateStyle: 'medium',
+                  timeStyle: 'short',
+                }) ?? '—'}
+              </Voce>
+            </dl>
 
-              <Alert color="info" className="mt-3 mb-0 small">
-                Questi dati provengono dalla risposta di login conservata in locale. L'API non
-                espone un endpoint <code>GET /me</code> per rileggerli aggiornati.
-              </Alert>
-            </CardBody>
-          </Card>
-        </Col>
+            <Esito tono="info">
+              Questi dati provengono dalla risposta di login conservata in locale: l'API non espone
+              un endpoint <code className="font-mono">GET /me</code> per rileggerli aggiornati.
+            </Esito>
+          </CardContent>
+        </Card>
 
-        <Col xs="12" lg="7">
-          <Card shadow="sm">
-            <CardBody>
-              <h2 className="h6 text-muted text-uppercase">Autenticazione a due fattori</h2>
+        <div className="space-y-4 lg:col-span-3">
+          {azione.errore && <Esito tono="errore">{azione.errore}</Esito>}
+          {azione.esito?.result && <Esito tono="successo">{azione.esito.msg}</Esito>}
 
-              {azione.errore && (
-                <Alert color="danger" role="alert">
-                  {azione.errore}
-                </Alert>
-              )}
-              {azione.esito?.result && (
-                <Alert color="success" role="status">
-                  {azione.esito.msg}
-                </Alert>
-              )}
-
-              <p className="text-muted">
-                Seleziona i metodi da abilitare. L'elenco inviato sostituisce quello attuale:
-                deselezionare tutto disattiva la 2FA.
-              </p>
-
+          <Card>
+            <CardHeader>
+              <CardTitle>Autenticazione a due fattori</CardTitle>
+              <CardDescription>
+                L'elenco inviato sostituisce quello attuale: deselezionare tutto disattiva la 2FA.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
               <form
+                className="space-y-6"
                 onSubmit={(e) => {
                   e.preventDefault()
                   if (!session) return
                   void azione.esegui({ id: session.userId, tfA_Availables: tfa })
                 }}
               >
-                <fieldset className="mb-4">
-                  <legend className="visually-hidden">Metodi disponibili</legend>
+                <div className="space-y-3">
                   {OPZIONI_TFA.map((v) => (
-                    <div className="form-check" key={v}>
-                      <Input
-                        type="checkbox"
+                    <div key={v} className="flex items-start gap-2.5 rounded-lg border p-3">
+                      <Checkbox
                         id={`prof-tfa-${v}`}
                         checked={tfa.includes(v)}
-                        onChange={(e) => toggleTfa(v, e.target.checked)}
+                        onCheckedChange={(c) => toggleTfa(v, c === true)}
                         disabled={azione.inCorso}
-                        label={TFA_LABELS[v]}
                       />
+                      <Label htmlFor={`prof-tfa-${v}`} className="font-normal leading-snug">
+                        {TFA_LABELS[v]}
+                      </Label>
                     </div>
                   ))}
-                </fieldset>
+                </div>
 
-                <Button color="primary" type="submit" disabled={azione.inCorso}>
-                  {azione.inCorso ? (
-                    <>
-                      <Spinner active small className="me-2" />
-                      Salvataggio…
-                    </>
-                  ) : (
-                    <>
-                      <Icon icon="it-settings" color="white" size="sm" aria-hidden className="me-1" />
-                      Salva preferenze 2FA
-                    </>
-                  )}
+                <Button type="submit" disabled={azione.inCorso}>
+                  {azione.inCorso ? <Loader2 className="animate-spin" /> : <ShieldCheck />}
+                  {azione.inCorso ? 'Salvataggio…' : 'Salva preferenze 2FA'}
                 </Button>
               </form>
-
-              <Alert color="warning" className="mt-4 mb-0">
-                <h3 className="alert-heading h6">Selezione non precompilata</h3>
-                <p className="mb-0">
-                  Le caselle partono sempre vuote perché non esiste un endpoint per leggere i
-                  metodi già configurati: quello che vedi è ciò che stai per inviare, non lo stato
-                  attuale sul server. Il flusso di verifica del secondo fattore al login non è
-                  ancora attivo lato API.
-                </p>
-              </Alert>
-            </CardBody>
+            </CardContent>
           </Card>
-        </Col>
-      </Row>
+
+          <Esito tono="attenzione" titolo="Selezione non precompilata">
+            Le caselle partono sempre vuote perché non esiste un endpoint per leggere i metodi già
+            configurati: quello che vedi è ciò che stai per inviare, non lo stato attuale sul server.
+            Il flusso di verifica del secondo fattore al login non è ancora attivo lato API.
+          </Esito>
+        </div>
+      </div>
     </>
   )
 }

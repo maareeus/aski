@@ -10,15 +10,12 @@ export function PageHeader({
   children?: ReactNode
 }) {
   return (
-    <div className="mb-4">
-      <div className="d-flex flex-wrap justify-content-between align-items-start gap-2">
-        <div>
-          <h1 className="h3 mb-1">{titolo}</h1>
-          {descrizione && <p className="text-muted mb-0">{descrizione}</p>}
-        </div>
-        {children}
+    <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight">{titolo}</h1>
+        {descrizione && <p className="text-muted-foreground text-sm">{descrizione}</p>}
       </div>
-      <hr />
+      {children}
     </div>
   )
 }

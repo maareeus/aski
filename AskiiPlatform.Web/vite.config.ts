@@ -1,5 +1,7 @@
+import path from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 
 // L'API non ha CORS configurato: il proxy fa sì che il browser parli sempre
 // con l'origin di Vite, quindi in sviluppo non serve toccare il backend.
@@ -25,7 +27,12 @@ const proxy = {
 const usePolling = process.env.VITE_POLLING !== '0'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
   server: {
     port: 5173,
     proxy,
@@ -33,8 +40,6 @@ export default defineConfig({
       ? {
           usePolling: true,
           interval: 300,
-          // Senza queste esclusioni il polling andrebbe a fare stat su
-          // decine di migliaia di file, con un costo di CPU inutile.
           ignored: ['**/node_modules/**', '**/dist/**', '**/.git/**'],
         }
       : undefined,

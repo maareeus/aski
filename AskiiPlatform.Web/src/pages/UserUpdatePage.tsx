@@ -1,20 +1,35 @@
 import { useState } from 'react'
-import { Alert, Button, Card, CardBody, Col, Icon, Input, Row, Select, Spinner } from 'design-react-kit'
-import { usersApi } from '../api/endpoints'
-import { TFA_LABELS, TfaAvailable } from '../api/types'
-import type { Role } from '../api/types'
-import { opzioniRuolo } from '../ui/opzioni'
-import { PageHeader } from '../ui/PageHeader'
-import { useAzione } from '../ui/useAzione'
+import { Loader2, Save } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
+import { Switch } from '@/components/ui/switch'
+import { usersApi } from '@/api/endpoints'
+import { ROLE_LIST, TFA_LABELS, TfaAvailable } from '@/api/types'
+import type { Role } from '@/api/types'
+import { Esito } from '@/ui/Esito'
+import { PageHeader } from '@/ui/PageHeader'
+import { useAzione } from '@/ui/useAzione'
 
 const OPZIONI_TFA = [TfaAvailable.EmailOtp, TfaAvailable.AuthenticatorApp]
+const NON_MODIFICARE = '__invariato__'
 
 export function UserUpdatePage() {
   const [id, setId] = useState('')
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
   const [lastName, setLastName] = useState('')
-  const [role, setRole] = useState<'' | Role>('')
+  const [role, setRole] = useState<string>(NON_MODIFICARE)
   const [tfa, setTfa] = useState<TfaAvailable[]>([])
   const [modificaTfa, setModificaTfa] = useState(false)
 
@@ -24,7 +39,8 @@ export function UserUpdatePage() {
     setTfa((prec) => (attivo ? [...new Set([...prec, v])] : prec.filter((x) => x !== v)))
   }
 
-  const nessunCampo = !email && !name && !lastName && !role && !modificaTfa
+  const nessunCampo =
+    !email && !name && !lastName && role === NON_MODIFICARE && !modificaTfa
 
   return (
     <>
@@ -33,153 +49,163 @@ export function UserUpdatePage() {
         descrizione="I campi lasciati vuoti non vengono toccati: l'API applica solo quelli valorizzati."
       />
 
-      <Row>
-        <Col xs="12" lg="8">
-          <Card shadow="sm">
-            <CardBody>
-              {azione.errore && (
-                <Alert color="danger" role="alert">
-                  {azione.errore}
-                </Alert>
-              )}
-              {azione.esito?.result && (
-                <Alert color="success" role="status">
-                  {azione.esito.msg}
-                </Alert>
-              )}
+      <div className="max-w-2xl space-y-4">
+        {azione.errore && <Esito tono="errore">{azione.errore}</Esito>}
+        {azione.esito?.result && <Esito tono="successo">{azione.esito.msg}</Esito>}
 
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  void azione.esegui({
-                    id: id.trim(),
-                    email: email.trim() || null,
-                    name: name.trim() || null,
-                    lastName: lastName.trim() || null,
-                    role: role || null,
-                    tfA_Availables: modificaTfa ? tfa : null,
-                  })
-                }}
-                noValidate
-              >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            void azione.esegui({
+              id: id.trim(),
+              email: email.trim() || null,
+              name: name.trim() || null,
+              lastName: lastName.trim() || null,
+              role: role === NON_MODIFICARE ? null : (role as Role),
+              tfA_Availables: modificaTfa ? tfa : null,
+            })
+          }}
+          noValidate
+          className="space-y-4"
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle>Utente da modificare</CardTitle>
+              <CardDescription>
+                Senza un endpoint di lettura l'identificativo va inserito a mano. Viene restituito
+                dalla creazione.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Label htmlFor="mod-id">Identificativo</Label>
                 <Input
-                  label="Identificativo utente"
                   id="mod-id"
                   value={id}
                   onChange={(e) => setId(e.target.value)}
+                  placeholder="00000000-0000-0000-0000-000000000000"
+                  className="font-mono text-sm"
                   required
                   disabled={azione.inCorso}
-                  placeholder="00000000-0000-0000-0000-000000000000"
-                  infoText="GUID restituito dalla creazione. Senza un endpoint di lettura va inserito a mano."
                 />
+              </div>
+            </CardContent>
+          </Card>
 
-                <hr />
-
+          <Card>
+            <CardHeader>
+              <CardTitle>Campi da aggiornare</CardTitle>
+              <CardDescription>Lascia vuoto ciò che non deve cambiare.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="mod-email">Nuova email</Label>
                 <Input
-                  type="email"
-                  label="Nuova email"
                   id="mod-email"
+                  type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={azione.inCorso}
-                  infoText="Se già assegnata a un altro utente l'operazione fallisce."
                 />
+                <p className="text-muted-foreground text-sm">
+                  Se già assegnata a un altro utente l'operazione fallisce.
+                </p>
+              </div>
 
-                <Row>
-                  <Col xs="12" md="6">
-                    <Input
-                      label="Nome"
-                      id="mod-nome"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      disabled={azione.inCorso}
-                    />
-                  </Col>
-                  <Col xs="12" md="6">
-                    <Input
-                      label="Cognome"
-                      id="mod-cognome"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      disabled={azione.inCorso}
-                    />
-                  </Col>
-                </Row>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="mod-nome">Nome</Label>
+                  <Input
+                    id="mod-nome"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    disabled={azione.inCorso}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="mod-cognome">Cognome</Label>
+                  <Input
+                    id="mod-cognome"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    disabled={azione.inCorso}
+                  />
+                </div>
+              </div>
 
-                <Select
-                  id="mod-ruolo"
-                  label="Ruolo"
-                  value={role}
-                  onChange={(valore) => setRole(valore as '' | Role)}
-                  disabled={azione.inCorso}
-                >
-                  {opzioniRuolo('Non modificare')}
+              <div className="space-y-2">
+                <Label htmlFor="mod-ruolo">Ruolo</Label>
+                <Select value={role} onValueChange={setRole} disabled={azione.inCorso}>
+                  <SelectTrigger id="mod-ruolo" className="w-full sm:w-64">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NON_MODIFICARE}>Non modificare</SelectItem>
+                    {ROLE_LIST.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
-                <p className="text-muted small">
+                <p className="text-muted-foreground text-sm">
                   Il super amministratore non può essere declassato: l'API rifiuta il cambio.
                 </p>
+              </div>
 
-                <fieldset className="mt-4">
-                  <legend className="h6">Autenticazione a due fattori</legend>
-                  <div className="form-check">
-                    <Input
-                      type="checkbox"
-                      id="mod-tfa-abilita"
-                      checked={modificaTfa}
-                      onChange={(e) => setModificaTfa(e.target.checked)}
-                      disabled={azione.inCorso}
-                      label="Sovrascrivi i metodi 2FA"
-                    />
+              <Separator />
+
+              <div className="space-y-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="mod-tfa-abilita">Sovrascrivi i metodi 2FA</Label>
+                    <p className="text-muted-foreground text-sm">
+                      L'elenco selezionato sostituisce quello esistente: non selezionare nulla
+                      equivale a disattivare la 2FA.
+                    </p>
                   </div>
-                  <p className="text-muted small">
-                    Se attivo, l'elenco selezionato <strong>sostituisce</strong> quello esistente:
-                    non selezionare nulla equivale a disattivare la 2FA.
-                  </p>
+                  <Switch
+                    id="mod-tfa-abilita"
+                    checked={modificaTfa}
+                    onCheckedChange={setModificaTfa}
+                    disabled={azione.inCorso}
+                  />
+                </div>
 
-                  {modificaTfa &&
-                    OPZIONI_TFA.map((v) => (
-                      <div className="form-check" key={v}>
-                        <Input
-                          type="checkbox"
+                {modificaTfa && (
+                  <div className="space-y-3 rounded-lg border p-4">
+                    {OPZIONI_TFA.map((v) => (
+                      <div key={v} className="flex items-center gap-2.5">
+                        <Checkbox
                           id={`mod-tfa-${v}`}
                           checked={tfa.includes(v)}
-                          onChange={(e) => toggleTfa(v, e.target.checked)}
+                          onCheckedChange={(c) => toggleTfa(v, c === true)}
                           disabled={azione.inCorso}
-                          label={TFA_LABELS[v]}
                         />
+                        <Label htmlFor={`mod-tfa-${v}`} className="font-normal">
+                          {TFA_LABELS[v]}
+                        </Label>
                       </div>
                     ))}
-                </fieldset>
-
-                <div className="mt-4">
-                  <Button
-                    color="primary"
-                    type="submit"
-                    disabled={azione.inCorso || !id || nessunCampo}
-                  >
-                    {azione.inCorso ? (
-                      <>
-                        <Spinner active small className="me-2" />
-                        Salvataggio…
-                      </>
-                    ) : (
-                      <>
-                        <Icon icon="it-pencil" color="white" size="sm" aria-hidden className="me-1" />
-                        Salva modifiche
-                      </>
-                    )}
-                  </Button>
-                  {nessunCampo && id && (
-                    <p className="text-muted small mt-2 mb-0">
-                      Valorizza almeno un campo da modificare.
-                    </p>
-                  )}
-                </div>
-              </form>
-            </CardBody>
+                  </div>
+                )}
+              </div>
+            </CardContent>
           </Card>
-        </Col>
-      </Row>
+
+          <div className="space-y-2">
+            <Button type="submit" disabled={azione.inCorso || !id || nessunCampo}>
+              {azione.inCorso ? <Loader2 className="animate-spin" /> : <Save />}
+              {azione.inCorso ? 'Salvataggio…' : 'Salva modifiche'}
+            </Button>
+            {nessunCampo && id && (
+              <p className="text-muted-foreground text-sm">
+                Valorizza almeno un campo da modificare.
+              </p>
+            )}
+          </div>
+        </form>
+      </div>
     </>
   )
 }

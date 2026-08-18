@@ -165,17 +165,6 @@ public class UserTests
     // --- Anagrafica ---
 
     [Fact]
-    public void UpdateAnag_con_nome_null_mantiene_il_valore_corrente()
-    {
-        var user = User.Create("mario@example.com", "Password123!", "Mario", "Rossi", Roles.Client);
-
-        user.UpdateAnag(null, "Bianchi");
-
-        Assert.Equal("Mario", user.Name);
-        Assert.Equal("Bianchi", user.LastName);
-    }
-
-    [Fact]
     public void SetEmail_normalizza_l_email()
     {
         var user = User.Create("mario@example.com", "Password123!", null, null, Roles.Client);

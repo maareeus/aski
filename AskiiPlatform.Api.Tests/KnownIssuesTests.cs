@@ -1,4 +1,5 @@
 using Askii.Common;
+using Askii.Common.Extensions;
 using Askii.Common.Exceptions;
 using Askii.Database.Entities;
 using Askii.Features.Auth.Login;
@@ -12,20 +13,27 @@ using Microsoft.EntityFrameworkCore;
 namespace Askii.Tests;
 
 /// <summary>
-/// Test di caratterizzazione: fotografano il comportamento ATTUALE dei difetti noti,
-/// non quello desiderato. Sono verdi oggi; quando il bug verrà corretto diventeranno
-/// rossi, segnalando che vanno riscritti come test del comportamento giusto.
-/// Ogni test cita il difetto a cui si riferisce.
+/// Precondizioni degli handler, documentate.
+///
+/// Gli handler non si difendono da input nulli né da claim mancanti: contano
+/// sulla pipeline, cioè sul ValidationFilter per il corpo della richiesta e su
+/// OnTokenValidated per l'identità. Questi test fissano quella dipendenza, così
+/// se qualcuno stacca un filtro da un endpoint si sa cosa succede all'handler
+/// rimasto scoperto: non un 400, ma un 500.
+///
+/// Nascono come test di caratterizzazione dei difetti noti; quelli corretti sono
+/// stati rimossi o riscritti come verifica del comportamento giusto nei rispettivi
+/// file.
 /// </summary>
 public class KnownIssuesTests
 {
     // =====================================================================
-    // #4 - Nessuna validazione dell'input: campi mancanti nel JSON arrivano
-    //      null e fanno esplodere l'endpoint con un 500 anziché un 400.
+    // Gli handler assumono il corpo già validato: senza il ValidationFilter
+    // davanti, un campo mancante li fa esplodere invece di produrre un 400.
     // =====================================================================
 
     [Fact]
-    public async Task BUG4_login_con_email_null_solleva_NullReferenceException()
+    public async Task Handler_login_con_email_null_solleva_NullReferenceException()
     {
         using var ctx = new TestDb();
 
@@ -35,7 +43,7 @@ public class KnownIssuesTests
     }
 
     [Fact]
-    public async Task BUG4_create_con_email_null_solleva_NullReferenceException()
+    public async Task Handler_create_con_email_null_solleva_NullReferenceException()
     {
         using var ctx = new TestDb();
 
@@ -45,139 +53,14 @@ public class KnownIssuesTests
     }
 
     // =====================================================================
-    // #5 - IsValidEmail si basa su MailAddress, che accetta anche le forme
-    //      con display name: passa validazione roba che non è un indirizzo.
+    // Gli handler assumono l'identità già verificata: le extension sui claim
+    // usano `!` e Guid.Parse, quindi un principal incompleto solleva
+    // un'eccezione. Oggi non può arrivarci, perché OnTokenValidated rifiuta i
+    // token senza `sub` e senza impronta.
     // =====================================================================
 
     [Fact]
-    public async Task BUG5_create_accetta_email_in_forma_display_name()
-    {
-        using var ctx = new TestDb();
-
-        var result = await CreateUserEndpoint.Impl(
-            new CreateUserRequest("Mario Rossi <mario@example.com>", "N", "U", Roles.Client, false),
-            ctx.Db, new EmailSenderFinto(), CancellationToken.None);
-
-        Assert.IsType<Ok<CreateUserResult>>(result);
-        ctx.Detach();
-        Assert.Equal("mario rossi <mario@example.com>", (await ctx.Db.Users.SingleAsync()).Email);
-    }
-
-    // =====================================================================
-    // #11 - CreateUser genera una password temporanea che non restituisce e
-    //       non comunica a nessuno: l'utente creato non può autenticarsi.
-    //       Manca il flusso di attivazione che gliela faccia impostare.
-    // =====================================================================
-
-    [Fact]
-    public async Task BUG11_la_password_generata_non_e_recuperabile_da_nessuna_parte()
-    {
-        using var ctx = new TestDb();
-
-        var result = await CreateUserEndpoint.Impl(
-            new CreateUserRequest("nuovo@example.com", "N", "U", Roles.Client, IsActive: true),
-            ctx.Db, new EmailSenderFinto(), CancellationToken.None);
-
-        var ok = Assert.IsType<Ok<CreateUserResult>>(result);
-
-        // CreateUserResult non ha alcun campo per la password generata, e non
-        // esiste un mailer in ExternalServices: il valore è perso alla creazione.
-        Assert.DoesNotContain("password", ok.Value!.GetType()
-            .GetProperties().Select(p => p.Name.ToLowerInvariant()));
-
-        ctx.Detach();
-        var salvato = await ctx.Db.Users.SingleAsync();
-        Assert.True(salvato.IsActive);
-        Assert.StartsWith("$2", salvato.PasswordHash); // l'hash c'è, il valore in chiaro no
-    }
-
-    // =====================================================================
-    // #7 - UpdateUser non fa il controllo preventivo di unicità che fa
-    //      CreateUser, e non usa il proprio UpdateUserResponse.InvalidEmail().
-    // =====================================================================
-
-    [Fact]
-    public async Task BUG7_update_con_email_invalida_non_usa_il_messaggio_dedicato()
-    {
-        using var ctx = new TestDb();
-        var user = await ctx.SeedUserAsync("mario@example.com");
-
-        // SetEmail valida e lancia InvalidEmailException (DomainException),
-        // che risale al GlobalExceptionHandler -> 400 "Violazione regola di
-        // business". UpdateUserResponse.InvalidEmail() resta codice morto e
-        // l'endpoint non restituisce mai il suo messaggio.
-        var ex = await Assert.ThrowsAnyAsync<DomainException>(() => UpdateUserEndpoint.AdminImpl(
-            new UpdateUserRequest(user.Id, "non-una-email", null, null, null, null),
-            ctx.Db, CancellationToken.None));
-
-        Assert.Contains("non è valida", ex.Message);
-        Assert.NotEqual(UpdateUserResponse.InvalidEmail().msg, ex.Message);
-
-        ctx.Detach();
-        Assert.Equal("mario@example.com", (await ctx.Db.Users.SingleAsync()).Email);
-    }
-
-    [Fact]
-    public async Task BUG7_update_su_email_gia_esistente_da_500_invece_di_409()
-    {
-        using var ctx = new TestDb();
-        var a = await ctx.SeedUserAsync("a@example.com", "Password123!");
-        await ctx.SeedUserAsync("b@example.com", "Password123!");
-
-        // L'indice univoco protegge i dati, ma UpdateUser non fa il controllo
-        // preventivo che CreateUser fa: l'errore arriva dal db come
-        // DbUpdateException, quindi 500 anziché un 409 con messaggio utile.
-        await Assert.ThrowsAsync<DbUpdateException>(() => UpdateUserEndpoint.AdminImpl(
-            new UpdateUserRequest(a.Id, "b@example.com", null, null, null, null),
-            ctx.Db, CancellationToken.None));
-    }
-
-    // =====================================================================
-    // #9 - ChangePassword non chiede la password attuale: un token rubato
-    //      (valido 8h) basta per prendersi l'account in modo permanente.
-    // =====================================================================
-
-    [Fact]
-    public async Task BUG9_un_admin_puo_cambiare_la_password_del_superadmin()
-    {
-        using var ctx = new TestDb();
-        var superAdmin = await ctx.SeedSuperAdminAsync("super@example.com", "Password123!");
-
-        var result = await ChangePasswordEndpoint.Impl(
-            new ChangePasswordRequest(superAdmin.Id, "Presa456!", "Presa456!", null),
-            ctx.Db,
-            TestFactory.Principal(Guid.NewGuid(), Roles.Admin), // admin qualsiasi, non il superadmin
-            CancellationToken.None);
-
-        Assert.IsType<Ok<ChangePasswordResponse>>(result);
-        ctx.Detach();
-        Assert.True((await ctx.Db.Users.SingleAsync()).VerifyPassword("Presa456!"));
-    }
-
-    [Fact]
-    public async Task BUG9_changepassword_accetta_una_password_vuota()
-    {
-        using var ctx = new TestDb();
-        var user = await ctx.SeedUserAsync(password: "Vecchia123!");
-
-        // Nessun requisito di robustezza: si può azzerare la password.
-        var result = await ChangePasswordEndpoint.Impl(
-            new ChangePasswordRequest(user.Id, "", "", OldPassword: "Vecchia123!"),
-            ctx.Db, TestFactory.Principal(user.Id, Roles.Client), CancellationToken.None);
-
-        Assert.IsType<Ok<ChangePasswordResponse>>(result);
-        ctx.Detach();
-        Assert.True((await ctx.Db.Users.SingleAsync()).VerifyPassword(""));
-    }
-
-    // =====================================================================
-    // #10 - ChangePassword legge i claim senza difese: la policy UserPolicy
-    //       richiede solo l'autenticazione, quindi un token senza claim di
-    //       ruolo o di id passa l'autorizzazione e poi fa 500.
-    // =====================================================================
-
-    [Fact]
-    public async Task BUG10_token_senza_claim_di_id_manda_l_endpoint_in_eccezione()
+    public async Task Handler_token_senza_claim_di_id_manda_l_endpoint_in_eccezione()
     {
         using var ctx = new TestDb();
         var user = await ctx.SeedUserAsync();
@@ -191,7 +74,7 @@ public class KnownIssuesTests
     }
 
     [Fact]
-    public async Task BUG10_token_senza_claim_di_ruolo_manda_l_endpoint_in_eccezione()
+    public async Task Handler_token_senza_claim_di_ruolo_manda_l_endpoint_in_eccezione()
     {
         using var ctx = new TestDb();
         var user = await ctx.SeedUserAsync();
@@ -204,24 +87,25 @@ public class KnownIssuesTests
     }
 
     // =====================================================================
-    // #8 - NormalizeEmail usa ToLower() culture-sensitive invece di
-    //      ToLowerInvariant(): sotto culture turca "I" non diventa "i".
+    // Non più un difetto: NormalizeEmail usa ToLowerInvariant. Il test resta
+    // come guardia, perché tornare a ToLower non darebbe errori evidenti.
     // =====================================================================
 
     [Fact]
-    public void BUG8_NormalizeEmail_dipende_dalla_culture_del_thread()
+    public void NormalizeEmail_non_dipende_dalla_culture_del_thread()
     {
         var originale = Thread.CurrentThread.CurrentCulture;
         try
         {
             Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("tr-TR");
-            var turca = "MARIO@EXAMPLE.COM".ToLower();
+            var turca = "MARIO@EXAMPLE.COM".NormalizeEmail();
 
             Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
-            var invariante = "MARIO@EXAMPLE.COM".ToLower();
+            var invariante = "MARIO@EXAMPLE.COM".NormalizeEmail();
 
-            // In turco la I maiuscola diventa 'ı' (senza punto): le due normalizzazioni divergono.
-            Assert.NotEqual(invariante, turca);
+            // In turco `ToLower` trasformerebbe la I in 'ı' (senza punto):
+            // ToLowerInvariant no, quindi le due normalizzazioni coincidono.
+            Assert.Equal(invariante, turca);
         }
         finally
         {

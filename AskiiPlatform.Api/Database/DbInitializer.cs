@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Askii.Database;
 
-public static class DbIniializer
+public static class DbInitializer
 {
     public static async Task Init(this WebApplication app)
     {
@@ -43,7 +43,7 @@ public static class DbIniializer
 
             var admin = User.CreateSuperAdmin(adminEmail, adminPassword, firstName, lastName);
             db.Users.Add(admin);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync();  // avvio: nessun token di annullamento disponibile
 
             logger.LogInformation("Super admin creato, db OK!");
                 

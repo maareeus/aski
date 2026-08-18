@@ -13,6 +13,8 @@ import type {
   TfaVerifyRequest,
   ResendActivationRequest,
   ResendActivationResponse,
+  MeResult,
+  UserStatsResult,
   ChangePasswordRequest,
   CreateUserRequest,
   CreateUserResult,
@@ -67,6 +69,12 @@ export const settingsApi = {
 }
 
 export const usersApi = {
+  /** Profilo del chiamante letto dal db: non invecchia come quello in locale. */
+  me: () => get<MeResult>('/user/me'),
+
+  /** Admin. Conteggi per il riepilogo. */
+  stats: () => get<UserStatsResult>('/user/admin/stats'),
+
   /** Admin. Filtri, ordinamento e paginazione sono tutti lato server. */
   list: (query: UserListQuery) =>
     get<PagedResult<UserListItem>>('/user/admin/list', { ...query }),

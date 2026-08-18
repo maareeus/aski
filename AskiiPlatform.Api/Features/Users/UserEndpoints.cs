@@ -6,6 +6,8 @@ using Askii.Features.Users.CreateUser;
 using Askii.Features.Users.DeleteUser;
 using Askii.Features.Users.GetUser;
 using Askii.Features.Users.ListUsers;
+using Askii.Features.Users.Me;
+using Askii.Features.Users.Stats;
 using Askii.Features.Users.TfaSettings;
 using Askii.Features.Users.UpdateUser;
 
@@ -17,6 +19,15 @@ public static class UserEndpoint
     {
         // In GET, non POST: l'elenco è cacheabile e lo stato dei filtri
         // diventa una URL condivisibile e ricaricabile.
+        // Profilo del chiamante, letto dal db e non dal token conservato in locale.
+        app.MapGet("/user/me", MeEndpoint.Impl)
+            .RequireAuthorization(JwtAuthorization.PolicyLevel.UserPolicy)
+            .MapToApiVersion(1);
+
+        app.MapGet("/user/admin/stats", UserStatsEndpoint.Impl)
+            .RequireAuthorization(JwtAuthorization.PolicyLevel.AdminPolicy)
+            .MapToApiVersion(1);
+
         app.MapGet("/user/admin/list", ListUsersEndpoint.Impl)
             .RequireAuthorization(JwtAuthorization.PolicyLevel.AdminPolicy)
             .MapToApiVersion(1);

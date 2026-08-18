@@ -106,7 +106,7 @@ public class ChangePasswordEndpointTests
     }
 
     [Fact]
-    public async Task Su_utente_inesistente_ritorna_400()
+    public async Task Su_utente_inesistente_ritorna_404()
     {
         using var ctx = new TestDb();
         var id = Guid.NewGuid();
@@ -114,7 +114,8 @@ public class ChangePasswordEndpointTests
         var result = await Change(ctx, id, "Nuova456!", "Nuova456!", callerId: id);
 
         var problem = Assert.IsType<ProblemHttpResult>(result);
-        Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+        // La risorsa non esiste: 404, non 400.
+        Assert.Equal(StatusCodes.Status404NotFound, problem.StatusCode);
         Assert.Equal("Utente non trovato", problem.ProblemDetails.Detail);
     }
 
@@ -189,7 +190,7 @@ public class ChangePasswordEndpointTests
     }
 
     [Fact]
-    public async Task Il_controllo_di_esistenza_precede_quello_della_password_attuale()
+    public async Task Il_controllo_di_esistenza_precede_quello_della_password_attuale_e_da_404()
     {
         using var ctx = new TestDb();
         var id = Guid.NewGuid();
@@ -198,7 +199,42 @@ public class ChangePasswordEndpointTests
             callerId: id, oldPassword: "qualsiasi");
 
         var problem = Assert.IsType<ProblemHttpResult>(result);
-        Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+        Assert.Equal(StatusCodes.Status404NotFound, problem.StatusCode);
         Assert.Equal("Utente non trovato", problem.ProblemDetails.Detail);
+    }
+
+    // --- protezione del super amministratore ---
+
+    [Fact]
+    public async Task Un_admin_non_puo_cambiare_la_password_del_superadmin()
+    {
+        using var ctx = new TestDb();
+        var superAdmin = await ctx.SeedSuperAdminAsync("super@example.com", "Password123!");
+
+        var result = await Change(ctx, superAdmin.Id, "Presa456!", "Presa456!",
+            callerId: Guid.NewGuid(), callerRole: Roles.Admin);
+
+        var problem = Assert.IsType<ProblemHttpResult>(result);
+        Assert.Equal(StatusCodes.Status401Unauthorized, problem.StatusCode);
+        Assert.Contains("super amministratore", problem.ProblemDetails.Detail!);
+
+        ctx.Detach();
+        Assert.True((await ctx.Db.Users.SingleAsync()).VerifyPassword("Password123!"));
+    }
+
+    [Fact]
+    public async Task Il_superadmin_cambia_la_propria_password_fornendo_quella_attuale()
+    {
+        using var ctx = new TestDb();
+        var superAdmin = await ctx.SeedSuperAdminAsync("super@example.com", "Password123!");
+
+        // Pur essendo Admin, su se stesso deve dimostrare di conoscere la
+        // password attuale: un token rubato non basta.
+        Assert.IsType<ProblemHttpResult>(await Change(ctx, superAdmin.Id, "Nuova456!", "Nuova456!",
+            callerId: superAdmin.Id, callerRole: Roles.Admin, oldPassword: null));
+
+        ctx.Detach();
+        Assert.IsType<Ok<ChangePasswordResponse>>(await Change(ctx, superAdmin.Id, "Nuova456!", "Nuova456!",
+            callerId: superAdmin.Id, callerRole: Roles.Admin, oldPassword: "Password123!"));
     }
 }

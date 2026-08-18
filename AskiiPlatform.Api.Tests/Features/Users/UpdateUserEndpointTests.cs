@@ -83,15 +83,56 @@ public class UpdateUserEndpointTests
     }
 
     [Fact]
-    public async Task Update_di_id_inesistente_ritorna_400()
+    public async Task Update_di_id_inesistente_ritorna_404()
     {
         using var ctx = new TestDb();
 
         var result = await Update(ctx, Guid.NewGuid(), name: "Marco");
 
         var problem = Assert.IsType<ProblemHttpResult>(result);
-        Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+        Assert.Equal(StatusCodes.Status404NotFound, problem.StatusCode);
         Assert.Equal("Utente non trovato", problem.ProblemDetails.Detail);
+    }
+
+    [Fact]
+    public async Task Un_email_non_valida_da_400_col_messaggio_dedicato()
+    {
+        using var ctx = new TestDb();
+        var user = await ctx.SeedUserAsync("mario@example.com");
+
+        var result = await Update(ctx, user.Id, email: "non-una-email");
+
+        var problem = Assert.IsType<ProblemHttpResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+        Assert.Equal(UpdateUserResponse.InvalidEmail().msg, problem.ProblemDetails.Detail);
+
+        ctx.Detach();
+        Assert.Equal("mario@example.com", (await ctx.Db.Users.SingleAsync(u => u.Id == user.Id)).Email);
+    }
+
+    [Fact]
+    public async Task Un_email_gia_di_un_altro_utente_da_409_non_500()
+    {
+        using var ctx = new TestDb();
+        var a = await ctx.SeedUserAsync("a@example.com");
+        await ctx.SeedUserAsync("b@example.com");
+
+        // Il controllo preventivo evita che l'indice univoco sollevi una
+        // DbUpdateException, che il gestore globale tradurrebbe in 500.
+        var result = await Update(ctx, a.Id, email: "b@example.com");
+
+        var problem = Assert.IsType<ProblemHttpResult>(result);
+        Assert.Equal(StatusCodes.Status409Conflict, problem.StatusCode);
+        Assert.Contains("già assegnata", problem.ProblemDetails.Detail!);
+    }
+
+    [Fact]
+    public async Task Reimpostare_la_propria_stessa_email_non_e_un_conflitto()
+    {
+        using var ctx = new TestDb();
+        var user = await ctx.SeedUserAsync("mario@example.com");
+
+        Assert.IsType<Ok<UpdateUserResponse>>(await Update(ctx, user.Id, email: "MARIO@example.com"));
     }
 
     [Fact]

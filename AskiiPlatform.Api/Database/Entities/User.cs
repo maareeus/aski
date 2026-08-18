@@ -130,12 +130,6 @@ public class User : BaseEntity
         Email = email.NormalizeEmail();
     }
 
-    public void UpdateAnag(string? name, string lastName)
-    {
-        Name = name ?? Name;
-        LastName = lastName ?? LastName;
-    }
-
     public void UpdateRole(string role)
     {
         if(!Roles.All.Any(x => x == role))

@@ -14,16 +14,15 @@ export type Role = (typeof Roles)[keyof typeof Roles]
 export const ROLE_LIST: Role[] = [Roles.Admin, Roles.Operator, Roles.Client]
 
 /**
- * L'API non registra JsonStringEnumConverter, quindi gli enum viaggiano come
- * numeri: i valori qui devono rispettare l'ordine di dichiarazione in
- * Features/Auth/AuthEndpoints.cs. Aggiungere un valore in mezzo lato C#
- * cambierebbe il significato di questi numeri.
+ * L'API registra JsonStringEnumConverter, quindi gli enum viaggiano come nomi:
+ * i valori qui sono i nomi C# di TFA_Available, non la loro posizione. Aggiungere
+ * un valore in mezzo lato backend non cambia il significato di questi.
  *
  * Const object e non `enum` perché il progetto compila con erasableSyntaxOnly.
  */
 export const TfaAvailable = {
-  EmailOtp: 0,
-  AuthenticatorApp: 1,
+  EmailOtp: 'EMAIL_OTP',
+  AuthenticatorApp: 'AUTHENTICATOR_APP',
 } as const
 
 export type TfaAvailable = (typeof TfaAvailable)[keyof typeof TfaAvailable]
@@ -90,6 +89,34 @@ export interface UserDetail {
   tfA_Availables: TfaAvailable[]
 }
 
+// --- /user/me ---
+
+export interface MeResult {
+  id: string
+  email: string
+  name: string
+  lastName: string
+  fullName: string
+  role: Role
+  isActive: boolean
+  isSuperAdmin: boolean
+  lastLoginUtc: string | null
+  createdAtUtc: string
+  tfaMethods: TfaAvailable[]
+  tfaEnabled: boolean
+}
+
+// --- /user/admin/stats ---
+
+export interface UserStatsResult {
+  total: number
+  active: number
+  pendingActivation: number
+  withTfa: number
+  byRole: Record<string, number>
+  lastLoginUtc: string | null
+}
+
 // --- /settings ---
 
 /** Nomi delle opzioni noti al backend (Database/Entities/Options.cs). */
@@ -124,11 +151,11 @@ export interface LoginRequest {
   password: string
 }
 
-/** Rispecchia AuthStatus di Features/Auth/AuthEndpoints.cs (enum numerico). */
+/** Rispecchia AuthStatus di Features/Auth/AuthEndpoints.cs, serializzato per nome. */
 export const AuthStatus = {
-  Unauthorized: 0,
-  Ok: 1,
-  TfaRequired: 2,
+  Unauthorized: 'UNAUTHORIZED',
+  Ok: 'OK',
+  TfaRequired: 'TFA_REQUIRED',
 } as const
 
 export type AuthStatus = (typeof AuthStatus)[keyof typeof AuthStatus]

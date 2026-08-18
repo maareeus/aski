@@ -22,12 +22,33 @@ public static class UpdateUserEndpoint
         
         if(user is null)
         {
-            return ResultsHelper.BadRequest(UpdateUserResponse.UserNotFound().msg);
+            return ResultsHelper.NotFound(UpdateUserResponse.UserNotFound().msg);
         }
 
         if(req.Email is not null)
         {
-            user.SetEmail(req.Email);
+            var nuovaEmail = req.Email.NormalizeEmail();
+
+            // Validazione prima di SetEmail, che solleverebbe una
+            // InvalidEmailException risalendo al gestore globale: da qui il
+            // client riceve il messaggio dedicato invece di un errore di dominio.
+            if(!nuovaEmail.IsValidEmail())
+            {
+                return ResultsHelper.BadRequest(UpdateUserResponse.InvalidEmail().msg);
+            }
+
+            // Controllo preventivo di unicità: senza, l'indice univoco fa
+            // scattare una DbUpdateException e il client vede un 500 invece di
+            // un 409 con una spiegazione.
+            var occupata = await db.Users
+                .AnyAsync(u => u.Id != user.Id && u.Email == nuovaEmail, ct);
+
+            if(occupata)
+            {
+                return ResultsHelper.Conflict(UpdateUserResponse.EmailGiaUsata(req.Email).msg);
+            }
+
+            user.SetEmail(nuovaEmail);
         }
         if(req.Name is not null) user.Name = req.Name;
         if(req.LastName is not null) user.LastName = req.LastName;
@@ -69,7 +90,7 @@ public static class UpdateUserEndpoint
         
         if(user is null)
         {
-            return ResultsHelper.BadRequest(UpdateUserResponse.UserNotFound().msg);
+            return ResultsHelper.NotFound(UpdateUserResponse.UserNotFound().msg);
         }
 
         // I metodi 2FA NON si impostano da qui: usare /user/tfa/*. Assegnare la
@@ -100,8 +121,8 @@ public record UpdateUserRequest(
 public record UpdateUserResponse(bool result, string msg)
 {
     public static UpdateUserResponse Ok() => new UpdateUserResponse(true, "Utente modificato");
-    public static UpdateUserResponse Ko() => new UpdateUserResponse(false, "Errore durante la modifica dell'utente");
     public static UpdateUserResponse Unauthorized() => new UpdateUserResponse(false, "Non hai i permessi per modificare la risorsa");
     public static UpdateUserResponse UserNotFound() => new UpdateUserResponse(false, "Utente non trovato");
     public static UpdateUserResponse InvalidEmail() => new UpdateUserResponse(false, "La mail inserita non è valida");
+    public static UpdateUserResponse EmailGiaUsata(string email) => new UpdateUserResponse(false, $"L'email {email} è già assegnata a un altro utente");
 }

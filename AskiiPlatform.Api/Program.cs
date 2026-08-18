@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Askii.Authorization;
 using FluentValidation;
 using Askii.Common.Exceptions;
@@ -53,7 +54,10 @@ builder.Services.AddApiVersioning(o =>
 });
 
 // 3. DATABASE
-var dbconnection = "Data Source=askii.db;Cache=shared;Foreign Keys=True;";
+// Da configurazione, così si cambia per ambiente senza ricompilare. Il valore
+// nel codice resta come default di sviluppo.
+var dbconnection = builder.Configuration.GetConnectionString("Default")
+    ?? "Data Source=askii.db;Cache=shared;Foreign Keys=True;";
 builder.Services.AddDbContext<AppDbContext>(o =>
 {
     o.UseSqlite(dbconnection); 
@@ -65,6 +69,15 @@ builder.Services.AddDbContext<AppDbContext>(o =>
 // Validatori FluentValidation: uno per DTO di richiesta, applicati dal
 // ValidationFilter sugli endpoint che lo dichiarano.
 builder.Services.AddValidatorsFromAssemblyContaining<Program>(includeInternalTypes: true);
+
+// Gli enum viaggiano come nomi e non come numeri: `"TFA_REQUIRED"` invece di
+// `2`. Rende le risposte leggibili e, soprattutto, disaccoppia il contratto
+// dall'ordine di dichiarazione: inserire un valore in mezzo lato C# non cambia
+// il significato di quelli già scambiati.
+builder.Services.ConfigureHttpJsonOptions(o =>
+{
+    o.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 
 builder.Services.AddDataProtection();
 builder.Services.AddSingleton<Askii.Common.Security.ISecretProtector,
@@ -93,7 +106,7 @@ app.UseAuthorization();
 
 // 7. INIZIALIZZAZIONE DB
 // Inizializzazione WAL e ottimizzazioni globali del file DB
-await DbIniializer.Init(app);
+await DbInitializer.Init(app);
 var appOptions = app.Services.GetRequiredService<Askii.Database.Entities.Options>();
 await appOptions.Seed();
 
@@ -114,15 +127,16 @@ versionedGroup.MapSettings();
 // 9. DOCUMENTAZIONE API E SCALAR UI
 // Espone /openapi/{documentName}.json; WithDocumentPerVersion applica le
 // convenzioni di API versioning all'endpoint del documento.
-app.MapOpenApi().WithDocumentPerVersion();
-
-app.MapScalarApiReference(options =>
+// Documentazione e UI interattiva solo in sviluppo: in produzione esporrebbero
+// l'intera superficie dell'API a chiunque.
+if (app.Environment.IsDevelopment())
 {
-    options.AddPreferredSecuritySchemes("Bearer");
-    options.AddHttpAuthentication("Bearer", x =>
+    app.MapOpenApi().WithDocumentPerVersion();
+
+    app.MapScalarApiReference(options =>
     {
-        x.Token = "INCOLLA_QUI_IL_TUO_TOKEN_DI_TEST"; // Opzionale: per precompilare la UI
+        options.AddPreferredSecuritySchemes("Bearer");
     });
-});
+}
 
 app.Run();

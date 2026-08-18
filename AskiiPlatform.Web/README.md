@@ -103,7 +103,4 @@ sarebbe più sicuro ma richiede una modifica lato backend.
 
 | Serve | Perché |
 |---|---|
-| `GET /me` | rileggere il profilo aggiornato invece di fidarsi della risposta di login |
-| `JsonStringEnumConverter` | gli enum viaggiano come numeri: `status: 2` invece di `"TFA_REQUIRED"` |
-| endpoint di statistiche | contatori nel riepilogo: la lista è paginata, sommarla lato client richiederebbe tutte le pagine |
 | `JsonStringEnumConverter` | gli enum viaggiano come numeri, quindi `TFA_Availables: [0]` invece di `["EMAIL_OTP"]` |

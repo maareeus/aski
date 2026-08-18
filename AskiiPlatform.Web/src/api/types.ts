@@ -90,6 +90,33 @@ export interface UserDetail {
   tfA_Availables: TfaAvailable[]
 }
 
+// --- /settings ---
+
+/** Nomi delle opzioni noti al backend (Database/Entities/Options.cs). */
+export const OPTION = {
+  smtpHost: 'smtp_host',
+  smtpPort: 'smtp_port',
+  smtpUser: 'smtp_user',
+  smtpPassword: 'smtp_password',
+} as const
+
+export interface SettingItem {
+  name: string
+  /** Null per le opzioni segrete: usa `hasValue` per sapere se è impostata. */
+  value: string | null
+  isSecret: boolean
+  hasValue: boolean
+  lastUpdateUtc: string
+}
+
+export interface SettingsResult {
+  items: SettingItem[]
+}
+
+export interface UpdateSettingsRequest {
+  options: Record<string, string>
+}
+
 // --- /auth/login ---
 
 export interface LoginRequest {

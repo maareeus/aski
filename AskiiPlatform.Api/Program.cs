@@ -2,6 +2,7 @@ using Askii.Authorization;
 using Askii.Common.Exceptions;
 using Askii.Database;
 using Askii.Features.Auth;
+using Askii.Features.Settings;
 using Askii.Features.Users;
 using Asp.Versioning;
 using Microsoft.EntityFrameworkCore;

@@ -5,6 +5,8 @@ import type {
   UserListItem,
   UserListQuery,
   UserDetail,
+  SettingsResult,
+  UpdateSettingsRequest,
   ChangePasswordRequest,
   CreateUserRequest,
   CreateUserResult,
@@ -22,6 +24,14 @@ import type {
 
 export const authApi = {
   login: (body: LoginRequest) => post<LoginResult>('/auth/login', body),
+}
+
+export const settingsApi = {
+  /** Admin. Il valore delle opzioni segrete non viene restituito. */
+  get: () => get<SettingsResult>('/settings'),
+
+  /** Admin. Le chiavi non presenti a db vengono ignorate senza errore. */
+  update: (body: UpdateSettingsRequest) => post<void>('/settings/update', body),
 }
 
 export const usersApi = {

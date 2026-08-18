@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { KeyRound, LayoutDashboard, ShieldCheck, Users } from 'lucide-react'
+import { KeyRound, LayoutDashboard, Settings, ShieldCheck, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
   Sidebar,
@@ -34,7 +34,10 @@ const SEZIONI: { titolo: string; voci: Voce[] }[] = [
   },
   {
     titolo: 'Gestione',
-    voci: [{ to: '/users', label: 'Utenti', icon: Users, soloAdmin: true }],
+    voci: [
+      { to: '/users', label: 'Utenti', icon: Users, soloAdmin: true },
+      { to: '/settings', label: 'Impostazioni', icon: Settings, soloAdmin: true },
+    ],
   },
   {
     titolo: 'Il mio account',

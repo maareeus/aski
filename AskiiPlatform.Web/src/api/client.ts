@@ -68,8 +68,12 @@ async function invia<TResponse>(path: string, init: RequestInit): Promise<TRespo
     throw new ApiError(res.status, await messaggioDiErrore(res))
   }
 
-  if (res.status === 204) return undefined as TResponse
-  return (await res.json()) as TResponse
+  // Non basta controllare il 204: un endpoint può rispondere 200 con corpo
+  // vuoto (Results.Ok() senza valore), e in quel caso res.json() solleverebbe
+  // "Unexpected end of JSON input" facendo apparire come errore una scrittura
+  // andata a buon fine.
+  const testo = await res.text()
+  return (testo ? (JSON.parse(testo) as TResponse) : (undefined as TResponse))
 }
 
 export function post<TResponse>(path: string, body: unknown): Promise<TResponse> {

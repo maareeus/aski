@@ -8,6 +8,7 @@ import { DashboardPage } from '@/pages/DashboardPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { ProfilePage } from '@/pages/ProfilePage'
+import { SettingsPage } from '@/pages/SettingsPage'
 import { UsersListPage } from '@/pages/UsersListPage'
 import { UserCreatePage } from '@/pages/users/UserCreatePage'
 import { UserDetailPage } from '@/pages/users/UserDetailPage'
@@ -28,6 +29,10 @@ export default function App() {
               <Route index element={<DashboardPage />} />
               <Route path="profile" element={<ProfilePage />} />
               <Route path="password" element={<ChangePasswordPage />} />
+
+              <Route path="settings" element={<RequireAdmin />}>
+                <Route index element={<SettingsPage />} />
+              </Route>
 
               <Route path="users" element={<RequireAdmin />}>
                 <Route index element={<UsersListPage />} />
